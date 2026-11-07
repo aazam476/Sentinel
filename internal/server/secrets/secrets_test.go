@@ -210,7 +210,10 @@ func FuzzDecrypt(f *testing.F) {
 		if err != nil && !errors.Is(err, secrets.ErrDecrypt) {
 			t.Fatalf("Decrypt returned an unexpected error type: %v", err)
 		}
-		if err == nil && !bytes.Equal(input, sealed) {
+		// Each fuzz worker process encrypts its own copy of the seed with a
+		// different random nonce, so the only thing to compare against is
+		// what the seed contains. A forgery would decrypt to anything else.
+		if err == nil && (string(plaintext) != "seed" || string(associatedData) != "purpose") {
 			t.Fatalf("Decrypt accepted a forged ciphertext and returned %q", plaintext)
 		}
 	})
