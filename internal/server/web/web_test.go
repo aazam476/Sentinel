@@ -49,6 +49,14 @@ func TestNewHandler(t *testing.T) {
 			wantContentType: "text/javascript; charset=utf-8",
 		},
 		{
+			name:            "serves a stylesheet as text/css",
+			files:           builtUI(),
+			path:            "/assets/index.css",
+			wantStatus:      http.StatusOK,
+			wantBodyContain: "body{}",
+			wantContentType: "text/css; charset=utf-8",
+		},
+		{
 			name:       "returns not found for a missing file",
 			files:      builtUI(),
 			path:       "/assets/missing.js",

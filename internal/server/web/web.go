@@ -51,6 +51,10 @@ func NewHandler(files fs.FS) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
+		// The file server keeps a Content-Type that is already set.
+		if contentType := contentTypeForPath(r.URL.Path); contentType != "" {
+			w.Header().Set("Content-Type", contentType)
+		}
 		fileServer.ServeHTTP(w, r)
 	})
 }
