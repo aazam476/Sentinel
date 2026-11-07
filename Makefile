@@ -51,7 +51,7 @@ dev: ## Start the server and the web UI dev server with hot reload
 # ---- Linting -----------------------------------------------------------------
 
 .PHONY: lint
-lint: lint-go lint-web check-headers ## Run every linter and formatting check
+lint: lint-go lint-web check-headers check-generated-types ## Run every linter and formatting check
 
 .PHONY: lint-go
 lint-go: ## gofmt, go vet and golangci-lint
@@ -65,6 +65,14 @@ lint-web: web/node_modules ## eslint, tsc and prettier
 	cd web && $(NPM) run lint
 	cd web && $(NPM) run typecheck
 	cd web && $(NPM) run format:check
+
+.PHONY: gen-types
+gen-types: ## Regenerate web/src/api/types.gen.ts from the Go API types
+	scripts/gen-types.sh
+
+.PHONY: check-generated-types
+check-generated-types: ## Check web/src/api/types.gen.ts matches the Go API types
+	scripts/check-generated-types.sh
 
 .PHONY: check-headers
 check-headers: ## Check every source file starts with the SPDX license header

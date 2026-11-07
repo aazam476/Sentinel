@@ -18,6 +18,12 @@ anything GPL-family.
 | ↳ reviewed 2026-11-07 | | | `LICENSE-3RD-PARTY.md` in the module lists every linked component as BSD-3-Clause, MIT or public domain (SQLite itself). GPL text appears there only for tools used by its own test suite, which are never compiled into Sentinel | |
 | modernc.org/libc, mathutil, memory; github.com/dustin/go-humanize, google/uuid, mattn/go-isatty, ncruces/go-strftime, remyoudompheng/bigfft | (indirect) | BSD-3-Clause, MIT | The C-to-Go runtime that modernc.org/sqlite is built on | Pulled in by modernc.org/sqlite |
 
+## Go tools (never compiled into Sentinel)
+
+| Module | Version | License | What it's for | Why not without it |
+|---|---|---|---|---|
+| github.com/gzuidhof/tygo | v0.2.21 | MIT | Generates `web/src/api/types.gen.ts` from the Go API structs (`make gen-types`) | Hand-written TypeScript copies of the API types would drift from the server |
+
 ## Web UI: shipped to the browser
 
 | Package | Version | License | What it's for | Why not without it |

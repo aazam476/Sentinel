@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Generates TypeScript types for the web UI from the Go API structs, so the
+# two can't drift apart. Run `make gen-types` after changing an API type;
+# CI fails when web/src/api/types.gen.ts is out of date.
+packages:
+  - path: "github.com/aazam476/sentinel/internal/server/api"
+    output_path: "web/src/api/types.gen.ts"
+    # Handlers and wiring, not wire types.
+    exclude_files:
+      - "router.go"
+      - "server.go"
+      - "requests.go"
+      - "health.go"
+    frontmatter: |
+      // SPDX-License-Identifier: Apache-2.0
+      //
+      // Generated from internal/server/api by `make gen-types`. Do not edit.

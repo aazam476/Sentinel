@@ -36,7 +36,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - name: Install golangci-lint
         run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
-      - name: gofmt, go vet, golangci-lint, eslint, tsc, prettier, license headers
+      - name: gofmt, go vet, golangci-lint, eslint, tsc, prettier, license headers, generated types
         run: make lint
 
   test:

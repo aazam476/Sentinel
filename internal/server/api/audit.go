@@ -15,12 +15,12 @@ import (
 type AuditEntry struct {
 	ID       int64  `json:"id"`
 	Time     int64  `json:"time"`
-	UserID   *int64 `json:"userId"`
+	UserID   *int64 `json:"userId" tstype:"number | null,required"`
 	Username string `json:"username"`
-	AgentID  *int64 `json:"agentId"`
+	AgentID  *int64 `json:"agentId" tstype:"number | null,required"`
 	Action   string `json:"action"`
 	// Details holds action-specific facts as a JSON object.
-	Details      json.RawMessage `json:"details" tstype:"Record<string, unknown>"`
+	Details      json.RawMessage `json:"details" tstype:"{ [key: string]: unknown }"`
 	Outcome      string          `json:"outcome"`
 	IP           string          `json:"ip"`
 	PreviousHash string          `json:"previousHash"`
@@ -32,7 +32,7 @@ type AuditEntriesResponse struct {
 	Entries []AuditEntry `json:"entries"`
 	// NextBefore is the "before" value for the next page, or null at the
 	// oldest entry.
-	NextBefore *int64 `json:"nextBefore"`
+	NextBefore *int64 `json:"nextBefore" tstype:"number | null,required"`
 }
 
 // AuditVerifyResponse is the result of checking the hash chain (SEC-41).

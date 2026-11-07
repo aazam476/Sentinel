@@ -45,7 +45,7 @@ type SessionResponse struct {
 	User  UserIdentity `json:"user"`
 	// StepUpValidUntil is when the current step-up window ends (Unix
 	// milliseconds), for signed-in sessions.
-	StepUpValidUntil *int64 `json:"stepUpValidUntil"`
+	StepUpValidUntil *int64 `json:"stepUpValidUntil" tstype:"number | null,required"`
 }
 
 // UserIdentity is who the session belongs to.
@@ -61,7 +61,7 @@ type SignedInResponse struct {
 	// RecoveryCodes are shown once, after setup or enrollment.
 	RecoveryCodes []string `json:"recoveryCodes"`
 	// RemainingRecoveryCodes is set after signing in with a recovery code.
-	RemainingRecoveryCodes *int `json:"remainingRecoveryCodes"`
+	RemainingRecoveryCodes *int `json:"remainingRecoveryCodes" tstype:"number | null,required"`
 }
 
 func (h *handlers) handleLogin(w http.ResponseWriter, r *http.Request) {
