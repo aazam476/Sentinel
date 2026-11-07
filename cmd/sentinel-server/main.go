@@ -39,6 +39,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return exitOK
 		case "audit":
 			return runAudit(args[1:], stdout, stderr)
+		case "reset-admin":
+			return runResetAdmin(args[1:], stdout, stderr)
 		}
 	}
 
@@ -93,6 +95,8 @@ func printUsage(flags *flag.FlagSet) {
 	_, _ = fmt.Fprintln(output, "Usage:")
 	_, _ = fmt.Fprintln(output, "  sentinel-server [flags]    run the server")
 	_, _ = fmt.Fprintln(output, "  sentinel-server version    print the version and exit")
+	_, _ = fmt.Fprintln(output, "  sentinel-server reset-admin [--data-dir dir] [--username name]")
+	_, _ = fmt.Fprintln(output, "                             reset an admin's password and 2FA (run on the server host)")
 	_, _ = fmt.Fprintln(output, "  sentinel-server audit verify [--data-dir dir]")
 	_, _ = fmt.Fprintln(output, "                             check the audit log's hash chain")
 	_, _ = fmt.Fprintln(output, "  sentinel-server audit export [--data-dir dir] [--format json|csv]")

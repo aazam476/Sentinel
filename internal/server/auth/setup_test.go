@@ -88,6 +88,13 @@ func TestSEC01_SetupTokenIsDeletedAfterSetup(t *testing.T) {
 		}
 	})
 
+	t.Run("refuses to complete a second setup", func(t *testing.T) {
+		_, err := h.service.CompleteSetup(t.Context(), auth.CompleteSetupInput{SetupToken: "anything", SetupID: "x", TOTPCode: "000000"}, testClient())
+		if !errors.Is(err, auth.ErrSetupNotAvailable) {
+			t.Errorf("CompleteSetup error = %v, want ErrSetupNotAvailable", err)
+		}
+	})
+
 	t.Run("refuses a second setup", func(t *testing.T) {
 		_, err := h.service.BeginSetup(t.Context(), auth.BeginSetupInput{SetupToken: "anything", Username: "x", Password: strongPassword}, testClient())
 		if !errors.Is(err, auth.ErrSetupNotAvailable) {

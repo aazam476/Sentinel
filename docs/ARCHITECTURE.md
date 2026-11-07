@@ -93,6 +93,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/httpserver/` | Opens the listening socket and serves HTTP | Built |
 | `internal/server/store/` | SQLite connection, transactions, single writer, migrations | Built |
 | `internal/server/auth/` | Setup token, passwords, TOTP, recovery codes, sessions, rate limiting, roles | Built |
+| `internal/server/localaccess/` | Checks who may run `reset-admin` on the server host | Built |
 | `internal/server/audit/` | Append-only, hash-chained audit log; verify and export | Built |
 | `internal/server/secrets/` | Encrypts stored secrets with the key in `secret.key` | Built |
 | `internal/server/web/` | Embeds the built React app into the server binary | Built |
