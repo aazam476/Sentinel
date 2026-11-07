@@ -10,8 +10,10 @@ anything GPL-family.
 | Module | Version | License | What it's for | Why not the standard library |
 |---|---|---|---|---|
 | github.com/BurntSushi/toml | v1.6.0 | MIT | Reading `server.toml` | The standard library has no TOML parser; TOML is easier for people to edit than JSON |
-| golang.org/x/crypto | v0.58.0 | BSD-3-Clause | ACME certificates (`acme/autocert`), and later Argon2id password hashing | Maintained by the Go team but kept outside the standard library |
+| golang.org/x/crypto | v0.58.0 | BSD-3-Clause | ACME certificates (`acme/autocert`) and Argon2id password hashing | Maintained by the Go team but kept outside the standard library |
 | golang.org/x/net, golang.org/x/text | (indirect) | BSD-3-Clause | Required by `golang.org/x/crypto/acme` | Pulled in by the module above |
+| github.com/pquerna/otp | v1.5.0 | Apache-2.0 | TOTP secrets, codes, otpauth URLs and QR codes for authenticator apps | TOTP and QR encoding aren't in the standard library |
+| github.com/boombuler/barcode | (indirect) | MIT | Draws the QR code for `pquerna/otp` | Pulled in by the module above |
 | modernc.org/sqlite | v1.61.1 | BSD-3-Clause | The SQLite database, in pure Go | No embedded database in the standard library; pure Go keeps the server buildable with `CGO_ENABLED=0` |
 | ↳ reviewed 2026-11-07 | | | `LICENSE-3RD-PARTY.md` in the module lists every linked component as BSD-3-Clause, MIT or public domain (SQLite itself). GPL text appears there only for tools used by its own test suite, which are never compiled into Sentinel | |
 | modernc.org/libc, mathutil, memory; github.com/dustin/go-humanize, google/uuid, mattn/go-isatty, ncruces/go-strftime, remyoudompheng/bigfft | (indirect) | BSD-3-Clause, MIT | The C-to-Go runtime that modernc.org/sqlite is built on | Pulled in by modernc.org/sqlite |
@@ -48,6 +50,12 @@ anything GPL-family.
 | eslint-plugin-react-refresh | 0.5.7 | MIT | Keeps components compatible with hot reload | Prevents confusing hot-reload failures |
 | globals | 17.14.0 | MIT | Lists of browser and Node global names for ESLint | Needed by ESLint's flat config |
 | prettier | 3.9.10 | MIT | Code formatting | Ends formatting debates; CI checks it |
+
+## Bundled data
+
+| Data | License | What it's for |
+|---|---|---|
+| Common password list from [SecLists](https://github.com/danielmiessler/SecLists) | MIT | Rejecting commonly used passwords (`internal/server/auth/commonpasswords/`) |
 
 `web/package.json` also forces `playwright-core` to 1.63.0 for every package, so
 `@axe-core/playwright` uses the same Playwright as the tests (ADR 0006).
