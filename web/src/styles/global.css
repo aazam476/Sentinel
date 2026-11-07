@@ -1,0 +1,51 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/*
+ * Page-wide defaults that make the app behave like an installed app on a
+ * phone rather than a web page. Component styles live in CSS Modules.
+ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Mobile browsers flash a gray box over tapped controls; every control
+     gets its own :active state instead. */
+  -webkit-tap-highlight-color: transparent;
+  /* Stops iOS from inflating text in landscape. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* The app has its own scroll areas; pull-to-refresh and page bounce would
+     fight them. */
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* iOS zooms into any input with text smaller than 16px and doesn't zoom back. */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+/* Controls fire immediately (no double-tap-zoom wait) and a long press
+   doesn't select their label. Content text stays selectable. */
+button,
+a,
+[role='button'] {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}

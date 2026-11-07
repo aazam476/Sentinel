@@ -1,0 +1,9 @@
+Sentinel
+Copyright 2026 The Sentinel Authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party attribution notices required by Sentinel's dependencies are listed
+below. At present no dependency compiled into the Sentinel binaries requires
+one; the web UI's bundled dependencies (React, React DOM) are MIT licensed and
+their notices are kept in the built JavaScript files.

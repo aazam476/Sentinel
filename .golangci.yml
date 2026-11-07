@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Linter settings. Several linters enforce the readability rules in
+# docs/CONTRIBUTING.md (function length, nesting, no globals, no init).
+version: "2"
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - bodyclose
+    - errorlint # errors are compared with errors.Is / errors.As
+    - funlen # functions stay short
+    - gochecknoglobals # no package-level mutable state
+    - gochecknoinits # no init()
+    - gocognit
+    - gosec
+    - misspell
+    - nestif # shallow nesting
+    - noctx # network calls take a context
+    - nolintlint # every //nolint names its linter and says why
+    - revive # exported identifiers have doc comments
+    - unparam
+  settings:
+    funlen:
+      lines: 60
+      statements: -1
+    gocognit:
+      min-complexity: 20
+    nestif:
+      min-complexity: 4
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: var-naming
+        - name: error-strings
+        - name: error-naming
+        - name: receiver-naming
+        - name: indent-error-flow
+        - name: early-return
+  exclusions:
+    rules:
+      # Table-driven tests are long by nature: each case is a few lines of data.
+      - path: _test\.go
+        linters:
+          - funlen
+          - gocognit
+      # Tests build Sentinel's own binaries and run them with arguments the
+      # test chose; that is the point of the command-line contract tests.
+      - path: (_test\.go|internal/testutil/)
+        linters:
+          - gosec
+        text: G204
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

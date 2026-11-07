@@ -1,0 +1,15 @@
+# Build output
+/bin/
+/coverage.out
+/internal/server/web/dist/*
+!/internal/server/web/dist/.gitkeep
+
+# Go fuzzing writes failing inputs here; commit them deliberately as regression
+# cases with `git add -f` after fixing the bug.
+testdata/fuzz/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp

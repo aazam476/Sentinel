@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Security requirements (SEC-xx) that have code in the repository.
+# scripts/check-sec-coverage.sh fails unless every ID listed here has a test
+# named after it, and unless every SEC ID mentioned in non-test code is listed.
+#
+# Add an ID when you write the first code for it. One ID per line; text after
+# the ID is a reminder of what it covers.
+
+SEC-10  Plain HTTP is only served on loopback addresses
