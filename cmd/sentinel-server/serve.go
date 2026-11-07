@@ -6,49 +6,48 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
-	"github.com/aazam476/sentinel/internal/server/api"
+	"github.com/aazam476/sentinel/internal/server/app"
+	"github.com/aazam476/sentinel/internal/server/auth"
 	"github.com/aazam476/sentinel/internal/server/config"
 	"github.com/aazam476/sentinel/internal/server/httpserver"
-	"github.com/aazam476/sentinel/internal/server/middleware"
 	"github.com/aazam476/sentinel/internal/server/servertls"
-	"github.com/aazam476/sentinel/internal/server/store"
-	"github.com/aazam476/sentinel/internal/server/web"
 	"github.com/aazam476/sentinel/internal/shared/buildinfo"
 	"github.com/aazam476/sentinel/internal/shared/clock"
 )
 
 // serve runs the server until the process receives an interrupt or
-// terminate signal.
-func serve(logger *slog.Logger, settings config.Config) error {
+// terminate signal. stdout receives the setup token on a fresh install.
+func serve(logger *slog.Logger, stdout io.Writer, settings config.Config) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := os.MkdirAll(settings.DataDir, 0o700); err != nil {
-		return fmt.Errorf("create data directory: %w", err)
-	}
-	database, err := store.Open(ctx, filepath.Join(settings.DataDir, "sentinel.db"), clock.System{})
+	server, err := app.New(ctx, app.Options{Settings: settings, Logger: logger, Clock: clock.System{}})
 	if err != nil {
 		return err
 	}
-	defer closeDatabase(logger, database)
+	defer closeApp(logger, server)
 
-	handler, err := buildHandler(settings)
-	if err != nil {
+	if err := announceSetupToken(ctx, server.Auth, stdout, logger); err != nil {
 		return err
 	}
+	return listenAndServe(ctx, logger, settings, server.Handler)
+}
+
+// listenAndServe opens the listening socket, adds TLS when it is on, and
+// serves until ctx is canceled.
+func listenAndServe(ctx context.Context, logger *slog.Logger, settings config.Config, handler http.Handler) error {
 	tlsConfig, err := buildTLSConfig(settings)
 	if err != nil {
 		return err
 	}
-
 	listener, err := httpserver.Listen(ctx, settings.ListenAddress)
 	if err != nil {
 		return err
@@ -71,31 +70,28 @@ func serve(logger *slog.Logger, settings config.Config) error {
 	return nil
 }
 
-// closeDatabase closes the database at shutdown. A failure is logged rather
-// than returned because the server is stopping either way.
-func closeDatabase(logger *slog.Logger, database *store.Store) {
-	if err := database.Close(); err != nil {
-		logger.Error("close database", "error", err)
+// announceSetupToken prints the setup token while no admin exists (SEC-01),
+// so the person installing Sentinel can find it in the terminal or in
+// `docker logs`. It is also in <data dir>/setup-token.
+func announceSetupToken(ctx context.Context, authService *auth.Service, stdout io.Writer, logger *slog.Logger) error {
+	token, err := authService.PrepareSetupToken(ctx)
+	if err != nil {
+		return err
 	}
+	if token == "" {
+		return nil
+	}
+	logger.Info("no admin exists yet; open the web UI and enter the setup token printed below")
+	_, _ = fmt.Fprintf(stdout, "\nSentinel setup token: %s\n\n", token) // nothing more to do if stdout is gone
+	return nil
 }
 
-// buildHandler assembles the routes and wraps them in the protections every
-// request needs. The order is described in internal/server/middleware.
-func buildHandler(settings config.Config) (http.Handler, error) {
-	webUI, err := web.Handler(settings.BasePath)
-	if err != nil {
-		return nil, err
+// closeApp closes the database at shutdown. A failure is logged rather
+// than returned because the server is stopping either way.
+func closeApp(logger *slog.Logger, server *app.App) {
+	if err := server.Close(); err != nil {
+		logger.Error("close database", "error", err)
 	}
-
-	handler := api.NewRouter(api.RouterOptions{WebUI: webUI})
-	handler = middleware.RequireSameOrigin(handler, settings.PublicURL)
-	handler = middleware.WithClientInfo(handler, settings.TrustedProxies)
-	handler = middleware.WithBasePath(handler, settings.BasePath)
-	handler = middleware.SecurityHeaders(handler, middleware.SecurityHeadersOptions{
-		// Only a certificate from a real authority is safe to pin with HSTS.
-		StrictTransportSecurity: settings.TLS.Mode == config.TLSACME,
-	})
-	return handler, nil
 }
 
 // buildTLSConfig returns the TLS settings for the configured mode, or nil

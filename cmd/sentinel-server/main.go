@@ -66,7 +66,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		logger.Error("invalid configuration", "error", err)
 		return exitFailure
 	}
-	if err := serve(logger, settings); err != nil {
+	if err := serve(logger, stdout, settings); err != nil {
 		logger.Error("server failed", "error", err)
 		return exitFailure
 	}

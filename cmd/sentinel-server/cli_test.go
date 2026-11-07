@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/aazam476/sentinel/internal/testutil/clitest"
@@ -139,6 +140,22 @@ func TestSEC10_ServerUsesTLSByDefault(t *testing.T) {
 	})
 }
 
+func TestSEC01_ServerPrintsTheSetupTokenOnFirstStart(t *testing.T) {
+	binary := clitest.Build(t, serverPackage)
+	dataDir := t.TempDir()
+	_, stdout := startServerWithOutput(t, binary, "--config", filepath.Join(dataDir, "missing.toml"),
+		"--data-dir", dataDir, "--listen", "127.0.0.1:0")
+
+	saved, err := os.ReadFile(filepath.Join(dataDir, "setup-token"))
+	if err != nil {
+		t.Fatalf("setup-token: %v", err)
+	}
+	token := strings.TrimSpace(string(saved))
+	if len(token) != 52 || !strings.Contains(stdout.String(), "Sentinel setup token: "+token) {
+		t.Errorf("stdout = %q, want the token from setup-token (%q)", stdout.String(), token)
+	}
+}
+
 func TestServerServesPlainHTTPOnLoopback(t *testing.T) {
 	binary := clitest.Build(t, serverPackage)
 	configPath := writeFile(t, "server.toml", "[tls]\nmode = \"off\"\n")
@@ -155,7 +172,17 @@ func TestServerServesPlainHTTPOnLoopback(t *testing.T) {
 // address it listens on.
 func startServer(t *testing.T, binary string, args ...string) string {
 	t.Helper()
+	address, _ := startServerWithOutput(t, binary, args...)
+	return address
+}
+
+// startServerWithOutput is startServer that also returns what the server
+// printed on stdout, which is complete once the server is listening.
+func startServerWithOutput(t *testing.T, binary string, args ...string) (string, *lockedBuffer) {
+	t.Helper()
+	stdout := &lockedBuffer{}
 	command := exec.CommandContext(t.Context(), binary, args...)
+	command.Stdout = stdout
 	stderr, err := command.StderrPipe()
 	if err != nil {
 		t.Fatalf("stderr pipe: %v", err)
@@ -166,7 +193,7 @@ func startServer(t *testing.T, binary string, args ...string) string {
 	// t.Context is canceled when the test ends, which kills the server.
 	t.Cleanup(func() { _ = command.Wait() }) // the exit error after being killed is expected
 
-	return waitForListeningAddress(t, stderr)
+	return waitForListeningAddress(t, stderr), stdout
 }
 
 // waitForListeningAddress reads the server's log until it reports the
@@ -191,6 +218,25 @@ func waitForListeningAddress(t *testing.T, logOutput io.Reader) string {
 	}
 	t.Fatalf("server exited before logging its listening address (scan error: %v)", scanner.Err())
 	return ""
+}
+
+// lockedBuffer collects output written by another goroutine (exec copies a
+// process's stdout in its own goroutine).
+type lockedBuffer struct {
+	mutex  sync.Mutex
+	buffer strings.Builder
+}
+
+func (b *lockedBuffer) Write(data []byte) (int, error) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	return b.buffer.Write(data)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	return b.buffer.String()
 }
 
 // clientTrusting returns an HTTP client that trusts only the certificate in
