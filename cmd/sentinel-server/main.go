@@ -1,29 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
-// Command sentinel-server runs the central Sentinel server: the web UI today,
-// and the API, database and agent connections as they are built.
+// Command sentinel-server runs the central Sentinel server: the web UI, the
+// API, the database and, later, the agent connections.
 //
-// This file only wires things together. The logic lives in internal/server.
+// This file only parses the command line. serve.go wires the packages in
+// internal/server together.
 package main
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
-	"os/signal"
-	"syscall"
 
-	"github.com/aazam476/sentinel/internal/server/httpserver"
-	"github.com/aazam476/sentinel/internal/server/web"
+	"github.com/aazam476/sentinel/internal/server/config"
 	"github.com/aazam476/sentinel/internal/shared/buildinfo"
 )
-
-// defaultListenAddress is loopback-only because TLS isn't implemented yet.
-const defaultListenAddress = "127.0.0.1:7443"
 
 // Exit codes. 2 matches what the flag package uses for usage errors.
 const (
@@ -46,8 +40,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("sentinel-server", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.Usage = func() { printUsage(flags) }
-	listenAddress := flags.String("listen", defaultListenAddress,
-		"address to serve HTTP on; must be a loopback address until TLS is supported")
+	configPath := flags.String("config", config.DefaultPath, "path to server.toml")
+	listen := flags.String("listen", "", "address to listen on, overriding the config file (default \""+config.DefaultListen+"\")")
+	dataDir := flags.String("data-dir", "", "data directory, overriding the config file (default \""+config.DefaultDataDir+"\")")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return exitOK
@@ -61,35 +56,31 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, nil))
-	if err := serve(logger, *listenAddress); err != nil {
+	settings, err := loadConfig(*configPath, *listen, *dataDir)
+	if err != nil {
+		logger.Error("invalid configuration", "error", err)
+		return exitFailure
+	}
+	if err := serve(logger, settings); err != nil {
 		logger.Error("server failed", "error", err)
 		return exitFailure
 	}
 	return exitOK
 }
 
-// serve runs the HTTP server until the process receives an interrupt or
-// terminate signal.
-func serve(logger *slog.Logger, listenAddress string) error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	handler, err := web.Handler()
+// loadConfig reads the config file and applies command-line overrides.
+func loadConfig(path, listen, dataDir string) (config.Config, error) {
+	file, err := config.Load(path)
 	if err != nil {
-		return err
+		return config.Config{}, err
 	}
-
-	listener, err := httpserver.Listen(ctx, listenAddress)
-	if err != nil {
-		return err
+	if listen != "" {
+		file.Listen = listen
 	}
-
-	logger.Info("server listening", "address", listener.Addr().String(), "version", buildinfo.Version())
-	if err := httpserver.Serve(ctx, listener, handler); err != nil {
-		return err
+	if dataDir != "" {
+		file.DataDir = dataDir
 	}
-	logger.Info("server stopped")
-	return nil
+	return file.Resolve()
 }
 
 func printUsage(flags *flag.FlagSet) {

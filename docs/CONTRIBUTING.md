@@ -29,13 +29,15 @@ make dev
 ```
 
 This builds the web UI and the server, starts `sentinel-server` on
-<http://127.0.0.1:7443>, and starts the Vite dev server on <http://127.0.0.1:5173> with hot
-reload. Work on the UI through port 5173; requests to `/api`, `/healthz` and `/agent` are
+<https://127.0.0.1:7443> with a self-signed certificate, and starts the Vite dev server on
+<http://127.0.0.1:5173> with hot reload. **Use <http://127.0.0.1:5173>.** It is the
+configured public URL in development, and requests to `/api`, `/healthz` and `/agent` are
 forwarded to the Go server. Press Ctrl+C to stop both.
 
-Until TLS is implemented the server speaks plain HTTP and refuses any address that isn't
-loopback ([ADR 0002](decisions/0002-loopback-only-until-tls.md)). A local agent will be
-started and enrolled by `make dev` once agents exist.
+The development settings live in `.dev/server.toml` and the data in `.dev/data/`; delete
+`.dev/` to start again from a fresh install. See
+[ADR 0007](decisions/0007-server-configuration-and-tls.md) for every setting. A local agent
+will be started and enrolled by `make dev` once agents exist.
 
 ## Run the tests
 

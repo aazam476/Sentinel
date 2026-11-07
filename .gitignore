@@ -13,3 +13,6 @@ testdata/fuzz/
 .idea/
 .vscode/
 *.swp
+
+# Local development data created by scripts/run-dev.sh
+/.dev/

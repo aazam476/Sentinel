@@ -7,7 +7,11 @@ anything GPL-family.
 
 ## Go modules
 
-The server and agent use only the Go standard library so far.
+| Module | Version | License | What it's for | Why not the standard library |
+|---|---|---|---|---|
+| github.com/BurntSushi/toml | v1.6.0 | MIT | Reading `server.toml` | The standard library has no TOML parser; TOML is easier for people to edit than JSON |
+| golang.org/x/crypto | v0.58.0 | BSD-3-Clause | ACME certificates (`acme/autocert`), and later Argon2id password hashing | Maintained by the Go team but kept outside the standard library |
+| golang.org/x/net, golang.org/x/text | (indirect) | BSD-3-Clause | Required by `golang.org/x/crypto/acme` | Pulled in by the module above |
 
 ## Web UI: shipped to the browser
 

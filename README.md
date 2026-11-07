@@ -13,8 +13,7 @@ for terminals, Docker, ZFS-aware storage views and remote desktop.
 - **Readable code.** A student should be able to open any file and understand it.
 
 > **Status: early development.** Nothing is usable yet. The project is being built
-> milestone by milestone towards a single beta release, `v0.1.0-beta.1`. Today the server
-> only serves a placeholder page.
+> milestone by milestone towards a single beta release, `v0.1.0-beta.1`.
 
 ## Quick start (development)
 
@@ -26,8 +25,7 @@ cd sentinel
 make dev
 ```
 
-Then open <http://127.0.0.1:5173> (the web UI with hot reload) or
-<http://127.0.0.1:7443> (the UI as the server serves it).
+Then open <http://127.0.0.1:5173>, the web UI with hot reload in front of the server.
 
 Screenshots will be added here once there is a dashboard to show.
 

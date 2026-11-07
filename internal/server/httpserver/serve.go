@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -23,12 +24,18 @@ const shutdownTimeout = 10 * time.Second
 // Serve serves HTTP requests on listener with handler until ctx is canceled,
 // then shuts down gracefully. It takes ownership of listener and closes it.
 //
+// Connection-level problems the HTTP server can't attribute to a request,
+// such as failed TLS handshakes, go to logger at debug level: with a
+// self-signed certificate every browser that hasn't accepted it yet causes
+// one, so they are expected noise rather than warnings.
+//
 // It returns nil after a graceful shutdown, or the error that stopped the
 // server otherwise.
-func Serve(ctx context.Context, listener net.Listener, handler http.Handler) error {
+func Serve(ctx context.Context, listener net.Listener, handler http.Handler, logger *slog.Logger) error {
 	server := &http.Server{
 		Handler:           handler,
 		ReadHeaderTimeout: readHeaderTimeout,
+		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelDebug),
 	}
 
 	shutdownDone := make(chan error, 1)

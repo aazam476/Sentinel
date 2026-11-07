@@ -3,31 +3,43 @@
 #
 # Starts a local development environment:
 #
-#   - sentinel-server on http://127.0.0.1:7443, serving the embedded web UI
+#   - sentinel-server on https://127.0.0.1:7443 (self-signed certificate),
+#     keeping its data in .dev/data
 #   - the Vite dev server on http://127.0.0.1:5173, with hot reload, which
 #     forwards API and agent traffic to sentinel-server
 #
-# Open the Vite URL while working on the UI; changes appear without a
-# rebuild. Press Ctrl+C to stop both.
+# Work in the browser at http://127.0.0.1:5173. That is the server's
+# configured public URL in development, so logins and forms only work there.
+# Press Ctrl+C to stop both.
 #
-# The server is plain HTTP on loopback until TLS is implemented
-# (docs/decisions/0002-loopback-only-until-tls.md). A local agent will be
-# started and enrolled here once agents exist.
+# Delete .dev/ to start again from a fresh install.
+# A local agent will be started and enrolled here once agents exist.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-server_address="${SENTINEL_DEV_ADDRESS:-127.0.0.1:7443}"
+dev_dir=".dev"
+config_file="$dev_dir/server.toml"
+mkdir -p "$dev_dir"
+if [ ! -f "$config_file" ]; then
+  cat > "$config_file" <<'TOML'
+# Development settings written by scripts/run-dev.sh. Edit freely.
+listen = "127.0.0.1:7443"
+data_dir = ".dev/data"
+# The browser talks to the Vite dev server, so that is the public origin.
+public_url = "http://127.0.0.1:5173"
+TOML
+fi
 
 echo "==> Building the web UI and the server"
 make build
 
-echo "==> Starting sentinel-server on http://$server_address"
+echo "==> Starting sentinel-server on https://127.0.0.1:7443"
 server_binary="bin/sentinel-server"
 if [ -f "$server_binary.exe" ]; then
   server_binary="$server_binary.exe"
 fi
-"$server_binary" --listen "$server_address" &
+"$server_binary" --config "$config_file" &
 server_pid=$!
 
 # Stop the server however this script exits (Ctrl+C, an error, or Vite quitting).
@@ -40,4 +52,4 @@ stop_server() {
 trap stop_server EXIT
 
 echo "==> Starting the Vite dev server on http://127.0.0.1:5173"
-(cd web && SENTINEL_DEV_BACKEND="http://$server_address" npm run dev)
+(cd web && SENTINEL_DEV_BACKEND="https://127.0.0.1:7443" npm run dev)

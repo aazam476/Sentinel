@@ -1,6 +1,6 @@
 # 0002 — Plain HTTP on loopback only until TLS is implemented
 
-**Date:** 2026-11-07 · **Status:** Accepted
+**Date:** 2026-11-07 · **Status:** Superseded by [0007](0007-server-configuration-and-tls.md)
 
 ## Context
 

@@ -7,4 +7,8 @@
 # Add an ID when you write the first code for it. One ID per line; text after
 # the ID is a reminder of what it covers.
 
-SEC-10  Plain HTTP is only served on loopback addresses
+SEC-10  TLS by default (self-signed, ACME); plain HTTP only on loopback or behind a TLS proxy
+SEC-11  Content-Security-Policy, X-Frame-Options, Referrer-Policy
+SEC-12  CSRF protection: SameSite=Strict cookies plus Origin check
+SEC-13  WebSocket upgrades check the Origin header
+SEC-14  public_url, base_path and trusted_proxies; X-Forwarded-* only from trusted proxies

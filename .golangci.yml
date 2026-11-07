@@ -49,11 +49,12 @@ linters:
           - funlen
           - gocognit
       # Tests build Sentinel's own binaries and run them with arguments the
-      # test chose; that is the point of the command-line contract tests.
+      # test chose, and read files the test itself wrote; that is the point
+      # of the command-line contract tests.
       - path: (_test\.go|internal/testutil/)
         linters:
           - gosec
-        text: G204
+        text: (G204|G304)
 
 formatters:
   enable:

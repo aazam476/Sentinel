@@ -5,6 +5,7 @@ package httpserver_test
 import (
 	"context"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"testing"
@@ -32,7 +33,7 @@ func TestServe(t *testing.T) {
 		listener := listenOnLoopback(t)
 		ctx, cancel := context.WithCancel(context.Background())
 		result := make(chan error, 1)
-		go func() { result <- httpserver.Serve(ctx, listener, http.NotFoundHandler()) }()
+		go func() { result <- httpserver.Serve(ctx, listener, http.NotFoundHandler(), discardLogger()) }()
 
 		cancel()
 
@@ -52,7 +53,7 @@ func TestServe(t *testing.T) {
 		})
 		ctx, cancel := context.WithCancel(context.Background())
 		serveResult := make(chan error, 1)
-		go func() { serveResult <- httpserver.Serve(ctx, listener, handler) }()
+		go func() { serveResult <- httpserver.Serve(ctx, listener, handler, discardLogger()) }()
 
 		bodyResult := make(chan string, 1)
 		go func() { bodyResult <- getBody(t, "http://"+listener.Addr().String()+"/") }()
@@ -74,7 +75,7 @@ func TestServe(t *testing.T) {
 			t.Fatalf("close listener: %v", err)
 		}
 
-		err := httpserver.Serve(context.Background(), listener, http.NotFoundHandler())
+		err := httpserver.Serve(context.Background(), listener, http.NotFoundHandler(), discardLogger())
 
 		if err == nil {
 			t.Fatal("Serve returned nil for a closed listener, want an error")
@@ -97,7 +98,7 @@ func startServing(t *testing.T, listener net.Listener, handler http.Handler) (st
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	result := make(chan error, 1)
-	go func() { result <- httpserver.Serve(ctx, listener, handler) }()
+	go func() { result <- httpserver.Serve(ctx, listener, handler, discardLogger()) }()
 
 	return func() {
 		cancel()
@@ -127,4 +128,8 @@ func getBody(t *testing.T, url string) string {
 		return ""
 	}
 	return string(body)
+}
+
+func discardLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
 }
