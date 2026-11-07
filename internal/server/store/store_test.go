@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -44,6 +45,20 @@ func TestOpen(t *testing.T) {
 		})
 		if appliedCount != distinctCount {
 			t.Errorf("schema_migrations has %d rows for %d versions; a migration ran twice", appliedCount, distinctCount)
+		}
+	})
+
+	t.Run("opens a database whose path contains URI special characters", func(t *testing.T) {
+		directory := filepath.Join(t.TempDir(), "data #1 100%")
+		if err := os.Mkdir(directory, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(directory, "sentinel.db")
+		db := openStore(t, path)
+		setSetting(t, db, "where", `"here"`)
+
+		if _, err := os.Stat(path); err != nil {
+			t.Errorf("database was not created at %s: %v", path, err)
 		}
 	})
 

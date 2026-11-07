@@ -91,13 +91,14 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/api/` | HTTP handlers and the router | `/healthz` |
 | `internal/server/httpserver/` | Opens the listening socket and serves HTTP | Built |
 | `internal/server/store/` | SQLite connection, transactions, single writer, migrations | Built |
+| `internal/server/audit/` | Append-only, hash-chained audit log; verify and export | Built |
 | `internal/server/secrets/` | Encrypts stored secrets with the key in `secret.key` | Built |
 | `internal/server/web/` | Embeds the built React app into the server binary | Built |
 | `internal/shared/buildinfo/` | Version string shared by both binaries | Built |
 | `internal/shared/clock/` | The real clock; tests use `internal/testutil/fakeclock` | Built |
 | `internal/testutil/` | Helpers used only by tests | Built |
 | `internal/protocol/` | Message types shared by server and agent | Planned |
-| `internal/server/{auth,hub,relay,metrics,alerts,audit,scheduler}/` | The rest of the server | Planned |
+| `internal/server/{auth,hub,relay,metrics,alerts,scheduler}/` | The rest of the server | Planned |
 | `internal/agent/<feature>/` | One package per agent feature (terminal, docker, zfs, ...) | Planned |
 | `web/` | The React web UI | Placeholder page |
 | `scripts/` | Dev and CI helper scripts | Built |

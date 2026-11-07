@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	// Registers the pure-Go "sqlite" driver with database/sql. Importing a
@@ -93,7 +94,7 @@ func openConnection(ctx context.Context, path string, readOnly bool) (*sql.DB, e
 		query.Add("_pragma", "query_only(ON)")
 	}
 
-	db, err := sql.Open("sqlite", "file:"+path+"?"+query.Encode())
+	db, err := sql.Open("sqlite", "file:"+escapeURIPath(path)+"?"+query.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("open database %s: %w", path, err)
 	}
@@ -116,6 +117,14 @@ func (s *Store) Close() error {
 // every timestamp column uses.
 func (s *Store) Now() int64 {
 	return s.clock.Now().UnixMilli()
+}
+
+// escapeURIPath makes path safe inside a SQLite URI filename. SQLite decodes
+// %XX escapes and treats "?" as the start of the options and "#" as the end
+// of the name, so a data directory containing any of these would otherwise
+// open the wrong file. https://www.sqlite.org/uri.html
+func escapeURIPath(path string) string {
+	return strings.NewReplacer("%", "%25", "?", "%3f", "#", "%23").Replace(path)
 }
 
 // closeQuietly closes db on an error path where the original error is the

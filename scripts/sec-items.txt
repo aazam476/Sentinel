@@ -12,4 +12,6 @@ SEC-11  Content-Security-Policy, X-Frame-Options, Referrer-Policy
 SEC-12  CSRF protection: SameSite=Strict cookies plus Origin check
 SEC-13  WebSocket upgrades check the Origin header
 SEC-14  public_url, base_path and trusted_proxies; X-Forwarded-* only from trusted proxies
+SEC-40  Append-only, hash-chained audit log
+SEC-41  Audit log view, CSV/JSON export, and verify command
 SEC-42  Stored secrets encrypted with AES-256-GCM using <data dir>/secret.key

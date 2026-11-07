@@ -32,9 +32,14 @@ func main() {
 
 // run executes one invocation of the command and returns its exit code.
 func run(args []string, stdout, stderr io.Writer) int {
-	if len(args) > 0 && args[0] == "version" {
-		_, _ = fmt.Fprintln(stdout, "sentinel-server", buildinfo.Version()) // nothing to do if stdout is gone
-		return exitOK
+	if len(args) > 0 {
+		switch args[0] {
+		case "version":
+			_, _ = fmt.Fprintln(stdout, "sentinel-server", buildinfo.Version()) // nothing to do if stdout is gone
+			return exitOK
+		case "audit":
+			return runAudit(args[1:], stdout, stderr)
+		}
 	}
 
 	flags := flag.NewFlagSet("sentinel-server", flag.ContinueOnError)
@@ -88,6 +93,10 @@ func printUsage(flags *flag.FlagSet) {
 	_, _ = fmt.Fprintln(output, "Usage:")
 	_, _ = fmt.Fprintln(output, "  sentinel-server [flags]    run the server")
 	_, _ = fmt.Fprintln(output, "  sentinel-server version    print the version and exit")
+	_, _ = fmt.Fprintln(output, "  sentinel-server audit verify [--data-dir dir]")
+	_, _ = fmt.Fprintln(output, "                             check the audit log's hash chain")
+	_, _ = fmt.Fprintln(output, "  sentinel-server audit export [--data-dir dir] [--format json|csv]")
+	_, _ = fmt.Fprintln(output, "                             write the audit log to stdout")
 	_, _ = fmt.Fprintln(output, "\nFlags:")
 	flags.PrintDefaults()
 }
