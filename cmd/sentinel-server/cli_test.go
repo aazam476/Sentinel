@@ -102,6 +102,12 @@ func TestSEC10_ServerUsesTLSByDefault(t *testing.T) {
 		}
 	})
 
+	t.Run("creates the database in the data directory", func(t *testing.T) {
+		if _, err := os.Stat(filepath.Join(dataDir, "sentinel.db")); err != nil {
+			t.Errorf("sentinel.db: %v", err)
+		}
+	})
+
 	t.Run("answers the health check", func(t *testing.T) {
 		response := get(t, client, "https://"+address+"/healthz")
 		if response.status != http.StatusOK || response.body != "ok" {

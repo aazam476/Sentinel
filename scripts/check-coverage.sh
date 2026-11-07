@@ -15,9 +15,10 @@ cd "$(dirname "$0")/.."
 
 module="$(go list -m)"
 
-# Packages whose bugs would weaken security. Add the handshake and secrets
-# encryption packages here when they are created.
+# Packages whose bugs would weaken security. Add the handshake package here
+# when it is created.
 security_critical=(
+  "$module/internal/server/secrets"
   "$module/internal/server/auth"
   "$module/internal/server/audit"
   "$module/internal/protocol"

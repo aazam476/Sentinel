@@ -21,7 +21,7 @@ while IFS= read -r file; do
   fi
 done < <(
   git ls-files --cached --others --exclude-standard -- \
-    '*.go' '*.ts' '*.tsx' '*.js' '*.mjs' '*.css' '*.sh' '*.html' '*.yml' '*.yaml' 'Makefile' \
+    '*.go' '*.ts' '*.tsx' '*.js' '*.mjs' '*.css' '*.sh' '*.html' '*.yml' '*.yaml' '*.sql' '*.toml' 'Makefile' \
     ':!:internal/server/web/dist/**'
 )
 

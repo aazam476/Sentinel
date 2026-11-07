@@ -17,7 +17,11 @@ echo "Go modules:"
 # <directory in the module cache>"; the main module itself is skipped.
 while read -r module_path module_dir; do
   [ -n "$module_dir" ] || continue
-  license_files="$(find "$module_dir" -maxdepth 1 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' \))"
+  # Only the module's own license. Some modules also ship an inventory of
+  # third-party notices (LICENSE-3RD-PARTY.md and similar) that mentions
+  # test-only tools; those are reviewed by hand in docs/DEPENDENCIES.md.
+  license_files="$(find "$module_dir" -maxdepth 1 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' \) \
+    ! -iname '*3RD*PARTY*' ! -iname '*THIRD*PARTY*')"
   if [ -z "$license_files" ]; then
     echo "  UNKNOWN  $module_path has no LICENSE file"
     problems=$((problems + 1))

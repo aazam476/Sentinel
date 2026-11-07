@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/aazam476/sentinel/internal/server/api"
@@ -18,6 +19,7 @@ import (
 	"github.com/aazam476/sentinel/internal/server/httpserver"
 	"github.com/aazam476/sentinel/internal/server/middleware"
 	"github.com/aazam476/sentinel/internal/server/servertls"
+	"github.com/aazam476/sentinel/internal/server/store"
 	"github.com/aazam476/sentinel/internal/server/web"
 	"github.com/aazam476/sentinel/internal/shared/buildinfo"
 	"github.com/aazam476/sentinel/internal/shared/clock"
@@ -32,6 +34,11 @@ func serve(logger *slog.Logger, settings config.Config) error {
 	if err := os.MkdirAll(settings.DataDir, 0o700); err != nil {
 		return fmt.Errorf("create data directory: %w", err)
 	}
+	database, err := store.Open(ctx, filepath.Join(settings.DataDir, "sentinel.db"), clock.System{})
+	if err != nil {
+		return err
+	}
+	defer closeDatabase(logger, database)
 
 	handler, err := buildHandler(settings)
 	if err != nil {
@@ -62,6 +69,14 @@ func serve(logger *slog.Logger, settings config.Config) error {
 	}
 	logger.Info("server stopped")
 	return nil
+}
+
+// closeDatabase closes the database at shutdown. A failure is logged rather
+// than returned because the server is stopping either way.
+func closeDatabase(logger *slog.Logger, database *store.Store) {
+	if err := database.Close(); err != nil {
+		logger.Error("close database", "error", err)
+	}
 }
 
 // buildHandler assembles the routes and wraps them in the protections every

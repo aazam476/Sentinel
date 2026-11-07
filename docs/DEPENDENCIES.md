@@ -12,6 +12,9 @@ anything GPL-family.
 | github.com/BurntSushi/toml | v1.6.0 | MIT | Reading `server.toml` | The standard library has no TOML parser; TOML is easier for people to edit than JSON |
 | golang.org/x/crypto | v0.58.0 | BSD-3-Clause | ACME certificates (`acme/autocert`), and later Argon2id password hashing | Maintained by the Go team but kept outside the standard library |
 | golang.org/x/net, golang.org/x/text | (indirect) | BSD-3-Clause | Required by `golang.org/x/crypto/acme` | Pulled in by the module above |
+| modernc.org/sqlite | v1.61.1 | BSD-3-Clause | The SQLite database, in pure Go | No embedded database in the standard library; pure Go keeps the server buildable with `CGO_ENABLED=0` |
+| ↳ reviewed 2026-11-07 | | | `LICENSE-3RD-PARTY.md` in the module lists every linked component as BSD-3-Clause, MIT or public domain (SQLite itself). GPL text appears there only for tools used by its own test suite, which are never compiled into Sentinel | |
+| modernc.org/libc, mathutil, memory; github.com/dustin/go-humanize, google/uuid, mattn/go-isatty, ncruces/go-strftime, remyoudompheng/bigfft | (indirect) | BSD-3-Clause, MIT | The C-to-Go runtime that modernc.org/sqlite is built on | Pulled in by modernc.org/sqlite |
 
 ## Web UI: shipped to the browser
 
