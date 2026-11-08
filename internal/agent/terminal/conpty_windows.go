@@ -83,6 +83,11 @@ func startInConsole(commandLine string, console windows.Handle) (windows.Handle,
 	}
 	startup := windows.StartupInfoEx{ProcThreadAttributeList: attributes.List()}
 	startup.Cb = uint32(unsafe.Sizeof(startup))
+	// Without this, a child whose parent has redirected standard handles
+	// (a service, or `go test` in CI) writes to those instead of to the
+	// pseudo-console: the shell's prompt would go to the agent's log and
+	// the viewer would see nothing. Empty handles make it use the console.
+	startup.Flags |= windows.STARTF_USESTDHANDLES
 	command, err := windows.UTF16PtrFromString(commandLine)
 	if err != nil {
 		return 0, fmt.Errorf("encode command line: %w", err)

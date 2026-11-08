@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 
 	"github.com/coder/websocket"
 )
@@ -67,11 +68,15 @@ func Pipe(ctx context.Context, browser *websocket.Conn, stream AgentStream, open
 	// stopOutput ends copyToBrowser. When the user closes the terminal it
 	// runs before the stream is closed, so copyToBrowser doesn't take the
 	// stream's end for the agent's and close the browser itself: the
-	// caller closes it, after recording the session's end.
-	outputCtx, stopOutput := context.WithCancel(ctx)
+	// caller closes it, after recording the session's end. It is a channel,
+	// not a context: the WebSocket library closes the connection when the
+	// context of a write ends, which would cut the browser off early.
+	stop := make(chan struct{})
+	var once sync.Once
+	stopOutput := func() { once.Do(func() { close(stop) }) }
 	defer stopOutput()
 	out := make(chan int64, 1)
-	go func() { out <- copyToBrowser(outputCtx, browser, stream) }()
+	go func() { out <- copyToBrowser(ctx, browser, stream, stop) }()
 	result := copyToAgent(ctx, browser, stream, resize, stopOutput)
 	stopOutput()
 	result.BytesOut = <-out
@@ -126,11 +131,11 @@ func endAfterReadError(ctx context.Context, stream AgentStream, result Result) R
 
 // copyToBrowser forwards the agent's output, then, when the stream ends,
 // whatever output is still buffered and the reason.
-func copyToBrowser(ctx context.Context, browser *websocket.Conn, stream AgentStream) int64 {
+func copyToBrowser(ctx context.Context, browser *websocket.Conn, stream AgentStream, stop <-chan struct{}) int64 {
 	var sent int64
 	for {
 		select {
-		case <-ctx.Done():
+		case <-stop:
 			return sent
 		case data := <-stream.Frames():
 			if browser.Write(ctx, websocket.MessageBinary, data) != nil {
@@ -138,8 +143,10 @@ func copyToBrowser(ctx context.Context, browser *websocket.Conn, stream AgentStr
 			}
 			sent += int64(len(data))
 		case <-stream.Done():
-			if ctx.Err() != nil {
+			select {
+			case <-stop:
 				return sent // the user closed it; the caller closes the browser
+			default:
 			}
 			sent += drain(ctx, browser, stream)
 			_ = writeStatus(ctx, browser, Status{Type: "closed", Reason: stream.Reason()}) // best effort
