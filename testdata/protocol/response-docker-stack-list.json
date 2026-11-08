@@ -1,0 +1,1 @@
+{"type":"response","id":"01JBX3K5Q7Z8M4N6P8R0T2V4WN","payload":{"dir":"/opt/sentinel/stacks","stacks":[{"name":"blog","managed":true,"containers":{"running":2},"configFiles":["/opt/sentinel/stacks/blog/compose.yaml"],"editable":true},{"name":"media","managed":false,"containers":{"exited":1,"running":2},"configFiles":["/srv/media/docker-compose.yml"],"editable":false}]}}

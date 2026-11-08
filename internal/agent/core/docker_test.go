@@ -9,6 +9,7 @@ import (
 
 	"github.com/aazam476/sentinel/internal/agent/docker"
 	"github.com/aazam476/sentinel/internal/agent/policy"
+	"github.com/aazam476/sentinel/internal/agent/stacks"
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/hub"
 )
@@ -73,10 +74,30 @@ func (d *fakeDocker) RemoveNetwork(_ context.Context, name string) error {
 	return d.record("remove network " + name)
 }
 
+// fakeStacks is the stacks side of a fakeDocker, recording into it.
+type fakeStacks struct{ *fakeDocker }
+
+func (s fakeStacks) List(context.Context) (protocol.StackListPayload, error) {
+	return protocol.StackListPayload{}, s.record("stacks")
+}
+
+func (s fakeStacks) Get(_ context.Context, name string) (protocol.StackFilesPayload, error) {
+	return protocol.StackFilesPayload{}, s.record("get " + name)
+}
+
+func (s fakeStacks) Save(_ context.Context, r protocol.StackSavePayload) error {
+	return s.record("save " + r.Name)
+}
+
+func (s fakeStacks) Up(_ context.Context, name string) error   { return s.record("up " + name) }
+func (s fakeStacks) Down(_ context.Context, name string) error { return s.record("down " + name) }
+func (s fakeStacks) Pull(_ context.Context, name string) error { return s.record("pull stack " + name) }
+
 func startWithDocker(t *testing.T, fake *fakeDocker, localPolicy policy.Policy) (*server, string) {
 	t.Helper()
 	s := newServer(t)
 	s.machine.Docker = fake
+	s.machine.Stacks = fakeStacks{fake}
 	events := s.subscribe()
 	agent := s.startAgent(localPolicy)
 	waitFor(t, events, agent.state.AgentID, hub.EventInfoUpdated)
@@ -107,6 +128,12 @@ func TestDockerRequests(t *testing.T) {
 			{protocol.ActionDockerVolumeRemove, protocol.NamePayload{Name: "data"}, "remove volume data"},
 			{protocol.ActionDockerNetworkList, nil, "networks"},
 			{protocol.ActionDockerNetworkRemove, protocol.NamePayload{Name: "net"}, "remove network net"},
+			{protocol.ActionDockerStackList, nil, "stacks"},
+			{protocol.ActionDockerStackGet, protocol.StackPayload{Name: "blog"}, "get blog"},
+			{protocol.ActionDockerStackSave, protocol.StackSavePayload{Name: "blog"}, "save blog"},
+			{protocol.ActionDockerStackUp, protocol.StackPayload{Name: "blog"}, "up blog"},
+			{protocol.ActionDockerStackDown, protocol.StackPayload{Name: "blog"}, "down blog"},
+			{protocol.ActionDockerStackPull, protocol.StackPayload{Name: "blog"}, "pull stack blog"},
 		}
 		for _, a := range actions {
 			if err := s.request(t, agentID, a.action, a.payload, nil); err != nil {
@@ -150,6 +177,8 @@ func TestDockerRequests(t *testing.T) {
 		{"an invalid name", protocol.ActionDockerVolumeRemove, protocol.NamePayload{Name: "x"}, docker.ErrInvalid, protocol.ErrorInvalidRequest},
 		{"a volume in use", protocol.ActionDockerVolumeRemove, protocol.NamePayload{Name: "x"}, docker.ErrConflict, protocol.ErrorConflict},
 		{"anything else", protocol.ActionDockerImagePull, protocol.ImageRefPayload{Reference: "x"}, errors.New("disk full"), protocol.ErrorInternal},
+		{"a stack whose file can't be edited", protocol.ActionDockerStackSave, protocol.StackSavePayload{Name: "media"}, stacks.ErrReadOnly, protocol.ErrorConflict},
+		{"no docker compose", protocol.ActionDockerStackList, nil, stacks.ErrUnavailable, protocol.ErrorDockerUnavailable},
 		{"a malformed request", protocol.ActionDockerImagePull, "nginx", nil, protocol.ErrorInvalidRequest},
 	}
 	for _, c := range cases {

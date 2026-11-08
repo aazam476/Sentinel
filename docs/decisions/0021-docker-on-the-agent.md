@@ -31,6 +31,15 @@ another socket.
   once, so a list of running containers takes about a second.
 - **Registry logins travel with the one request that needs them** (pull, update check) and are
   never written to disk on the agent; the server stores them encrypted (M4-D).
+- **Stacks** live one folder each in `/opt/sentinel/stacks/<name>/` (`compose.yaml` and
+  `.env`; the folder is set with `[docker] stacks_dir`), readable by root only, since both
+  files often hold passwords. Saving writes the new files beside the old ones, checks them
+  with `docker compose config`, and only then renames them into place, so a rejected file
+  never replaces a working one. Stack names follow compose's own rule for project names,
+  which also keeps them inside the stacks folder.
+- **Projects started outside Sentinel** are found with `docker compose ls` and controlled
+  with the compose files it reports. Their compose file can be edited where it is if the
+  agent can read it; their `.env` is never shown. "Pull" pulls newer images and redeploys.
 - **Tests**: unit tests run the real SDK against a fake engine answering with responses
   captured from Docker 29.9; an integration test (`-tags integration`) drives a real container
   where Docker is installed, as on CI's Linux runners.

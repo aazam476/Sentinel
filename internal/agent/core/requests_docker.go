@@ -8,6 +8,7 @@ import (
 
 	"github.com/aazam476/sentinel/internal/agent/docker"
 	"github.com/aazam476/sentinel/internal/agent/policy"
+	"github.com/aazam476/sentinel/internal/agent/stacks"
 	"github.com/aazam476/sentinel/internal/protocol"
 )
 
@@ -54,6 +55,29 @@ func (c *connection) dockerHandlers() map[string]handler {
 	}
 }
 
+// stackHandlers answers the compose stack actions, under the same policy
+// switch as the rest of Docker.
+func (c *connection) stackHandlers() map[string]handler {
+	manager := func() Stacks { return c.agent.options.Stacks }
+	stackAction := func(run func(Stacks, context.Context, string) error) handler {
+		return dockerCall(c, func(ctx context.Context, r protocol.StackPayload) (any, error) {
+			return nil, run(manager(), ctx, r.Name)
+		})
+	}
+	return map[string]handler{
+		protocol.ActionDockerStackList: dockerList(c, func(ctx context.Context) (any, error) { return manager().List(ctx) }),
+		protocol.ActionDockerStackGet: dockerCall(c, func(ctx context.Context, r protocol.StackPayload) (any, error) {
+			return manager().Get(ctx, r.Name)
+		}),
+		protocol.ActionDockerStackSave: dockerCall(c, func(ctx context.Context, r protocol.StackSavePayload) (any, error) {
+			return nil, manager().Save(ctx, r)
+		}),
+		protocol.ActionDockerStackUp:   stackAction(Stacks.Up),
+		protocol.ActionDockerStackDown: stackAction(Stacks.Down),
+		protocol.ActionDockerStackPull: stackAction(Stacks.Pull),
+	}
+}
+
 // dockerList is the handler for a Docker action that takes no payload.
 func dockerList(c *connection, list func(ctx context.Context) (any, error)) handler {
 	return func(ctx context.Context, _ protocol.Message) (any, *protocol.Error) {
@@ -88,13 +112,13 @@ func dockerCall[P any](c *connection, run func(ctx context.Context, payload P) (
 
 func (c *connection) dockerError(err error) *protocol.Error {
 	switch {
-	case errors.Is(err, docker.ErrUnavailable):
+	case errors.Is(err, docker.ErrUnavailable), errors.Is(err, stacks.ErrUnavailable):
 		return &protocol.Error{Code: protocol.ErrorDockerUnavailable, Message: "Docker wasn’t found on this machine: " + err.Error()}
-	case errors.Is(err, docker.ErrNotFound):
+	case errors.Is(err, docker.ErrNotFound), errors.Is(err, stacks.ErrNotFound):
 		return &protocol.Error{Code: protocol.ErrorNotFound, Message: err.Error()}
-	case errors.Is(err, docker.ErrInvalid):
+	case errors.Is(err, docker.ErrInvalid), errors.Is(err, stacks.ErrInvalid):
 		return &protocol.Error{Code: protocol.ErrorInvalidRequest, Message: err.Error()}
-	case errors.Is(err, docker.ErrConflict):
+	case errors.Is(err, docker.ErrConflict), errors.Is(err, stacks.ErrReadOnly):
 		return &protocol.Error{Code: protocol.ErrorConflict, Message: err.Error()}
 	default:
 		c.agent.options.Logger.Warn("a Docker request failed", "error", err)

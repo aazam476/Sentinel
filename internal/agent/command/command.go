@@ -16,7 +16,7 @@ import (
 const maxOutput = 16 << 20
 
 // maxErrorText is how much of a program's error output an error carries.
-const maxErrorText = 500
+const maxErrorText = 4 << 10
 
 // ErrNotFound means the program isn't installed.
 var ErrNotFound = errors.New("program not found")

@@ -222,3 +222,62 @@ type NetworkListPayload struct {
 type NamePayload struct {
 	Name string `json:"name"`
 }
+
+// Stack is one compose project on the machine.
+type Stack struct {
+	Name string `json:"name"`
+	// Managed is true for stacks in Sentinel's stacks folder; others were
+	// started some other way and found with `docker compose ls`.
+	Managed bool `json:"managed"`
+	// Containers counts the stack's containers by state, such as
+	// {"running": 2, "exited": 1}.
+	Containers map[string]int `json:"containers"`
+	// ConfigFiles are the compose files the stack was started from.
+	ConfigFiles []string `json:"configFiles"`
+	// Editable is true when the agent can read (and so edit) its compose
+	// file.
+	Editable bool `json:"editable"`
+}
+
+// StackListPayload answers docker.stack.list.
+type StackListPayload struct {
+	// Dir is the stacks folder.
+	Dir    string  `json:"dir"`
+	Stacks []Stack `json:"stacks"`
+}
+
+// StackPayload names a stack for get, up, down and pull.
+type StackPayload struct {
+	Name string `json:"name"`
+}
+
+// StackService is one container of a stack.
+type StackService struct {
+	Service   string `json:"service"`
+	Container string `json:"container"`
+	Image     string `json:"image"`
+	State     string `json:"state"`
+	Status    string `json:"status"`
+	Ports     string `json:"ports"`
+}
+
+// StackFilesPayload answers docker.stack.get: the stack's files and its
+// containers.
+type StackFilesPayload struct {
+	Name     string         `json:"name"`
+	Managed  bool           `json:"managed"`
+	Editable bool           `json:"editable"`
+	Compose  string         `json:"compose"`
+	Env      string         `json:"env"`
+	Services []StackService `json:"services"`
+}
+
+// StackSavePayload writes a stack's compose file and .env, after checking
+// them with `docker compose config`. A new name creates the stack.
+type StackSavePayload struct {
+	Name    string `json:"name"`
+	Compose string `json:"compose"`
+	Env     string `json:"env"`
+	// ValidateOnly checks the files without saving them.
+	ValidateOnly bool `json:"validateOnly,omitempty"`
+}

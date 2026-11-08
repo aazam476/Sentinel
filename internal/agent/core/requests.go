@@ -38,6 +38,7 @@ func (c *connection) handlers() map[string]handler {
 		protocol.ActionSystemShutdown: c.power(power.Shutdown),
 	}
 	maps.Copy(handlers, c.dockerHandlers())
+	maps.Copy(handlers, c.stackHandlers())
 	return handlers
 }
 

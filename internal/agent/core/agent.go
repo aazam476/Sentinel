@@ -24,6 +24,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/power"
 	"github.com/aazam476/sentinel/internal/agent/processes"
 	"github.com/aazam476/sentinel/internal/agent/services"
+	"github.com/aazam476/sentinel/internal/agent/stacks"
 	"github.com/aazam476/sentinel/internal/agent/terminal"
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/shared/clock"
@@ -76,6 +77,9 @@ type Options struct {
 	// Docker manages containers (§9.4); nil uses the engine the local
 	// policy names, or the usual sockets.
 	Docker Docker
+	// Stacks runs compose stacks; nil keeps them in the folder the local
+	// policy names, or the system's default.
+	Stacks Stacks
 	// Observe, if set, is told when the agent reaches each Event. Tests
 	// use it to know when to move their fake clock.
 	Observe func(Event)
@@ -102,6 +106,16 @@ type Docker interface {
 	RemoveVolume(ctx context.Context, name string) error
 	Networks(ctx context.Context) (protocol.NetworkListPayload, error)
 	RemoveNetwork(ctx context.Context, name string) error
+}
+
+// Stacks runs compose stacks (internal/agent/stacks).
+type Stacks interface {
+	List(ctx context.Context) (protocol.StackListPayload, error)
+	Get(ctx context.Context, name string) (protocol.StackFilesPayload, error)
+	Save(ctx context.Context, request protocol.StackSavePayload) error
+	Up(ctx context.Context, name string) error
+	Down(ctx context.Context, name string) error
+	Pull(ctx context.Context, name string) error
 }
 
 // Power reboots and shuts down the machine (internal/agent/power).
@@ -180,6 +194,9 @@ func withMachineDefaults(options *Options) {
 	}
 	if options.Docker == nil {
 		options.Docker = docker.New(options.Policy.Docker.Socket, runtime.GOOS)
+	}
+	if options.Stacks == nil {
+		options.Stacks = stacks.New(runner, options.Policy.Docker.StacksDir, runtime.GOOS)
 	}
 }
 

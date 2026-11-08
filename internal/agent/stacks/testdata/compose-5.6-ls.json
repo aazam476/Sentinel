@@ -1,0 +1,1 @@
+[{"Name": "blog", "Status": "running(2)", "ConfigFiles": "/opt/sentinel/stacks/blog/compose.yaml"}, {"Name": "media", "Status": "exited(1), running(2)", "ConfigFiles": "/srv/media/docker-compose.yml,/srv/media/docker-compose.override.yml"}, {"Name": "orphan", "Status": "exited(3)", "ConfigFiles": ""}]
