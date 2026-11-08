@@ -44,8 +44,31 @@ another socket.
   captured from Docker 29.9; an integration test (`-tags integration`) drives a real container
   where Docker is installed, as on CI's Linux runners.
 
+- **On the server**, registry logins are kept encrypted with the server's secret key, bound
+  to their registry's host, and decrypted only to go with one pull or update check for an
+  image from that registry; the API never returns a password. Admins manage them. The
+  registry package's own tests cover it to 93%: what's left are SQL errors a working database
+  can't produce; the encryption itself is in the security-critical secrets package.
+- **Who may do what**: viewers see containers, images, volumes, networks, stacks and container
+  logs (§8.6: inventory and logs); everything that changes something, and anything that shows
+  secrets (inspect, a stack's files), needs `manage_docker`; a shell in a container also needs
+  a second factor within 15 minutes, like the terminal (SEC-07). Every change is audited, with
+  names but never file contents.
+- **Image updates** are checked daily for every online machine, and on demand: the agent asks
+  the image's registry for the digest its tag points to now (a manifest request, which
+  doesn't count as a pull) and the server keeps the latest answer per machine and tag.
+- **Long actions** (pulls, deploys) get their own time limits on the server: 15 and 5 minutes,
+  rather than the 30 seconds of other requests.
+- **Followed logs** reach the browser as server-sent events (the recent lines, then each new
+  one, then the reason it ended), relayed from a stream on the agent's connection.
+
 ## Consequences
 
 - A conflict (removing a running container, a volume in use) is its own error code,
   `conflict`, shown with Docker's message.
+- Stack pulls use the engine's own registry logins (`docker login` on the machine), not the
+  server's: `docker compose pull` reads logins from a file, and logins must not be written to
+  disk on the agent. Pulling a stack's images one by one through the Engine API with the
+  server's logins would close this gap; until then, the spec should say that registry logins
+  apply to image pulls and update checks.
 - Rootless Docker or Podman under a user account needs its socket set in the policy file.

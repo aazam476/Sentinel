@@ -1,23 +1,27 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
 #
-# Fails if web/src/api/types.gen.ts doesn't match what the Go API structs
-# generate, so the web UI's types can never drift from the server's. When it
-# fails it leaves the regenerated file in place, ready to commit.
+# Fails if the web UI's generated types (web/src/api/*.gen.ts) don't match
+# what the Go API and protocol structs generate, so the web UI's types can
+# never drift from the server's. When it fails it leaves the regenerated
+# files in place, ready to commit.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-generated="web/src/api/types.gen.ts"
-before="$(mktemp)"
-trap 'rm -f "$before"' EXIT
-cp "$generated" "$before"
+before="$(mktemp -d)"
+trap 'rm -rf "$before"' EXIT
+cp web/src/api/*.gen.ts "$before/"
 
 scripts/gen-types.sh
 
-if ! cmp -s "$before" "$generated"; then
-  echo "check-generated-types: $generated was out of date and has been regenerated; commit it."
-  diff -u "$before" "$generated" || true
-  exit 1
-fi
-echo "check-generated-types: $generated is up to date"
+status=0
+for generated in web/src/api/*.gen.ts; do
+  if ! cmp -s "$before/$(basename "$generated")" "$generated"; then
+    echo "check-generated-types: $generated was out of date and has been regenerated; commit it."
+    diff -u "$before/$(basename "$generated")" "$generated" || true
+    status=1
+  fi
+done
+[ "$status" -eq 0 ] && echo "check-generated-types: the generated types are up to date"
+exit "$status"

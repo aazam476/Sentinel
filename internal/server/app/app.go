@@ -21,6 +21,7 @@ import (
 	"github.com/aazam476/sentinel/internal/server/hub"
 	"github.com/aazam476/sentinel/internal/server/metrics"
 	"github.com/aazam476/sentinel/internal/server/middleware"
+	"github.com/aazam476/sentinel/internal/server/registry"
 	"github.com/aazam476/sentinel/internal/server/scheduler"
 	"github.com/aazam476/sentinel/internal/server/secrets"
 	"github.com/aazam476/sentinel/internal/server/serverkey"
@@ -57,6 +58,7 @@ type App struct {
 	Fleet     *fleet.Service
 	Hub       *hub.Hub
 	Metrics   *metrics.Service
+	Registry  *registry.Service
 	ServerKey serverkey.Key
 	database  *store.Store
 	clock     Clock
@@ -72,6 +74,7 @@ type services struct {
 	fleet     *fleet.Service
 	hub       *hub.Hub
 	metrics   *metrics.Service
+	registry  *registry.Service
 	serverKey serverkey.Key
 }
 
@@ -96,7 +99,7 @@ func New(ctx context.Context, options Options) (*App, error) {
 	}
 	return &App{
 		Handler: handler, Auth: built.auth, AuditLog: built.auditLog, Fleet: built.fleet, Hub: built.hub,
-		Metrics: built.metrics, ServerKey: built.serverKey, database: database, clock: options.Clock, logger: options.Logger,
+		Metrics: built.metrics, Registry: built.registry, ServerKey: built.serverKey, database: database, clock: options.Clock, logger: options.Logger,
 	}, nil
 }
 
@@ -118,6 +121,7 @@ func buildServices(database *store.Store, options Options) (services, error) {
 		auditLog:  auditLog,
 		fleet:     fleet.NewService(fleet.Options{Database: database, AuditLog: auditLog, Clock: options.Clock}),
 		metrics:   metrics.NewService(database, options.Clock),
+		registry:  registry.NewService(database, auditLog, box, options.Clock),
 		serverKey: serverKey,
 	}
 	built.hub = hub.New(hub.Options{
@@ -135,9 +139,21 @@ func (a *App) Start(ctx context.Context) {
 		scheduler.Run(ctx, a.clock, a.logger,
 			scheduler.Job{Name: "metric rollup", Interval: time.Minute, Run: a.Metrics.Rollup},
 			scheduler.Job{Name: "metric cleanup", Interval: time.Hour, Run: a.Metrics.Prune},
+			scheduler.Job{Name: "image update check", Interval: 24 * time.Hour, Run: a.checkImages},
 		)
 		a.Hub.Shutdown()
 	})
+}
+
+// checkImages checks every online machine's images for updates (§9.4).
+// A machine that can't be checked (no Docker, offline by now) is skipped.
+func (a *App) checkImages(ctx context.Context) error {
+	for _, agentID := range a.Hub.Online() {
+		if _, err := a.Registry.CheckMachine(ctx, a.Hub, agentID); err != nil {
+			a.logger.Debug("skipped a machine's image update check", "agent", agentID, "error", err)
+		}
+	}
+	return nil
 }
 
 // Close waits for the work Start began, closes any agent connections
@@ -182,6 +198,7 @@ func buildHandler(options Options, built services) (http.Handler, error) {
 		Fleet:          built.fleet,
 		Hub:            built.hub,
 		Metrics:        built.metrics,
+		Registry:       built.registry,
 		ServerKey:      built.serverKey,
 		TLSFingerprint: options.TLSFingerprint,
 		Logger:         options.Logger,

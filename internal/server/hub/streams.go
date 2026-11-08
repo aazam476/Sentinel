@@ -46,7 +46,7 @@ func (h *Hub) OpenStream(ctx context.Context, agentID int64, action string, payl
 	if err != nil {
 		return nil, err
 	}
-	if err := h.request(ctx, conn, action, payload(stream.ID), result); err != nil {
+	if err := h.request(ctx, conn, RequestTimeout, action, payload(stream.ID), result); err != nil {
 		stream.end("the agent didn't start it")
 		return nil, err
 	}

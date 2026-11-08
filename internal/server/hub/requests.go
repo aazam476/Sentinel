@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/shared/clock"
@@ -25,15 +26,21 @@ var (
 // into result (unless result is nil). A failed response is returned as a
 // *protocol.Error.
 func (h *Hub) Request(ctx context.Context, agentID int64, action string, payload, result any) error {
+	return h.RequestWithin(ctx, agentID, RequestTimeout, action, payload, result)
+}
+
+// RequestWithin is Request with its own time limit, for actions that take
+// minutes, such as pulling an image or deploying a stack.
+func (h *Hub) RequestWithin(ctx context.Context, agentID int64, timeout time.Duration, action string, payload, result any) error {
 	conn, ok := h.connectionOf(agentID)
 	if !ok {
 		return ErrOffline
 	}
-	return h.request(ctx, conn, action, payload, result)
+	return h.request(ctx, conn, timeout, action, payload, result)
 }
 
-func (h *Hub) request(ctx context.Context, conn *connection, action string, payload, result any) error {
-	ctx, cancel := clock.WithTimeout(ctx, h.clock, RequestTimeout)
+func (h *Hub) request(ctx context.Context, conn *connection, timeout time.Duration, action string, payload, result any) error {
+	ctx, cancel := clock.WithTimeout(ctx, h.clock, timeout)
 	defer cancel()
 
 	message := protocol.Message{Type: protocol.TypeRequest, ID: protocol.NewID(h.clock.Now()), Action: action}

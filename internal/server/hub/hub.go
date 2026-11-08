@@ -5,6 +5,8 @@ package hub
 import (
 	"context"
 	"log/slog"
+	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -98,6 +100,13 @@ func (h *Hub) IsOnline(agentID int64) bool {
 	defer h.mutex.Unlock()
 	_, ok := h.connections[agentID]
 	return ok
+}
+
+// Online lists the agents connected right now, in no particular order.
+func (h *Hub) Online() []int64 {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	return slices.Collect(maps.Keys(h.connections))
 }
 
 // Disconnect closes the agent's live connection, if it has one. Revocation

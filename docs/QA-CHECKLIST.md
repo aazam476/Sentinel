@@ -58,6 +58,14 @@ next to the existing files (named after the system and version) and add a test c
 - [ ] `log show --style ndjson` on macOS 14
 - [ ] `wevtutil qe System /f:RenderedXml` on Windows 10, 11 and Server 2022
 
+## Docker
+
+- [ ] Docker Engine on Debian and Ubuntu: containers, images, volumes, networks, a stack from a pasted compose file, logs, exec, pull and redeploy
+- [ ] Podman (socket set in the policy file) on Fedora
+- [ ] Docker Desktop on macOS and Windows; OrbStack and Colima on macOS
+- [ ] A private registry login (ghcr.io): pull and update check
+- [ ] "Docker not detected" on a machine without Docker
+
 ## Phones
 
 - [ ] Layout and touch behavior on iOS Safari

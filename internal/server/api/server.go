@@ -13,6 +13,7 @@ import (
 	"github.com/aazam476/sentinel/internal/server/fleet"
 	"github.com/aazam476/sentinel/internal/server/hub"
 	"github.com/aazam476/sentinel/internal/server/metrics"
+	"github.com/aazam476/sentinel/internal/server/registry"
 	"github.com/aazam476/sentinel/internal/server/relay"
 	"github.com/aazam476/sentinel/internal/server/serverkey"
 	"github.com/aazam476/sentinel/internal/shared/clock"
@@ -28,6 +29,7 @@ type handlers struct {
 	fleet      *fleet.Service
 	hub        *hub.Hub
 	metrics    *metrics.Service
+	registries *registry.Service
 	terminals  *relay.Sessions
 	serverKey  serverkey.Key
 	tlsPin     string

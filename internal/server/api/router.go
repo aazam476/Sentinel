@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
 	"github.com/aazam476/sentinel/internal/server/fleet"
 	"github.com/aazam476/sentinel/internal/server/hub"
 	"github.com/aazam476/sentinel/internal/server/metrics"
+	"github.com/aazam476/sentinel/internal/server/registry"
 	"github.com/aazam476/sentinel/internal/server/relay"
 	"github.com/aazam476/sentinel/internal/server/serverkey"
 )
@@ -27,6 +29,7 @@ type RouterOptions struct {
 	// /agent/connect, is routed by internal/server/app.
 	Hub       *hub.Hub
 	Metrics   *metrics.Service
+	Registry  *registry.Service
 	ServerKey serverkey.Key
 	// TLSFingerprint is the self-signed certificate's key fingerprint, or
 	// "" when agents check the server's certificate the usual way.
@@ -49,6 +52,7 @@ func NewRouter(options RouterOptions) http.Handler {
 		fleet:      options.Fleet,
 		hub:        options.Hub,
 		metrics:    options.Metrics,
+		registries: options.Registry,
 		terminals:  relay.NewSessions(options.Clock),
 		serverKey:  options.ServerKey,
 		tlsPin:     options.TLSFingerprint,
@@ -66,6 +70,7 @@ func NewRouter(options RouterOptions) http.Handler {
 	h.addAccountRoutes(mux)
 	h.addAdminRoutes(mux)
 	h.addMachineRoutes(mux)
+	h.addDockerRoutes(mux)
 	mux.HandleFunc("/api/", handleUnknownAPIRoute)
 	mux.Handle("/", options.WebUI)
 	return mux
@@ -128,6 +133,38 @@ func (h *handlers) addMachineRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/agents/{id}/processes/{pid}/kill", h.withPermission(auth.PermissionManageProcesses, h.handleKillProcess))
 	mux.HandleFunc("POST /api/agents/{id}/power", h.withPermission(auth.PermissionControlPower, h.handlePower))
 	mux.HandleFunc("GET /api/events", h.withPermission(auth.PermissionViewFleet, h.handleEvents))
+}
+
+func (h *handlers) addDockerRoutes(mux *http.ServeMux) {
+	view := func(handler func(http.ResponseWriter, *http.Request, auth.Session)) http.HandlerFunc {
+		return h.withPermission(auth.PermissionViewFleet, handler)
+	}
+	manage := func(handler func(http.ResponseWriter, *http.Request, auth.Session)) http.HandlerFunc {
+		return h.withPermission(auth.PermissionManageDocker, handler)
+	}
+	const docker = "/api/agents/{id}/docker"
+	mux.HandleFunc("GET "+docker+"/containers", view(dockerList[protocol.ContainerListPayload](h, protocol.ActionDockerContainerList)))
+	mux.HandleFunc("POST "+docker+"/containers/{container}/{action}", manage(h.handleContainerAction))
+	mux.HandleFunc("DELETE "+docker+"/containers/{container}", manage(h.handleRemoveContainer))
+	mux.HandleFunc("GET "+docker+"/containers/{container}/inspect", manage(h.handleInspectContainer))
+	mux.HandleFunc("GET "+docker+"/containers/{container}/logs", view(h.handleContainerLogs))
+	mux.HandleFunc("GET "+docker+"/containers/{container}/logs/follow", view(h.handleFollowLogs))
+	mux.HandleFunc("GET "+docker+"/containers/{container}/exec", manage(h.handleContainerExec))
+	mux.HandleFunc("GET "+docker+"/images", view(h.handleListImages))
+	mux.HandleFunc("POST "+docker+"/images/pull", manage(h.handlePullImage))
+	mux.HandleFunc("POST "+docker+"/images/check", manage(h.handleCheckImages))
+	mux.HandleFunc("DELETE "+docker+"/images", manage(h.handleRemoveImage))
+	mux.HandleFunc("GET "+docker+"/volumes", view(dockerList[protocol.VolumeListPayload](h, protocol.ActionDockerVolumeList)))
+	mux.HandleFunc("DELETE "+docker+"/volumes/{name}", manage(h.handleRemoveVolume))
+	mux.HandleFunc("GET "+docker+"/networks", view(dockerList[protocol.NetworkListPayload](h, protocol.ActionDockerNetworkList)))
+	mux.HandleFunc("DELETE "+docker+"/networks/{name}", manage(h.handleRemoveNetwork))
+	mux.HandleFunc("GET "+docker+"/stacks", view(dockerList[protocol.StackListPayload](h, protocol.ActionDockerStackList)))
+	mux.HandleFunc("GET "+docker+"/stacks/{name}", manage(h.handleGetStack))
+	mux.HandleFunc("PUT "+docker+"/stacks/{name}", manage(h.handleSaveStack))
+	mux.HandleFunc("POST "+docker+"/stacks/{name}/{action}", manage(h.handleStackAction))
+	mux.HandleFunc("GET /api/registries", h.withPermission(auth.PermissionManageSettings, h.handleListRegistryLogins))
+	mux.HandleFunc("POST /api/registries", h.withPermission(auth.PermissionManageSettings, h.handleAddRegistryLogin))
+	mux.HandleFunc("DELETE /api/registries/{loginId}", h.withPermission(auth.PermissionManageSettings, h.handleRemoveRegistryLogin))
 }
 
 // cookiePath limits the session cookie to Sentinel's base path, so other

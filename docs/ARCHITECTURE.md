@@ -100,6 +100,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/fleet/` | Enrollment tokens and the list of managed machines | Built |
 | `internal/server/hub/` | The agents' WebSocket endpoint: handshake, heartbeat, requests, streams, online status | Built |
 | `internal/server/relay/` | Joins a browser's terminal WebSocket to a stream on the agent's connection; who may resume a dropped terminal | Built |
+| `internal/server/registry/` | Docker registry logins (encrypted) and the results of image update checks | Built |
 | `internal/server/metrics/` | Stores metric samples, rolls them up and answers chart queries | Built |
 | `internal/server/scheduler/` | Runs periodic jobs (metric rollups and cleanup) | Built |
 | `internal/server/web/` | Embeds the built React app into the server binary | Built |

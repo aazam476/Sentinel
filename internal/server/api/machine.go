@@ -83,7 +83,14 @@ func agentErrorStatus(code protocol.ErrorCode) (int, string) {
 // doAudited sends a state-changing action to the agent and audits it with
 // its outcome (SEC-40): success, denied by the local policy, or failure.
 func (h *handlers) doAudited(r *http.Request, session auth.Session, agent fleet.Agent, action string, payload any, details map[string]any) error {
-	err := h.ask(r.Context(), agent, action, payload, nil)
+	return h.audited(r, session, agent, action, details, func(ctx context.Context) error {
+		return h.ask(ctx, agent, action, payload, nil)
+	})
+}
+
+// audited runs ask and audits the action with its outcome.
+func (h *handlers) audited(r *http.Request, session auth.Session, agent fleet.Agent, action string, details map[string]any, ask func(context.Context) error) error {
+	err := ask(r.Context())
 	outcome := audit.OutcomeSuccess
 	if err != nil {
 		outcome = outcomeOf(err)

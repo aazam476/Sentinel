@@ -126,7 +126,7 @@ func (h *Hub) connectionEnded(conn *connection) {
 // stores the answer, so the UI shows current details and capabilities.
 func (h *Hub) refreshSystemInfo(ctx context.Context, conn *connection) {
 	var info protocol.SystemInfo
-	if err := h.request(ctx, conn, protocol.ActionSystemInfo, nil, &info); err != nil {
+	if err := h.request(ctx, conn, RequestTimeout, protocol.ActionSystemInfo, nil, &info); err != nil {
 		h.logger.Warn("could not get the agent's system info", "agent", conn.agent.PublicID, "error", err)
 		return
 	}

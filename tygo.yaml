@@ -16,3 +16,21 @@ packages:
       // SPDX-License-Identifier: Apache-2.0
       //
       // Generated from internal/server/api by `make gen-types`. Do not edit.
+      import type * as protocol from './protocol.gen';
+    type_mappings:
+      protocol.Image: "protocol.Image"
+  # The Docker API passes the agent's answers through unchanged, so the
+  # browser uses the protocol's types for them.
+  - path: "github.com/aazam476/sentinel/internal/protocol"
+    output_path: "web/src/api/protocol.gen.ts"
+    include_files:
+      - "payloads_docker.go"
+    type_mappings:
+      json.RawMessage: "unknown"
+    frontmatter: |
+      // SPDX-License-Identifier: Apache-2.0
+      //
+      // Generated from internal/protocol by `make gen-types`. Do not edit.
+
+      /** StreamID numbers a stream on an agent's connection (internal/protocol/frame.go). */
+      export type StreamID = number;

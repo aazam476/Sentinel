@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Generated from internal/server/api by `make gen-types`. Do not edit.
+import type * as protocol from './protocol.gen';
 
 //////////
 // source: agents.go
@@ -143,6 +144,57 @@ export interface AuditVerifyResponse {
   valid: boolean;
   brokenAtId: number /* int64 */;
   problem: string;
+}
+
+//////////
+// source: docker.go
+
+/**
+ * DockerImageUpdate is the last update check of an image tag.
+ */
+export interface DockerImageUpdate {
+  updateAvailable: boolean;
+  /**
+   * Error says why the last check failed, or is empty.
+   */
+  error: string;
+  checkedAt: number /* int64 */;
+}
+/**
+ * DockerImages answers GET /api/agents/{id}/docker/images: the images and,
+ * by tag, what the last update check found.
+ */
+export interface DockerImages {
+  images: protocol.Image[];
+  updates: { [key: string]: DockerImageUpdate};
+}
+/**
+ * ImageReferenceRequest names an image to pull or check.
+ */
+export interface ImageReferenceRequest {
+  reference: string;
+}
+/**
+ * SaveStackRequest is the body of PUT /api/agents/{id}/docker/stacks/{name}.
+ */
+export interface SaveStackRequest {
+  compose: string;
+  env: string;
+  /**
+   * ValidateOnly checks the files with `docker compose config` without
+   * saving them.
+   */
+  validateOnly: boolean;
+}
+
+//////////
+// source: dockerlogs.go
+
+/**
+ * ContainerLogsEnd is the "end" event of a followed log: why it stopped.
+ */
+export interface ContainerLogsEnd {
+  reason: string;
 }
 
 //////////
@@ -398,6 +450,34 @@ export interface PasskeySummary {
  */
 export interface PasskeysResponse {
   passkeys: PasskeySummary[];
+}
+
+//////////
+// source: registries.go
+
+/**
+ * RegistryLogin is a stored registry login; its password is never sent
+ * back.
+ */
+export interface RegistryLogin {
+  id: number /* int64 */;
+  serverAddress: string;
+  username: string;
+  createdAt: number /* int64 */;
+}
+/**
+ * RegistryLogins answers GET /api/registries.
+ */
+export interface RegistryLogins {
+  logins: RegistryLogin[];
+}
+/**
+ * AddRegistryLoginRequest is the body of POST /api/registries.
+ */
+export interface AddRegistryLoginRequest {
+  serverAddress: string;
+  username: string;
+  password: string;
 }
 
 //////////
