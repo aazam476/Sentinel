@@ -13,9 +13,10 @@ for terminals, Docker, ZFS-aware storage views and remote desktop.
 - **Readable code.** A student should be able to open any file and understand it.
 
 > **Status: early development.** The server, first-boot setup, sign-in with mandatory
-> two-factor authentication (TOTP or passkeys) and the audit log work; managing machines
-> doesn't yet. The project is being built milestone by milestone towards a single beta
-> release, `v0.1.0-beta.1`.
+> two-factor authentication (TOTP or passkeys), the audit log, and connecting machines
+> (the agent, enrollment, live and historical metrics, tags and revocation) work. Terminal,
+> Docker, storage, files and remote desktop don't yet. The project is being built milestone
+> by milestone towards a single beta release, `v0.1.0-beta.1`.
 
 ## Quick start (development)
 
@@ -28,6 +29,18 @@ make dev
 ```
 
 Then open <http://localhost:5173>, the web UI with hot reload in front of the server.
+
+To connect a machine while developing, build the agent with `make build`, open **Add machine**,
+create an install command, and run it with `enroll` instead of `install`, keeping the agent's
+files in the repository instead of system folders:
+
+```bash
+bin/sentinel-agent enroll --server http://localhost:5173 --token TOKEN --fingerprint FP --state-dir .dev/agent/state --config-dir .dev/agent/etc
+```
+
+```bash
+bin/sentinel-agent run --state-dir .dev/agent/state --config-dir .dev/agent/etc
+```
 
 Screenshots will be added here once there is a dashboard to show.
 
