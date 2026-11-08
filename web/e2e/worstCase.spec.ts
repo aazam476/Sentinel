@@ -2,7 +2,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import {
+  worstAgents,
   worstAuditEntries,
+  worstMachine,
+  worstTokens,
   worstPasskeys,
   worstSession,
   worstSessions,
@@ -23,6 +26,10 @@ async function serveWorstCase(page: Page) {
     'auth/passkeys': { passkeys: worstPasskeys },
     'auth/sessions': { sessions: worstSessions },
     audit: { entries: worstAuditEntries(), nextBefore: null },
+    agents: { agents: worstAgents() },
+    [`agents/${worstMachine.id}`]: worstMachine,
+    [`agents/${worstMachine.id}/metrics`]: { metric: 'cpu.percent', resolution: 'raw', points: [] },
+    'enrollment-tokens': { tokens: worstTokens, serverFingerprint: 'SHA256:x', tlsFingerprint: '' },
   };
   await page.route('**/api/**', (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^\/api\//, '');
@@ -52,9 +59,11 @@ async function expectNothingCutWithoutTooltip(page: Page) {
 }
 
 const screens = [
-  { path: '/', ready: /Welcome/ },
+  { path: '/', ready: /^Machines$/ },
   { path: '/account', ready: 'Passkeys' },
   { path: '/audit', ready: 'Audit log' },
+  { path: `/machines/${worstMachine.id}`, ready: 'System' },
+  { path: '/machines/add', ready: 'Add a machine' },
 ];
 
 for (const screen of screens) {

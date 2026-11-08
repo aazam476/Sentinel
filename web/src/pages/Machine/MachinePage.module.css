@@ -1,0 +1,294 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.back {
+  align-self: flex-start;
+  color: var(--color-accent);
+  font-size: var(--font-size-small);
+  text-decoration: none;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-title);
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  margin: 0;
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
+.tag {
+  max-width: 14rem;
+  overflow: hidden;
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.liveGrid,
+.panelGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--space-4);
+}
+
+.panel,
+.liveChart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+}
+
+.chartTitle,
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-weight: 600;
+}
+
+.chartValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.liveCanvas {
+  height: 160px;
+}
+
+.historyCanvas {
+  height: 240px;
+}
+
+.chartEmpty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.select {
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.segmented {
+  display: flex;
+  gap: 2px;
+  align-self: flex-start;
+  padding: 2px;
+  border-radius: var(--radius-medium);
+  background: var(--color-surface-muted);
+}
+
+.segment {
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius-medium) - 2px);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.segmentActive {
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 10%);
+}
+
+/* Recharts draws with presentation attributes; CSS wins over those, so
+   the chart follows the theme tokens and dark mode. */
+.grid line {
+  stroke: var(--color-border);
+}
+
+.axis text {
+  fill: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.axis line {
+  stroke: var(--color-border);
+}
+
+.line,
+.line path {
+  stroke: var(--color-accent);
+}
+
+.band,
+.band path {
+  fill: var(--color-accent);
+  fill-opacity: 0.15;
+}
+
+.details {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.detail {
+  display: grid;
+  grid-template-columns: minmax(7rem, 35%) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.detail dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+.detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.capabilities,
+.filesystems {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.capability {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.capabilityState {
+  color: var(--color-success);
+  font-size: var(--font-size-small);
+  text-align: right;
+}
+
+.disabled {
+  color: var(--color-text-muted);
+}
+
+.filesystem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.mount {
+  overflow: hidden;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage {
+  grid-column: 1 / -1;
+  font-size: var(--font-size-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.settingsForm {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--font-size-small);
+  font-weight: 550;
+}
+
+.input {
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 16px; /* below 16px, iOS zooms into the field */
+}
+
+.danger {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.danger p {
+  flex: 1 1 18rem;
+}

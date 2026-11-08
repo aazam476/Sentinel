@@ -20,7 +20,7 @@ describe('app shell', () => {
     signedInAs(adminSession);
     renderApp('/');
     const nav = await screen.findByRole('navigation', { name: 'Main' });
-    expect(within(nav).getByRole('link', { name: 'Overview' })).toHaveAttribute(
+    expect(within(nav).getByRole('link', { name: 'Machines' })).toHaveAttribute(
       'aria-current',
       'page',
     );

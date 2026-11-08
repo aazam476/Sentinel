@@ -78,7 +78,7 @@ test('SEC-02 setup creates the admin with TOTP and recovery codes', async ({ pag
   await expectNoHorizontalScroll(page);
   await page.getByLabel('I have saved these codes').check();
   await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByRole('heading', { name: 'Welcome, admin' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Machines', exact: true })).toBeVisible();
 });
 
 test('SEC-04 a password alone opens nothing; a second factor is required', async ({ page }) => {
@@ -99,7 +99,7 @@ test('SEC-04 a password alone opens nothing; a second factor is required', async
   // put this client into a short backoff (SEC-05); retry until it passes.
   await expect(async () => {
     await page.getByRole('button', { name: 'Verify' }).click();
-    await expect(page.getByRole('heading', { name: 'Welcome, admin' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Machines', exact: true })).toBeVisible({
       timeout: 1000,
     });
   }).toPass({ timeout: 10_000 });
@@ -125,7 +125,7 @@ test('SEC-04 a passkey can finish signing in', async ({ page }) => {
   // authenticator app a little ahead would show.
   await page.getByLabel('Authenticator code').fill(totpCode(totpSecret, Date.now() + 30_000));
   await page.getByRole('button', { name: 'Verify' }).click();
-  await expect(page.getByRole('heading', { name: 'Welcome, admin' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Machines', exact: true })).toBeVisible();
 
   await page.getByRole('link', { name: 'Account' }).click();
   await page.getByLabel('New passkey name').fill('Test authenticator');
@@ -138,7 +138,7 @@ test('SEC-04 a passkey can finish signing in', async ({ page }) => {
   await signOut(page);
   await signInWithPassword(page);
   await page.getByRole('button', { name: 'Use a passkey' }).click();
-  await expect(page.getByRole('heading', { name: 'Welcome, admin' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Machines', exact: true })).toBeVisible();
 });
 
 test('SEC-41 admins can read, verify and export the audit log', async ({ page }) => {

@@ -29,6 +29,14 @@ Record each run as: **pass/fail · OS and version · date · tester · notes**.
 
 - [ ] SMART readings and temperatures are correct on physical disks
 
+## Agents
+
+- [ ] `sentinel-agent install` sets up and starts the service on Debian/Ubuntu (systemd), macOS (launchd)
+  and Windows (service manager), and the machine appears online
+- [ ] The agent comes back by itself after the machine reboots
+- [ ] `sentinel-agent uninstall` removes the service and its files on each of those
+- [ ] On Windows, a non-administrator can't open `C:\ProgramData\Sentinel\state` (SEC-20)
+
 ## Real reverse proxies
 
 - [ ] Caddy

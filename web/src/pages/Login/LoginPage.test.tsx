@@ -92,7 +92,7 @@ describe('SEC-04 sign-in', () => {
 
     await user.type(screen.getByLabelText('Authenticator code'), '123456');
     await user.click(screen.getByRole('button', { name: 'Verify' }));
-    expect(await screen.findByRole('heading', { name: 'Welcome, admin' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Machines' })).toBeVisible();
   });
 
   it('says how long to wait when attempts are limited', async () => {

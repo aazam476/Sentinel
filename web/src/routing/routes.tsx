@@ -6,7 +6,7 @@ import { EnrollPage } from '../pages/Enroll/EnrollPage';
 import { LoginPage } from '../pages/Login/LoginPage';
 import { SecondFactorPage } from '../pages/Login/SecondFactorPage';
 import { NotFoundPage } from '../pages/NotFound/NotFoundPage';
-import { OverviewPage } from '../pages/Overview/OverviewPage';
+import { FleetPage } from '../pages/Fleet/FleetPage';
 import { SetupPage } from '../pages/Setup/SetupPage';
 import { AreaGate } from './AreaGate';
 
@@ -30,8 +30,21 @@ export const routes: RouteObject[] = [
       </AreaGate>
     ),
     children: [
-      { index: true, element: <OverviewPage /> },
-      // Loaded on first visit, so signing in doesn't wait for them.
+      { index: true, element: <FleetPage /> },
+      // Loaded on first visit, so signing in doesn't wait for them (the
+      // machine page also brings the chart libraries).
+      {
+        path: '/machines/add',
+        lazy: async () => ({
+          Component: (await import('../pages/AddMachine/AddMachinePage')).AddMachinePage,
+        }),
+      },
+      {
+        path: '/machines/:id',
+        lazy: async () => ({
+          Component: (await import('../pages/Machine/MachinePage')).MachinePage,
+        }),
+      },
       {
         path: '/account',
         lazy: async () => ({

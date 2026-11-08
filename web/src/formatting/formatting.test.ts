@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-import { countOf, describeUserAgent, formatDateTime } from './formatting';
+import {
+  countOf,
+  describeUserAgent,
+  formatBytes,
+  formatDateTime,
+  formatPercent,
+  formatRate,
+  formatRelative,
+  formatUptime,
+} from './formatting';
 
 describe('countOf', () => {
   it.each([
@@ -39,5 +48,56 @@ describe('describeUserAgent', () => {
     ['Firefox/133.0', 'Firefox'],
   ])('describes %j as %j', (userAgent, expected) => {
     expect(describeUserAgent(userAgent)).toBe(expected);
+  });
+});
+
+describe('formatPercent', () => {
+  it.each([
+    [0, '0%'],
+    [42.4, '42%'],
+    [99.6, '100%'],
+  ])('writes %d as %j', (value, expected) => {
+    expect(formatPercent(value, 'en-US')).toBe(expected);
+  });
+});
+
+describe('formatBytes and formatRate', () => {
+  it.each([
+    [0, '0 B'],
+    [-5, '0 B'],
+    [512, '512 B'],
+    [1536, '1.5 KB'],
+    [8 * 1024 ** 3, '8 GB'],
+    [12.4 * 1024 ** 3, '12 GB'],
+    [2 * 1024 ** 6, '2,048 PB'],
+  ])('writes %d bytes as %j', (bytes, expected) => {
+    expect(formatBytes(bytes, 'en-US')).toBe(expected);
+  });
+
+  it('adds per second to rates', () => {
+    expect(formatRate(1_258_291, 'en-US')).toBe('1.2 MB/s');
+  });
+});
+
+describe('formatUptime', () => {
+  it.each([
+    [59, '0 min'],
+    [720, '12 min'],
+    [3 * 3600 + 120, '3 h 2 min'],
+    [3 * 86_400 + 4 * 3600 + 59, '3 d 4 h'],
+  ])('writes %d seconds as %j', (seconds, expected) => {
+    expect(formatUptime(seconds)).toBe(expected);
+  });
+});
+
+describe('formatRelative', () => {
+  const now = Date.UTC(2026, 10, 7, 12, 0);
+  it.each([
+    [now - 10_000, 'now'],
+    [now - 5 * 60_000, '5 minutes ago'],
+    [now - 3 * 3_600_000, '3 hours ago'],
+    [now - 2 * 86_400_000, '2 days ago'],
+  ])('writes %d as %j', (time, expected) => {
+    expect(formatRelative(time, now, 'en-US')).toBe(expected);
   });
 });

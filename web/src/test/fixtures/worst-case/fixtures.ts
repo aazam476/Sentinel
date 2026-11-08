@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import type {
+  Agent,
+  AgentDetails,
   AuditEntry,
+  EnrollmentToken,
   PasskeySummary,
   SessionResponse,
   SessionSummary,
@@ -20,6 +23,11 @@ import { adminSession, fixtureNow } from '../normal/fixtures';
  * - audit usernames: whatever someone typed at the login form, capped by
  *   the server at 128 characters
  * - counts of exactly 1, empty lists and 1,000+ rows
+ * - machines (internal/server/fleet/validation.go): display names up to 64
+ *   characters, hostnames up to 253, tags up to 32 (20 per machine), other
+ *   reported text up to 128; readings from 0 to 100% and missing ones
+ * - filesystems: mount points up to 512 bytes, up to 256 of them
+ *   (internal/server/metrics/ingest.go)
  */
 
 export const longUsername = 'bartholomew.fitzgerald-northwind-industries-holdings-sre-oncall01';
@@ -140,3 +148,161 @@ export function worstAuditEntries(): AuditEntry[] {
   }));
   return [...extremes, ...ordinary];
 }
+
+/** A 253-character FQDN: the longest hostname DNS allows. */
+export const longHostname = [
+  'storage-array-controller-primary-rack42-unit07',
+  'datacenter-frankfurt-west-availability-zone-c',
+  'northwind-industries-holdings-infrastructure',
+  'internal-monitoring-and-observability-platform',
+  'example-corporate-network-segment.example',
+]
+  .join('.')
+  .slice(0, 253);
+
+/** The longest display name: 64 characters with accents and an em dash. */
+export const longDisplayName = 'Zentraler Datenspeicher — Wohnzimmer, Kellerregal 3, Fach unten!';
+
+const maxTags = Array.from({ length: 20 }, (_, index) =>
+  `environment-production-eu-${String(index).padStart(2, '0')}`.slice(0, 32),
+);
+
+const base: Agent = {
+  id: '01JBX3K5Q7Z8M4N6P8R0T2V4W0',
+  name: longDisplayName,
+  displayName: longDisplayName,
+  hostname: longHostname,
+  os: 'linux',
+  platform: 'Red Hat Enterprise Linux Server for SAP Applications with High Availability',
+  platformVersion: '9.4 (Plow) Extended Update Support Long Term Maintenance Release',
+  arch: 'aarch64_be',
+  agentVersion: 'v0.1.0-beta.1+build.2026.11.08.abcdef1234567890',
+  online: true,
+  lastSeenAt: fixtureNow,
+  enrolledAt: fixtureNow - 400 * 86_400_000,
+  tags: maxTags,
+  current: {
+    time: fixtureNow,
+    uptimeSeconds: 3_650 * 86_400,
+    values: { 'cpu.percent': 100, 'memory.percent': 0, 'disk.percent': 99.9 },
+  },
+};
+
+/**
+ * worstAgents is 1,200 machines; the first few are the hardest cases, the
+ * rest plain, as a large fleet would be.
+ */
+export function worstAgents(): Agent[] {
+  const hard: Agent[] = [
+    base,
+    {
+      ...base,
+      id: '01JBX3K5Q7Z8M4N6P8R0T2V4W1',
+      name: 'خادم-الملفات-الرئيسي',
+      displayName: 'خادم-الملفات-الرئيسي',
+      tags: ['مكتب'],
+    },
+    {
+      ...base,
+      id: '01JBX3K5Q7Z8M4N6P8R0T2V4W2',
+      name: 'x',
+      displayName: '',
+      hostname: 'x',
+      tags: [],
+      platform: '',
+      platformVersion: '',
+    },
+    {
+      ...base,
+      id: '01JBX3K5Q7Z8M4N6P8R0T2V4W3',
+      online: false,
+      lastSeenAt: null,
+      current: null,
+      name: 'never-connected',
+      displayName: '',
+      hostname: 'never-connected',
+    },
+    {
+      ...base,
+      id: '01JBX3K5Q7Z8M4N6P8R0T2V4W4',
+      online: true,
+      current: null,
+      name: 'just-enrolled',
+      displayName: '',
+    },
+    {
+      ...base,
+      id: '01JBX3K5Q7Z8M4N6P8R0T2V4W5',
+      current: { time: fixtureNow, uptimeSeconds: 0, values: {} },
+    },
+    {
+      ...base,
+      id: '01JBX3K5Q7Z8M4N6P8R0T2V4W6',
+      online: false,
+      current: null,
+      lastSeenAt: fixtureNow - 800 * 86_400_000,
+    },
+  ];
+  const plain = Array.from({ length: 1_200 - hard.length }, (_, index) => ({
+    ...base,
+    id: `01JBX3K5Q7Z8M4N6P8R${String(index).padStart(7, '0')}`,
+    name: `web-${String(index).padStart(4, '0')}`,
+    displayName: '',
+    hostname: `web-${String(index).padStart(4, '0')}`,
+    tags: ['web'],
+  }));
+  return [...hard, ...plain];
+}
+
+/** worstMachine is the hardest machine view: every list at its limit. */
+export const worstMachine: AgentDetails = {
+  ...base,
+  kernelVersion:
+    '6.12.9-200.fc41.aarch64+debug #1 SMP PREEMPT_DYNAMIC Fri Nov  1 00:00:00 UTC 2026',
+  cpuModel:
+    'AMD EPYC 9965 192-Core Processor with Extended Instruction Sets and Very Long Marketing Name',
+  cpuCores: 384,
+  memoryTotalBytes: 2 * 1024 ** 5,
+  capabilities: [
+    ...['terminal', 'desktop', 'files', 'scripts', 'docker', 'storage', 'packages', 'power'].map(
+      (name) => ({
+        name,
+        enabled: false,
+        reason: 'Disabled by local policy',
+      }),
+    ),
+    { name: 'an-unknown-capability-from-a-newer-agent', enabled: true, reason: '' },
+  ],
+  filesystems: Array.from({ length: 256 }, (_, index) => ({
+    mount: `/mnt/backups/${'very-long-directory-name/'.repeat(19)}${String(index)}`,
+    type: 'fuse.sshfs',
+    usedBytes: index * 1024 ** 3,
+    totalBytes: 512 * 1024 ** 4,
+  })),
+  temperatures: [],
+};
+
+export const worstTokens: EnrollmentToken[] = [
+  {
+    id: 1_000_000,
+    note: 'Für die neuen Maschinen im Büro Frankfurt (Raum 4.12, Regal B) — bitte erst nach Freigabe!!',
+    createdBy: longUsername,
+    createdAt: fixtureNow - 3_600_000,
+    expiresAt: fixtureNow + 7 * 86_400_000,
+    maxUses: 1_000,
+    useCount: 999,
+    revoked: false,
+    usable: true,
+  },
+  {
+    id: 2,
+    note: '',
+    createdBy: 'x',
+    createdAt: fixtureNow - 86_400_000,
+    expiresAt: fixtureNow - 1,
+    maxUses: 1,
+    useCount: 0,
+    revoked: false,
+    usable: false,
+  },
+];

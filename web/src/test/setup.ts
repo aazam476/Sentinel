@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterAll, afterEach, beforeAll } from 'vitest';
+import { createElement } from 'react';
+import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 
 import { toast } from 'sonner';
 
@@ -27,3 +28,35 @@ afterAll(() => {
 afterEach(() => {
   toast.dismiss();
 });
+
+// Tests that stand in for browser APIs (EventSource) do so for themselves.
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+// jsdom has no canvas, which Liveline draws on. Tests check what the live
+// chart is given rather than how it is drawn; Playwright checks the real
+// chart in a browser.
+vi.mock('liveline', () => ({
+  Liveline: ({ data, loading }: { data: { time: number; value: number }[]; loading?: boolean }) =>
+    createElement('div', {
+      'data-testid': 'live-chart',
+      'data-points': data.map((point) => point.value).join(','),
+      'data-loading': String(loading === true),
+    }),
+}));
+
+// Recharts sizes charts with ResizeObserver, which jsdom doesn't have.
+class FixedSizeObserver implements ResizeObserver {
+  constructor(private readonly callback: ResizeObserverCallback) {}
+
+  observe(target: Element) {
+    const entry = { target, contentRect: { width: 600, height: 240 } } as ResizeObserverEntry;
+    this.callback([entry], this);
+  }
+
+  unobserve() {}
+
+  disconnect() {}
+}
+globalThis.ResizeObserver = FixedSizeObserver;

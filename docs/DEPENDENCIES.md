@@ -40,6 +40,9 @@ anything GPL-family.
 | react-router | 8.5.1 | MIT | Pages and URLs in the web UI | The browser has no router; hand-written history handling is easy to get wrong |
 | @tanstack/react-query | 5.107.1 | MIT | Fetching, caching and refreshing server data; loading and error states | Hand-written fetch-and-cache code in every component would be inconsistent and buggy |
 | @base-ui/react | 1.9.0 | MIT | Accessible dialogs and other primitives, unstyled | Focus trapping, keyboard handling and ARIA for dialogs are hard to get right by hand |
+| liveline | 0.0.7 | MIT | Live charts on the machine page that scroll as samples arrive | Smoothly interpolated, canvas-drawn streaming charts are a lot of drawing code; it injects no styles, so it works under the strict CSP |
+| recharts | 3.10.1 | MIT | History charts (an hour to a year) on the machine page | Axes, scales, tooltips and responsive SVG charts by hand would be large and hard to keep accessible |
+| react-is | 19.3.1 | MIT | Required by recharts, matched to our React version | Peer dependency of recharts |
 | sonner | 2.0.8 | MIT | Toasts for action results ("Passkey added") | Stacking, swiping and timing toasts accessibly is a library's worth of work |
 | clsx | 2.1.1 | MIT | Joining conditional CSS Module class names | Tiny and clearer than string concatenation |
 | react-virtuoso | 4.18.20 | MIT | Rendering only the visible rows of long lists (the audit log) | Rendering thousands of rows at once makes the page slow |

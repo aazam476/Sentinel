@@ -51,7 +51,7 @@ describe('SEC-04 second-factor enrollment', () => {
     expect(await screen.findByRole('list', { name: 'Recovery codes' })).toBeVisible();
     await user.click(screen.getByLabelText('I have saved these codes'));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(await screen.findByRole('heading', { name: /Welcome/ })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Machines' })).toBeVisible();
   });
 
   it('enrolls a passkey instead, named by the user', async () => {

@@ -141,7 +141,7 @@ describe('SEC-01 setup page', () => {
     expect(continueButton).toBeDisabled();
     await user.click(screen.getByLabelText('I have saved these codes'));
     await user.click(continueButton);
-    expect(await screen.findByRole('heading', { name: 'Welcome, admin' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Machines' })).toBeVisible();
   });
 
   it('has no accessibility violations', async () => {

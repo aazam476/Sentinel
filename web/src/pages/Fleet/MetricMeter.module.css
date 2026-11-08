@@ -1,0 +1,52 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.meter {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--space-2);
+  align-items: baseline;
+  min-width: 0;
+}
+
+.label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+.value {
+  justify-self: end;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+}
+
+.track {
+  grid-column: 1 / -1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--color-surface-muted);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+  transform-origin: left center;
+}
+
+.high {
+  color: var(--color-warning-text);
+}
+
+.fill.high {
+  background: var(--color-warning-text);
+}
+
+.critical {
+  color: var(--color-danger);
+}
+
+.fill.critical {
+  background: var(--color-danger);
+}

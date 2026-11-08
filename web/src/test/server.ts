@@ -31,8 +31,9 @@ export function apiError(
 }
 
 /**
- * signedInAs sets up the two requests every page makes first: setup status
- * and the current session (null: not signed in).
+ * signedInAs sets up the requests every page makes first: setup status and
+ * the current session (null: not signed in), plus an empty fleet for the
+ * home page.
  */
 export function signedInAs(session: SessionResponse | null, setupRequired = false) {
   const status: SetupStatusResponse = { setupRequired };
@@ -43,5 +44,7 @@ export function signedInAs(session: SessionResponse | null, setupRequired = fals
         ? apiError(401, 'not_authenticated', 'you are not signed in')
         : json(session),
     ),
+    // The home page lists machines; tests that care add their own list.
+    http.get(apiPath('agents'), () => json({ agents: [] })),
   );
 }

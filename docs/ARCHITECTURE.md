@@ -114,7 +114,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/collectors/` | Metrics and machine details, through gopsutil | Built |
 | `internal/agent/setup/` | The steps behind install, enroll and uninstall | Built |
 | `internal/agent/<feature>/` | One package per agent feature (terminal, docker, zfs, ...) | Planned |
-| `web/` | The React web UI | Setup, sign-in, account, audit log |
+| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |
 

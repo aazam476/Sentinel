@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import type {
+  Agent,
+  AgentDetails,
   AuditEntry,
+  CurrentMetrics,
+  EnrollmentToken,
   PasskeySummary,
   SessionResponse,
   SessionSummary,
@@ -86,5 +90,123 @@ export const auditEntries: AuditEntry[] = [
     ip: '198.51.100.1',
     previousHash: '0'.repeat(64),
     hash: 'a'.repeat(64),
+  },
+];
+
+/** A machine's newest sample, as the fleet list and machine view see it. */
+export const nasCurrent: CurrentMetrics = {
+  time: fixtureNow - 5_000,
+  uptimeSeconds: 3 * 86_400 + 4 * 3_600,
+  values: {
+    'cpu.percent': 23,
+    'memory.percent': 61,
+    'disk.percent': 92,
+    'network.received': 1_258_291,
+    'temperature.max': 51,
+  },
+};
+
+export const agents: Agent[] = [
+  {
+    id: '01JBX3K5Q7Z8M4N6P8R0T2V4W6',
+    name: 'Living room NAS',
+    displayName: 'Living room NAS',
+    hostname: 'nas-01',
+    os: 'linux',
+    platform: 'debian',
+    platformVersion: '13',
+    arch: 'amd64',
+    agentVersion: 'v0.1.0',
+    online: true,
+    lastSeenAt: fixtureNow,
+    enrolledAt: fixtureNow - 30 * 86_400_000,
+    tags: ['homelab', 'storage'],
+    current: nasCurrent,
+  },
+  {
+    id: '01JBX3K5Q7Z8M4N6P8R0T2V4W7',
+    name: 'web-01',
+    displayName: '',
+    hostname: 'web-01',
+    os: 'linux',
+    platform: 'ubuntu',
+    platformVersion: '24.04',
+    arch: 'arm64',
+    agentVersion: 'v0.1.0',
+    online: true,
+    lastSeenAt: fixtureNow,
+    enrolledAt: fixtureNow - 10 * 86_400_000,
+    tags: ['office'],
+    current: { time: fixtureNow, uptimeSeconds: 720, values: { 'cpu.percent': 4 } },
+  },
+  {
+    id: '01JBX3K5Q7Z8M4N6P8R0T2V4W8',
+    name: 'laptop',
+    displayName: '',
+    hostname: 'laptop',
+    os: 'darwin',
+    platform: 'darwin',
+    platformVersion: '15.1',
+    arch: 'arm64',
+    agentVersion: 'v0.1.0',
+    online: false,
+    lastSeenAt: fixtureNow - 3 * 3_600_000,
+    enrolledAt: fixtureNow - 86_400_000,
+    tags: [],
+    current: null,
+  },
+];
+
+export const nasDetails: AgentDetails = {
+  ...(agents[0] as Agent),
+  kernelVersion: '6.12.9',
+  cpuModel: 'Intel(R) N100',
+  cpuCores: 4,
+  memoryTotalBytes: 16 * 1024 ** 3,
+  capabilities: [
+    { name: 'terminal', enabled: true, reason: '' },
+    { name: 'desktop', enabled: false, reason: 'Disabled by local policy' },
+    { name: 'docker', enabled: true, reason: '' },
+  ],
+  filesystems: [
+    { mount: '/', type: 'ext4', usedBytes: 20 * 1024 ** 3, totalBytes: 100 * 1024 ** 3 },
+    { mount: '/srv', type: 'zfs', usedBytes: 9.2 * 1024 ** 4, totalBytes: 10 * 1024 ** 4 },
+  ],
+  temperatures: [{ sensor: 'coretemp', celsius: 51 }],
+};
+
+export const enrollmentTokens: EnrollmentToken[] = [
+  {
+    id: 3,
+    note: 'office NAS',
+    createdBy: 'admin',
+    createdAt: fixtureNow - 3_600_000,
+    expiresAt: fixtureNow + 23 * 3_600_000,
+    maxUses: 1,
+    useCount: 0,
+    revoked: false,
+    usable: true,
+  },
+  {
+    id: 2,
+    note: '',
+    createdBy: 'admin',
+    createdAt: fixtureNow - 86_400_000,
+    expiresAt: fixtureNow + 86_400_000,
+    maxUses: 2,
+    useCount: 2,
+    revoked: false,
+    usable: false,
+  },
+  {
+    id: 1,
+    note: 'old laptop',
+    createdBy: 'admin',
+    createdAt: fixtureNow - 2 * 86_400_000,
+    expiresAt: fixtureNow + 86_400_000,
+    maxUses: 1,
+    useCount: 0,
+    revoked: true,
+    usable: false,
   },
 ];

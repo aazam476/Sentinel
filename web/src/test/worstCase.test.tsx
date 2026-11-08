@@ -5,8 +5,13 @@ import { http } from 'msw';
 import type { AuditEntriesResponse } from '../api/types.gen';
 import { findAccessibilityViolations } from './axe';
 import {
+  longDisplayName,
+  longHostname,
   longUsername,
+  worstAgents,
   worstAuditEntries,
+  worstMachine,
+  worstTokens,
   worstPasskeys,
   worstSession,
   worstSessions,
@@ -28,7 +33,7 @@ describe('worst-case data', () => {
     renderApp('/');
     const header = await screen.findByRole('banner');
     expect(within(header).getByTitle(longUsername)).toHaveTextContent(longUsername);
-    expect(screen.getByRole('heading', { name: `Welcome, ${longUsername}` })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Machines' })).toBeVisible();
   });
 
   it('account: long, right-to-left and one-letter passkey names, odd sessions', async () => {
@@ -77,5 +82,55 @@ describe('worst-case data', () => {
     server.use(http.get(apiPath('audit'), () => json({ entries: [], nextBefore: null })));
     renderApp('/audit');
     expect(await screen.findByText('No entries yet.')).toBeVisible();
+  });
+
+  it('fleet: 1,200 machines with the longest names, tags and odd readings', async () => {
+    signedInAs(worstSession);
+    server.use(http.get(apiPath('agents'), () => json({ agents: worstAgents() })));
+    const { container } = renderApp('/');
+
+    expect(await screen.findByText('1,200 machines · 1,198 online')).toBeVisible();
+    expect(screen.getAllByTitle(longDisplayName).length).toBeGreaterThan(0);
+    expect(screen.getByText('Offline · last seen never')).toBeVisible();
+    expect(screen.getByText('Waiting for the first reading…')).toBeVisible();
+    expect(screen.getAllByText('Up 3650 d 0 h').length).toBeGreaterThan(0);
+    expect(await findAccessibilityViolations(container)).toEqual([]);
+  });
+
+  it('machine: every capability disabled, 256 long mount points, huge numbers', async () => {
+    signedInAs(worstSession);
+    server.use(
+      http.get(apiPath(`agents/${worstMachine.id}`), () => json(worstMachine)),
+      http.get(apiPath(`agents/${worstMachine.id}/metrics`), () =>
+        json({ metric: 'cpu.percent', resolution: 'raw', points: [] }),
+      ),
+    );
+    const { container } = renderApp(`/machines/${worstMachine.id}`);
+
+    expect(await screen.findByRole('heading', { name: longDisplayName })).toBeVisible();
+    expect(screen.getByText(longHostname)).toBeVisible();
+    expect(screen.getAllByText('Disabled by local policy')).toHaveLength(8);
+    expect(screen.getByText('an-unknown-capability-from-a-newer-agent')).toBeVisible();
+    expect(screen.getByText('2 PB')).toBeVisible();
+    const mounts = within(screen.getByRole('region', { name: 'Filesystems' })).getAllByRole(
+      'listitem',
+    );
+    expect(mounts).toHaveLength(256);
+    expect(mounts[0]?.querySelector('[title]')).not.toBeNull();
+    expect(await findAccessibilityViolations(container)).toEqual([]);
+  });
+
+  it('add machine: a 100-character note and a 1,000-use token', async () => {
+    signedInAs(worstSession);
+    server.use(
+      http.get(apiPath('enrollment-tokens'), () =>
+        json({ tokens: worstTokens, serverFingerprint: 'SHA256:x', tlsFingerprint: '' }),
+      ),
+    );
+    const { container } = renderApp('/machines/add');
+    expect(await screen.findByText(/used 999 of 1000/)).toBeVisible();
+    expect(screen.getByText('Command #2')).toBeVisible();
+    expect(screen.getByText(/Expired · used 0 of 1/)).toBeVisible();
+    expect(await findAccessibilityViolations(container)).toEqual([]);
   });
 });

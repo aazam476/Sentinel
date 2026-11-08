@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import clsx from 'clsx';
-import { NavLink, Outlet } from 'react-router';
+import { NavLink, Outlet, useMatch } from 'react-router';
 
+import { useFleetEvents } from '../../api/events';
 import { useLogout } from '../../api/session';
 import type { SessionResponse } from '../../api/types.gen';
 import styles from './AppShell.module.css';
@@ -13,6 +14,8 @@ interface AppShellProps {
 /** AppShell is the frame around every signed-in page. */
 export function AppShell({ session }: AppShellProps) {
   const logout = useLogout();
+  useFleetEvents();
+  const isOnMachinePage = useMatch('/machines/*') !== null;
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     clsx(styles.link, isActive && styles.active);
 
@@ -21,8 +24,12 @@ export function AppShell({ session }: AppShellProps) {
       <header className={styles.header}>
         <span className={styles.wordmark}>Sentinel</span>
         <nav className={styles.nav} aria-label="Main">
-          <NavLink to="/" end className={linkClass}>
-            Overview
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) => linkClass({ isActive: isActive || isOnMachinePage })}
+          >
+            Machines
           </NavLink>
           <NavLink to="/account" className={linkClass}>
             Account
