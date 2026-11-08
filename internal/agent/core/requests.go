@@ -7,6 +7,8 @@ import (
 	"errors"
 
 	"github.com/aazam476/sentinel/internal/agent/policy"
+	"github.com/aazam476/sentinel/internal/agent/power"
+	"github.com/aazam476/sentinel/internal/agent/services"
 	"github.com/aazam476/sentinel/internal/agent/terminal"
 	"github.com/aazam476/sentinel/internal/protocol"
 )
@@ -21,6 +23,18 @@ func (c *connection) handlers() map[string]handler {
 		protocol.ActionSystemInfo:     c.systemInfo,
 		protocol.ActionTerminalOpen:   c.openTerminal,
 		protocol.ActionTerminalResize: c.resizeTerminal,
+		protocol.ActionServiceList:    c.listServices,
+		protocol.ActionServiceStart:   c.serviceAction(services.Start),
+		protocol.ActionServiceStop:    c.serviceAction(services.Stop),
+		protocol.ActionServiceRestart: c.serviceAction(services.Restart),
+		protocol.ActionServiceEnable:  c.serviceAction(services.Enable),
+		protocol.ActionServiceDisable: c.serviceAction(services.Disable),
+		protocol.ActionServiceLogs:    c.serviceLogs,
+		protocol.ActionLogQuery:       c.queryLogs,
+		protocol.ActionProcessList:    c.listProcesses,
+		protocol.ActionProcessKill:    c.killProcess,
+		protocol.ActionSystemReboot:   c.power(power.Reboot),
+		protocol.ActionSystemShutdown: c.power(power.Shutdown),
 	}
 }
 

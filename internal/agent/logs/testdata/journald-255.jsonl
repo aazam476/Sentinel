@@ -1,0 +1,8 @@
+{"__CURSOR":"s=9a1c;i=4f2;b=7d1e;m=1a2b;t=6421f0a8c3e40;x=1","__REALTIME_TIMESTAMP":"1794139200123456","__MONOTONIC_TIMESTAMP":"86400123456","_BOOT_ID":"7d1e","PRIORITY":"6","SYSLOG_FACILITY":"3","SYSLOG_IDENTIFIER":"systemd","_PID":"1","_COMM":"systemd","MESSAGE":"Started nginx.service - A high performance web server and a reverse proxy server.","UNIT":"nginx.service","_SYSTEMD_UNIT":"init.scope"}
+{"__REALTIME_TIMESTAMP":"1794139199000000","PRIORITY":"3","SYSLOG_IDENTIFIER":"nginx","_COMM":"nginx","MESSAGE":"2026/11/08 12:00:00 [emerg] 4242#4242: bind() to 0.0.0.0:80 failed (98: Address already in use)","_SYSTEMD_UNIT":"nginx.service"}
+{"__REALTIME_TIMESTAMP":"1794139198500000","PRIORITY":"4","_COMM":"kernel","MESSAGE":"EXT4-fs (sda1): warning: mounting fs with errors, running e2fsck is recommended"}
+{"__REALTIME_TIMESTAMP":"1794139198000000","PRIORITY":"5","_SYSTEMD_UNIT":"cron.service","MESSAGE":[67,82,79,78,32,40,114,111,111,116,41,32,255,254]}
+{"__REALTIME_TIMESTAMP":"1794139197000000","PRIORITY":"7","SYSLOG_IDENTIFIER":"sshd","MESSAGE":null}
+{"__REALTIME_TIMESTAMP":"1794139196000000","PRIORITY":"0","SYSLOG_IDENTIFIER":"kernel","MESSAGE":"Kernel panic - not syncing: 日本語 ✓"}
+{"__REALTIME_TIMESTAMP":"not a number","PRIORITY":"6","MESSAGE":"skipped"}
+{"__REALTIME_TIMESTAMP":"1794139195000000","PRIORITY":"6","SYSLOG_IDENTIFIER":"cut","MESSAGE":"this line was cut o

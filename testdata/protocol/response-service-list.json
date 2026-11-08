@@ -1,0 +1,1 @@
+{"type":"response","id":"01JBX3K5Q7Z8M4N6P8R0T2V4WB","payload":{"manager":"systemd","services":[{"name":"nginx.service","description":"A high performance web server","state":"running","startup":"automatic"},{"name":"ssh.service","description":"","state":"failed","startup":"fixed"}]}}

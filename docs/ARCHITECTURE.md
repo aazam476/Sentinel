@@ -115,7 +115,12 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/terminal/` | Shells for the web terminal (a PTY on Linux and macOS, ConPTY on Windows), kept 30 s for a viewer to come back | Built |
 | `internal/agent/collectors/` | Metrics and machine details, through gopsutil | Built |
 | `internal/agent/setup/` | The steps behind install, enroll and uninstall | Built |
-| `internal/agent/<feature>/` | One package per agent feature (services, docker, zfs, ...) | Planned |
+| `internal/agent/command/` | Runs external programs (systemctl, journalctl, ...) directly, never through a shell | Built |
+| `internal/agent/services/` | Lists and controls services: systemd, launchd, Windows SCM | Built |
+| `internal/agent/logs/` | Reads the system log: journald, the unified log, the Event Log | Built |
+| `internal/agent/processes/` | Lists processes with their CPU use over the last second; ends one | Built |
+| `internal/agent/power/` | Reboots or shuts down the machine, just after answering | Built |
+| `internal/agent/<feature>/` | One package per agent feature (docker, zfs, files, ...) | Planned |
 | `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |

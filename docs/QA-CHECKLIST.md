@@ -45,6 +45,19 @@ Record each run as: **pass/fail · OS and version · date · tester · notes**.
 - [ ] Cloudflare Tunnel
 - [ ] Tailscale Funnel
 
+## Captured command output
+
+The parsers' golden files in `internal/agent/services/testdata` and
+`internal/agent/logs/testdata` follow each tool's documented format; only systemd 255's unit
+file list was captured from a real machine. On each system, capture the real output, add it
+next to the existing files (named after the system and version) and add a test case for it.
+
+- [ ] `systemctl list-units` and `list-unit-files` on Debian 12, RHEL 9, Ubuntu 20.04
+- [ ] `journalctl -o json` with a binary message
+- [ ] `launchctl list` and `launchctl print-disabled system` on macOS 13, 14 and 15
+- [ ] `log show --style ndjson` on macOS 14
+- [ ] `wevtutil qe System /f:RenderedXml` on Windows 10, 11 and Server 2022
+
 ## Phones
 
 - [ ] Layout and touch behavior on iOS Safari

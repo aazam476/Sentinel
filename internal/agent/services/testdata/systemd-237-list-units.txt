@@ -1,0 +1,5 @@
+accounts-daemon.service              loaded    active   running Accounts Service
+cron.service                         loaded    active   running Regular background program processing daemon
+● nginx.service                      loaded    failed   failed  A high performance web server and a reverse proxy server
+ssh.service                          loaded    active   running OpenBSD Secure Shell server
+systemd-timesyncd.service            loaded    active   running Network Time Synchronization

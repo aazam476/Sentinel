@@ -1,0 +1,13 @@
+accounts-daemon.service                    enabled
+apt-daily-upgrade.service                  static
+apt-daily.service                          static
+autovt@.service                            enabled
+console-getty.service                      disabled
+cron.service                               enabled
+getty@.service                             enabled
+nginx.service                              enabled
+rsync.service                              enabled
+ssh.service                                enabled
+sshd.service                               enabled
+systemd-timesyncd.service                  enabled
+ufw.service                                enabled

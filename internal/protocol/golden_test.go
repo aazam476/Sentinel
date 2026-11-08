@@ -32,6 +32,15 @@ func goldenPayloads() map[string]func() any {
 		"request-terminal-open.json":    func() any { return &protocol.TerminalOpenPayload{} },
 		"response-terminal-opened.json": func() any { return &protocol.TerminalOpenedPayload{} },
 		"request-terminal-resize.json":  func() any { return &protocol.TerminalResizePayload{} },
+		"request-service-list.json":     nil,
+		"response-service-list.json":    func() any { return &protocol.ServiceListPayload{} },
+		"request-service-restart.json":  func() any { return &protocol.ServiceActionPayload{} },
+		"request-log-query.json":        func() any { return &protocol.LogQueryPayload{} },
+		"response-log-entries.json":     func() any { return &protocol.LogEntriesPayload{} },
+		"request-process-list.json":     nil,
+		"response-process-list.json":    func() any { return &protocol.ProcessListPayload{} },
+		"request-process-kill.json":     func() any { return &protocol.ProcessKillPayload{} },
+		"request-system-reboot.json":    nil,
 	}
 }
 

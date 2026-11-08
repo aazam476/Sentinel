@@ -1,0 +1,4 @@
+<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='MSSQL$SQLEXPRESS'/><EventID>17137</EventID><Level>4</Level><TimeCreated SystemTime='2026-11-08T11:59:30.0000000Z'/><Channel>Application</Channel></System><RenderingInfo Culture='en-US'><Message>Starting up database &apos;master&apos;.</Message></RenderingInfo></Event>
+<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Bad Time'/><EventID>1</EventID><Level>4</Level><TimeCreated SystemTime='yesterday'/></System></Event>
+<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Verbose'/><EventID>2</EventID><Level>5</Level><TimeCreated SystemTime='2026-11-08T11:50:00Z'/></System><RenderingInfo><Message>debug detail</Message></RenderingInfo></Event>
+<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Cut'/><EventID>3</EventID><Le

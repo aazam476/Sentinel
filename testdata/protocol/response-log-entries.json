@@ -1,0 +1,1 @@
+{"type":"response","id":"01JBX3K5Q7Z8M4N6P8R0T2V4WD","payload":{"entries":[{"time":1794139199000,"level":"error","source":"nginx","message":"bind() to 0.0.0.0:80 failed (98: Address already in use)"}],"truncated":false}}

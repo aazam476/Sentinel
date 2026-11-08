@@ -9,13 +9,20 @@ import (
 	"errors"
 	"log/slog"
 	"math/rand/v2"
+	"os"
+	"runtime"
 	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
 
+	"github.com/aazam476/sentinel/internal/agent/command"
 	"github.com/aazam476/sentinel/internal/agent/identity"
+	"github.com/aazam476/sentinel/internal/agent/logs"
 	"github.com/aazam476/sentinel/internal/agent/policy"
+	"github.com/aazam476/sentinel/internal/agent/power"
+	"github.com/aazam476/sentinel/internal/agent/processes"
+	"github.com/aazam476/sentinel/internal/agent/services"
 	"github.com/aazam476/sentinel/internal/agent/terminal"
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/shared/clock"
@@ -59,9 +66,26 @@ type Options struct {
 	Random func() float64
 	// Shells starts the terminal's shells; nil uses this machine's.
 	Shells terminal.Starter
+	// Services, Logs, Processes and Power manage the machine (§9.6); nil
+	// uses this machine's.
+	Services  services.Manager
+	Logs      logs.Reader
+	Processes Processes
+	Power     Power
 	// Observe, if set, is told when the agent reaches each Event. Tests
 	// use it to know when to move their fake clock.
 	Observe func(Event)
+}
+
+// Processes lists and ends processes (internal/agent/processes).
+type Processes interface {
+	List(ctx context.Context) (protocol.ProcessListPayload, error)
+	Kill(ctx context.Context, request protocol.ProcessKillPayload) error
+}
+
+// Power reboots and shuts down the machine (internal/agent/power).
+type Power interface {
+	Schedule(action power.Action) (<-chan error, error)
 }
 
 // Event is a point the agent reports reaching, once the timers it then
@@ -104,6 +128,7 @@ func New(options Options) *Agent {
 	if options.Shells == nil {
 		options.Shells = terminal.NewStarter()
 	}
+	withMachineDefaults(&options)
 	tlsConfig := options.TLSConfig
 	if tlsConfig == nil {
 		tlsConfig = TLSConfig(options.State.TLSFingerprint)
@@ -115,6 +140,23 @@ func New(options Options) *Agent {
 	}
 	agent.metricsInterval.Store(int64(defaultMetricsInterval))
 	return agent
+}
+
+// withMachineDefaults fills in the parts that act on the machine itself.
+func withMachineDefaults(options *Options) {
+	runner := command.Exec{}
+	if options.Services == nil {
+		options.Services = services.New(runtime.GOOS, runner, options.Clock)
+	}
+	if options.Logs == nil {
+		options.Logs = logs.New(runtime.GOOS, runner, options.Clock)
+	}
+	if options.Processes == nil {
+		options.Processes = processes.New(processes.System{}, options.Clock, int32(os.Getpid())) //nolint:gosec // G115: PIDs fit in 32 bits on every supported system
+	}
+	if options.Power == nil {
+		options.Power = power.New(runtime.GOOS, runner, options.Clock)
+	}
 }
 
 // Run keeps the agent connected until ctx ends.

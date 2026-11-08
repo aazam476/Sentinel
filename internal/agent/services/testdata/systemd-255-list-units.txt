@@ -1,0 +1,18 @@
+apt-daily-upgrade.service              loaded    inactive dead    Daily apt upgrade and clean activities
+apt-daily.service                      loaded    inactive dead    Daily apt download activities
+containerd.service                     loaded    active   running containerd container runtime
+dbus.service                           loaded    active   running D-Bus System Message Bus
+docker.service                         loaded    failed   failed  Docker Application Container Engine
+e2scrub_reap.service                   loaded    inactive dead    Remove Stale Online ext4 Metadata Check Snapshots
+getty@tty1.service                     loaded    active   running Getty on tty1
+ldconfig.service                       loaded    inactive dead    Rebuild Dynamic Linker Cache
+nftables.service                       loaded    inactive dead    nftables
+plymouth-quit-wait.service             not-found inactive dead    plymouth-quit-wait.service
+postgresql.service                     loaded    active   exited  PostgreSQL RDBMS
+postgresql@16-main.service             loaded    activating start PostgreSQL Cluster 16-main
+redis-server.service                   loaded    deactivating stop-sigterm Advanced key-value store
+ssl-cert.service                       loaded    active   exited  Generate snakeoil SSL keypair
+systemd-journald.service               loaded    active   running Journal Service
+systemd-logind.service                 loaded    active   running User Login Management
+systemd-udevd.service                  loaded    active   running Rule-based Manager for Device Events and Files
+user@1000.service                      loaded    active   running User Manager for UID 1000

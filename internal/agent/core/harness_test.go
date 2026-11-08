@@ -52,6 +52,9 @@ type server struct {
 	// shells starts agents' terminal shells; tests that open terminals set
 	// it to a fake.
 	shells terminal.Starter
+	// machine holds fakes for the parts that act on the machine (Services,
+	// Logs, Processes, Power); only those fields are used.
+	machine core.Options
 }
 
 func newServer(t *testing.T) *server {
@@ -233,8 +236,9 @@ func (s *server) runAgentWith(state identity.State, key ed25519.PrivateKey, loca
 	agent := core.New(core.Options{
 		State: state, Key: key, Policy: localPolicy, Collector: collector, Clock: running.clock,
 		Logger: slog.New(slog.DiscardHandler), Version: "v0.1.1", Random: func() float64 { return 0.5 },
-		Observe: func(event core.Event) { running.events <- event },
-		Shells:  s.shells,
+		Observe:  func(event core.Event) { running.events <- event },
+		Shells:   s.shells,
+		Services: s.machine.Services, Logs: s.machine.Logs, Processes: s.machine.Processes, Power: s.machine.Power,
 	})
 	ctx, cancel := context.WithCancel(s.t.Context())
 	done := make(chan struct{})

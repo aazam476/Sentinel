@@ -1,0 +1,8 @@
+PID	Status	Label
+-	0	com.apple.SafariHistoryServiceAgent
+412	0	com.openssh.sshd
+-	-9	com.example.crashy
+-	78	com.example.badconfig
+97	-	com.apple.mDNSResponder
+-	0	com.apple.ftpd
+-	0	com.apple.xpc.launchd.oneshot.0x10000001.Some Helper

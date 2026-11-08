@@ -1,0 +1,6 @@
+{"traceID":4242,"eventMessage":"Accepted publickey for admin from 192.0.2.10 port 51234 ssh2","eventType":"logEvent","source":null,"formatString":"%s","activityIdentifier":0,"subsystem":"","category":"","threadID":1234,"senderImageUUID":"A1","backtrace":{"frames":[]},"bootUUID":"","processImagePath":"\/usr\/sbin\/sshd","timestamp":"2026-11-08 11:59:58.123456+0000","senderImagePath":"\/usr\/sbin\/sshd","machTimestamp":1,"messageType":"Default","processImageUUID":"B2","processID":412,"senderProgramCounter":1,"parentActivityIdentifier":0,"timezoneName":""}
+{"eventMessage":"mDNSResponder: failed to resolve 'example.invalid'","subsystem":"com.apple.mDNSResponder","processImagePath":"\/usr\/sbin\/mDNSResponder","timestamp":"2026-11-08 11:59:59.000001+0000","messageType":"Error"}
+{"eventMessage":"kernel fault in driver","subsystem":"","processImagePath":"\/kernel","timestamp":"2026-11-08 11:59:59.500000+0000","messageType":"Fault"}
+{"eventMessage":"cache hit","subsystem":"com.example.app","processImagePath":"","timestamp":"2026-11-08 12:00:00.000000+0000","messageType":"Debug"}
+{"eventMessage":"loaded configuration","subsystem":"com.example.app","processImagePath":"\/Applications\/Example.app\/Contents\/MacOS\/Example","timestamp":"2026-11-08 12:00:00.250000+0000","messageType":"Info"}
+{"count":5,"finished":1}

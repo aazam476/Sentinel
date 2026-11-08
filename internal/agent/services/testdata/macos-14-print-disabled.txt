@@ -1,0 +1,8 @@
+disabled services = {
+	"com.apple.ftpd" => disabled
+	"com.openssh.sshd" => enabled
+	"com.apple.mrt" => disabled
+}
+login item associations = {
+	"com.example.helper" => com.example.App
+}
