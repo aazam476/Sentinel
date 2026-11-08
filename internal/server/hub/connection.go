@@ -86,7 +86,9 @@ func (c *connection) handleEvent(ctx context.Context, message protocol.Message) 
 		}
 		if err := c.hub.metrics.Ingest(ctx, c.agent.ID, sample); err != nil {
 			c.hub.logger.Error("could not store metrics", "agent", c.agent.PublicID, "error", err)
+			return
 		}
+		c.hub.publish(eventFor(c, EventMetrics))
 	default:
 		c.hub.logger.Debug("agent sent an event this server doesn't handle", "agent", c.agent.PublicID, "action", message.Action)
 	}
@@ -122,10 +124,23 @@ func (c *connection) send(ctx context.Context, message protocol.Message, payload
 }
 
 // close ends the connection with a close code the agent can act on. It
-// returns at once; the closing handshake finishes in the background.
+// returns at once; the closing handshake finishes in the background while
+// the read loop runs down.
 func (c *connection) close(code websocket.StatusCode, reason string) {
-	c.mutex.Lock()
-	c.closed = true
-	c.mutex.Unlock()
+	c.markClosed()
 	go func() { _ = c.conn.Close(code, reason) }() // best effort; the agent may already be gone
+}
+
+// closeAndWait is close for when the read loop never started: it waits for
+// the closing handshake, because the handler drops the connection as soon
+// as it returns.
+func (c *connection) closeAndWait(code websocket.StatusCode, reason string) {
+	c.markClosed()
+	_ = c.conn.Close(code, reason) // best effort; the agent may already be gone
+}
+
+func (c *connection) markClosed() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.closed = true
 }

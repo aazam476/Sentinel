@@ -266,7 +266,7 @@ func waitForEvent(t *testing.T, events <-chan hub.Event, want hub.Event) {
 	for {
 		select {
 		case event := <-events:
-			if event == want {
+			if event.AgentID == want.AgentID && event.Kind == want.Kind {
 				return
 			}
 		case <-t.Context().Done():

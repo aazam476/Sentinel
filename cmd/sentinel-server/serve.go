@@ -38,6 +38,7 @@ func serve(logger *slog.Logger, stdout io.Writer, settings config.Config) error 
 	if err := announceSetupToken(ctx, server.Auth, stdout, logger); err != nil {
 		return err
 	}
+	server.Start(ctx)
 	return listenAndServe(ctx, logger, settings, server.Handler)
 }
 

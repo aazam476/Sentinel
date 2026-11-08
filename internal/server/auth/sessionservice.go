@@ -39,11 +39,31 @@ type SessionSummary struct {
 // Authenticate returns the session for a token from a session cookie. It
 // fails with ErrNotAuthenticated for an unknown, expired or revoked session,
 // or one whose user has been disabled. Expired sessions are deleted.
+//
+// It counts as activity: the session's idle timeout starts again.
 func (s *Service) Authenticate(ctx context.Context, token string) (Session, error) {
+	session, err := s.CheckSession(ctx, token)
+	if err != nil {
+		return Session{}, err
+	}
+	now := s.clock.Now()
+	if now.Sub(time.UnixMilli(session.LastSeenAt)) >= touchInterval {
+		if err := s.touch(ctx, session.ID, now.UnixMilli()); err != nil {
+			return Session{}, err
+		}
+		session.LastSeenAt = now.UnixMilli()
+	}
+	return session, nil
+}
+
+// CheckSession is Authenticate without counting as activity. Long-lived
+// connections, such as the browser's event stream, use it to notice a
+// session that was revoked or timed out, without keeping an idle tab
+// signed in forever.
+func (s *Service) CheckSession(ctx context.Context, token string) (Session, error) {
 	if token == "" {
 		return Session{}, ErrNotAuthenticated
 	}
-
 	var session Session
 	err := s.database.Read(ctx, func(tx *sql.Tx) error {
 		var err error
@@ -56,16 +76,8 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Session, erro
 	if err != nil {
 		return Session{}, err
 	}
-
-	now := s.clock.Now()
-	if !s.sessionIsValid(session, now) {
+	if !s.sessionIsValid(session, s.clock.Now()) {
 		return Session{}, errors.Join(ErrNotAuthenticated, s.deleteSessionByID(ctx, session.ID))
-	}
-	if now.Sub(time.UnixMilli(session.LastSeenAt)) >= touchInterval {
-		if err := s.touch(ctx, session.ID, now.UnixMilli()); err != nil {
-			return Session{}, err
-		}
-		session.LastSeenAt = now.UnixMilli()
 	}
 	return session, nil
 }

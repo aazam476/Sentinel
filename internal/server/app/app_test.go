@@ -3,6 +3,7 @@
 package app_test
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -107,4 +108,40 @@ func newApp(t *testing.T, dataDir string) *app.App {
 	}
 	t.Cleanup(func() { _ = server.Close() }) // nothing to check when a test database closes
 	return server
+}
+
+func TestStart(t *testing.T) {
+	t.Run("runs until its context ends, then Close finishes cleanly", func(t *testing.T) {
+		server, err := app.New(t.Context(), options(t, t.TempDir()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		server.Start(ctx)
+		cancel()
+		if err := server.Close(); err != nil {
+			t.Errorf("Close returned %v", err)
+		}
+	})
+
+	t.Run("creates the server key next to the database", func(t *testing.T) {
+		dataDir := t.TempDir()
+		server := newApp(t, dataDir)
+		if _, err := os.Stat(filepath.Join(dataDir, "server-key")); err != nil {
+			t.Error(err)
+		}
+		if server.ServerKey.Fingerprint() == "" {
+			t.Error("no fingerprint")
+		}
+	})
+
+	t.Run("fails when the server key can't be used", func(t *testing.T) {
+		dataDir := t.TempDir()
+		if err := os.Mkdir(filepath.Join(dataDir, "server-key"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := app.New(t.Context(), options(t, dataDir)); err == nil {
+			t.Error("New returned nil")
+		}
+	})
 }

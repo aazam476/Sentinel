@@ -10,6 +10,11 @@ import (
 
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
+	"github.com/aazam476/sentinel/internal/server/fleet"
+	"github.com/aazam476/sentinel/internal/server/hub"
+	"github.com/aazam476/sentinel/internal/server/metrics"
+	"github.com/aazam476/sentinel/internal/server/serverkey"
+	"github.com/aazam476/sentinel/internal/shared/clock"
 )
 
 // sessionCookieName is the cookie that carries the session token.
@@ -19,15 +24,20 @@ const sessionCookieName = "sentinel_session"
 type handlers struct {
 	auth       *auth.Service
 	auditLog   *audit.Log
+	fleet      *fleet.Service
+	hub        *hub.Hub
+	metrics    *metrics.Service
+	serverKey  serverkey.Key
 	logger     *slog.Logger
 	clock      Clock
 	cookiePath string
 	publicURL  *url.URL
 }
 
-// Clock tells the current time.
+// Clock tells the current time and makes timers.
 type Clock interface {
 	Now() time.Time
+	NewTimer(duration time.Duration) clock.Timer
 }
 
 // setSessionCookie sends the session token (SEC-06): HttpOnly so scripts

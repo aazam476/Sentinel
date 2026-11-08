@@ -4,6 +4,105 @@
 // Generated from internal/server/api by `make gen-types`. Do not edit.
 
 //////////
+// source: agents.go
+
+/**
+ * Agent is a managed machine as the fleet view shows it.
+ */
+export interface Agent {
+  /**
+   * ID is the agent's ULID.
+   */
+  id: string;
+  /**
+   * Name is the display name, or the hostname when there is none.
+   */
+  name: string;
+  displayName: string;
+  hostname: string;
+  os: string;
+  platform: string;
+  platformVersion: string;
+  arch: string;
+  agentVersion: string;
+  online: boolean;
+  lastSeenAt: number | null;
+  enrolledAt: number /* int64 */;
+  tags: string[];
+  /**
+   * Current is the newest sample, while the machine is online.
+   */
+  current: CurrentMetrics | null;
+}
+/**
+ * CurrentMetrics is a machine's newest metrics sample.
+ */
+export interface CurrentMetrics {
+  time: number /* int64 */;
+  uptimeSeconds: number /* uint64 */;
+  /**
+   * Values holds each metric by name (see internal/server/metrics). A
+   * metric the machine doesn't report, or a rate right after it
+   * connected, is missing.
+   */
+  values: { [key: string]: number /* float64 */};
+}
+/**
+ * AgentDetails is everything the machine view shows about one machine.
+ */
+export interface AgentDetails extends Agent {
+  kernelVersion: string;
+  cpuModel: string;
+  cpuCores: number /* int */;
+  memoryTotalBytes: number /* uint64 */;
+  capabilities: Capability[];
+  /**
+   * Filesystems and Temperatures come from the newest sample; both are
+   * empty while the machine is offline.
+   */
+  filesystems: Filesystem[];
+  temperatures: Temperature[];
+}
+/**
+ * Capability is a feature and whether the machine's local policy allows it.
+ */
+export interface Capability {
+  name: string;
+  enabled: boolean;
+  reason: string;
+}
+/**
+ * Filesystem is one mounted filesystem's usage.
+ */
+export interface Filesystem {
+  mount: string;
+  type: string;
+  usedBytes: number /* uint64 */;
+  totalBytes: number /* uint64 */;
+}
+/**
+ * Temperature is one sensor reading.
+ */
+export interface Temperature {
+  sensor: string;
+  celsius: number /* float64 */;
+}
+/**
+ * AgentsResponse lists every machine that hasn't been revoked, by name.
+ */
+export interface AgentsResponse {
+  agents: Agent[];
+}
+/**
+ * UpdateAgentRequest renames or re-tags a machine. Missing fields are left
+ * as they are; an empty display name goes back to the hostname.
+ */
+export interface UpdateAgentRequest {
+  displayName?: string;
+  tags?: string[];
+}
+
+//////////
 // source: audit.go
 
 /**
@@ -47,6 +146,54 @@ export interface AuditVerifyResponse {
 }
 
 //////////
+// source: enrollment.go
+
+/**
+ * EnrollmentToken is an enrollment token as admins see it. Its secret is
+ * only ever returned once, by CreateEnrollmentTokenResponse.
+ */
+export interface EnrollmentToken {
+  id: number /* int64 */;
+  note: string;
+  createdBy: string;
+  createdAt: number /* int64 */;
+  expiresAt: number /* int64 */;
+  maxUses: number /* int */;
+  useCount: number /* int */;
+  revoked: boolean;
+  /**
+   * Usable is false once the token is revoked, expired or used up.
+   */
+  usable: boolean;
+}
+/**
+ * EnrollmentTokensResponse lists recent tokens, newest first, and the
+ * fingerprint install commands need.
+ */
+export interface EnrollmentTokensResponse {
+  tokens: EnrollmentToken[];
+  serverFingerprint: string;
+}
+/**
+ * CreateEnrollmentTokenRequest describes a new token. Zero values mean the
+ * defaults: 24 hours and a single use.
+ */
+export interface CreateEnrollmentTokenRequest {
+  note: string;
+  expiresInHours: number /* int */;
+  maxUses: number /* int */;
+}
+/**
+ * CreateEnrollmentTokenResponse is a new token with its secret, shown once,
+ * and the server key fingerprint for the install command (§7.2).
+ */
+export interface CreateEnrollmentTokenResponse {
+  token: EnrollmentToken;
+  secret: string;
+  serverFingerprint: string;
+}
+
+//////////
 // source: errors.go
 
 /**
@@ -67,6 +214,30 @@ export interface ErrorDetail {
    * RetryAfterSeconds is set for too_many_attempts.
    */
   retryAfterSeconds?: number /* int */;
+}
+
+//////////
+// source: events.go
+
+/**
+ * AgentEvent is sent on /api/events as "event: agent" when a machine comes
+ * online, goes offline or reports new details. The UI refetches what it
+ * shows about that machine.
+ */
+export interface AgentEvent {
+  agentId: string;
+  /**
+   * Kind is "online", "offline" or "info_updated".
+   */
+  kind: string;
+}
+/**
+ * MetricsEvent is sent on /api/events as "event: metrics" for every new
+ * sample, so live charts can move without polling.
+ */
+export interface MetricsEvent {
+  agentId: string;
+  current: CurrentMetrics;
 }
 
 //////////
@@ -147,6 +318,31 @@ export interface SignedInResponse {
    * RemainingRecoveryCodes is set after signing in with a recovery code.
    */
   remainingRecoveryCodes: number | null;
+}
+
+//////////
+// source: metrics.go
+
+/**
+ * MetricSeries is one metric of one machine over a time range, for a chart.
+ */
+export interface MetricSeries {
+  metric: string;
+  /**
+   * Resolution is "raw" (10-second samples), "1m" or "1h".
+   */
+  resolution: string;
+  points: MetricPoint[];
+}
+/**
+ * MetricPoint is one point of a series. For raw samples Min and Max equal
+ * Value; for rollups they are the bucket's extremes.
+ */
+export interface MetricPoint {
+  time: number /* int64 */;
+  value: number /* float64 */;
+  min: number /* float64 */;
+  max: number /* float64 */;
 }
 
 //////////

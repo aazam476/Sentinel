@@ -13,12 +13,20 @@ const (
 	EventOffline EventKind = "offline"
 	// EventInfoUpdated: the agent reported new details about its machine.
 	EventInfoUpdated EventKind = "info_updated"
+	// EventMetrics: a metrics sample from the agent was stored.
+	EventMetrics EventKind = "metrics"
 )
 
 // Event says something changed about an agent.
 type Event struct {
-	AgentID int64
-	Kind    EventKind
+	// AgentID is the internal ID; PublicID the one the API uses.
+	AgentID  int64
+	PublicID string
+	Kind     EventKind
+}
+
+func eventFor(conn *connection, kind EventKind) Event {
+	return Event{AgentID: conn.agent.ID, PublicID: conn.agent.PublicID, Kind: kind}
 }
 
 // eventBuffer is how many events a slow subscriber can fall behind by
@@ -29,13 +37,20 @@ const eventBuffer = 256
 // function that stops the subscription. A subscriber that falls more than
 // eventBuffer events behind misses the newest ones, so it should treat an
 // event as "something changed" and re-read the state.
+//
+// The channel is closed when the hub shuts down, which tells long-lived
+// subscribers (the browsers' event streams) to finish.
 func (h *Hub) Subscribe() (<-chan Event, func()) {
 	events := make(chan Event, eventBuffer)
 	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	if h.shutDown {
+		close(events)
+		return events, func() {}
+	}
 	h.nextSubscriber++
 	id := h.nextSubscriber
 	h.subscribers[id] = events
-	h.mutex.Unlock()
 	return events, func() {
 		h.mutex.Lock()
 		defer h.mutex.Unlock()
@@ -58,5 +73,13 @@ func (h *Hub) publishLocked(event Event) {
 		case events <- event:
 		default: // this subscriber is too far behind; see Subscribe
 		}
+	}
+}
+
+// closeSubscribersLocked ends every subscription. The caller holds h.mutex.
+func (h *Hub) closeSubscribersLocked() {
+	for id, events := range h.subscribers {
+		close(events)
+		delete(h.subscribers, id)
 	}
 }

@@ -598,6 +598,75 @@ func TestDisconnect(t *testing.T) {
 	})
 }
 
+func TestShutdown(t *testing.T) {
+	t.Run("tells connected agents the server is restarting and ends subscriptions", func(t *testing.T) {
+		h := newHarness(t)
+		events := h.subscribe(t)
+		agent := h.online(t)
+		agent.answerSystemInfo(protocol.SystemInfo{Hostname: "nas-01"})
+		waitForEvent(t, events, hub.Event{AgentID: h.agentID(t, agent), Kind: hub.EventOnline})
+
+		done := make(chan struct{})
+		go func() { h.hub.Shutdown(); close(done) }()
+		if got := agent.closeStatus(); got != websocket.StatusServiceRestart {
+			t.Errorf("close status = %d, want StatusServiceRestart", got)
+		}
+		<-done
+		for range events { // drains, then sees the channel closed
+		}
+		if h.hub.IsOnline(h.agentID(t, agent)) {
+			t.Error("the agent is online after shutdown")
+		}
+	})
+
+	t.Run("refuses new connections and subscriptions afterwards", func(t *testing.T) {
+		h := newHarness(t)
+		h.hub.Shutdown()
+		if got := rejectedStatus(t, h.url, nil); got != http.StatusServiceUnavailable {
+			t.Errorf("status = %d, want 503", got)
+		}
+		events, stop := h.hub.Subscribe()
+		defer stop()
+		if _, open := <-events; open {
+			t.Error("a subscription after shutdown is open")
+		}
+	})
+
+	t.Run("an agent mid-handshake when the server stops is turned away", func(t *testing.T) {
+		h := newHarness(t)
+		agent := h.reconnect(t, h.enrolledAgent(t))
+		challenge := agent.hello()
+		done := make(chan struct{})
+		go func() { h.hub.Shutdown(); close(done) }()
+		// Shutdown waits for this handler; once the proof arrives the
+		// handler finds the hub shut down and closes.
+		agent.prove(challenge, agent.key)
+		if got := agent.closeStatus(); got != websocket.StatusServiceRestart {
+			t.Errorf("close status = %d, want StatusServiceRestart", got)
+		}
+		<-done
+	})
+}
+
+func TestEvents(t *testing.T) {
+	t.Run("a stored sample is announced with the agent's public ID", func(t *testing.T) {
+		h := newHarness(t)
+		events := h.subscribe(t)
+		agent := h.online(t)
+		agent.answerSystemInfo(protocol.SystemInfo{Hostname: "nas-01"})
+		agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionMetricsSample},
+			protocol.MetricsSample{Time: h.clock.Now().UnixMilli(), CPUPercent: 1})
+		for event := range events {
+			if event.Kind == hub.EventMetrics {
+				if event.PublicID != agent.id {
+					t.Errorf("event for %q, want %q", event.PublicID, agent.id)
+				}
+				return
+			}
+		}
+	})
+}
+
 func contextWithCancel(t *testing.T) (context.Context, context.CancelFunc) {
 	t.Helper()
 	return context.WithCancel(t.Context())

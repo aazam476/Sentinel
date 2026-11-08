@@ -30,6 +30,16 @@ func TestSEC06_SessionsExpire(t *testing.T) {
 			wantValid: false,
 		},
 		{
+			name: "ends after 12 hours idle even with an event stream checking it",
+			passTime: func(t *testing.T, h *harness, token string) {
+				for range 13 {
+					h.clock.Advance(time.Hour)
+					_, _ = h.service.CheckSession(t.Context(), token) // the last check fails
+				}
+			},
+			wantValid: false,
+		},
+		{
 			name: "ends 7 days after sign-in even when used all along",
 			passTime: func(t *testing.T, h *harness, token string) {
 				for elapsed := time.Duration(0); elapsed < 7*24*time.Hour; elapsed += 6 * time.Hour {
@@ -58,6 +68,19 @@ func TestSEC06_SessionsExpire(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("CheckSession accepts a live session and refuses an empty or unknown token", func(t *testing.T) {
+		h := newHarness(t)
+		_, token, _ := h.setUpAdmin(t)
+		if _, err := h.service.CheckSession(t.Context(), token); err != nil {
+			t.Errorf("CheckSession returned %v for a live session", err)
+		}
+		for _, bad := range []string{"", "unknown"} {
+			if _, err := h.service.CheckSession(t.Context(), bad); !errors.Is(err, auth.ErrNotAuthenticated) {
+				t.Errorf("CheckSession(%q) = %v, want ErrNotAuthenticated", bad, err)
+			}
+		}
+	})
 
 	t.Run("a password-only session ends after 10 minutes", func(t *testing.T) {
 		h := newHarness(t)

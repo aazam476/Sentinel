@@ -9,6 +9,10 @@ import (
 
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
+	"github.com/aazam476/sentinel/internal/server/fleet"
+	"github.com/aazam476/sentinel/internal/server/hub"
+	"github.com/aazam476/sentinel/internal/server/metrics"
+	"github.com/aazam476/sentinel/internal/server/serverkey"
 )
 
 // RouterOptions holds what NewRouter needs to build the routes.
@@ -17,8 +21,14 @@ type RouterOptions struct {
 	WebUI    http.Handler
 	Auth     *auth.Service
 	AuditLog *audit.Log
-	Logger   *slog.Logger
-	Clock    Clock
+	Fleet    *fleet.Service
+	// Hub tells which agents are online; the agents' own endpoint,
+	// /agent/connect, is routed by internal/server/app.
+	Hub       *hub.Hub
+	Metrics   *metrics.Service
+	ServerKey serverkey.Key
+	Logger    *slog.Logger
+	Clock     Clock
 	// BasePath is the configured base path; the session cookie is limited
 	// to it.
 	BasePath string
@@ -32,6 +42,10 @@ func NewRouter(options RouterOptions) http.Handler {
 	h := &handlers{
 		auth:       options.Auth,
 		auditLog:   options.AuditLog,
+		fleet:      options.Fleet,
+		hub:        options.Hub,
+		metrics:    options.Metrics,
+		serverKey:  options.ServerKey,
 		logger:     options.Logger,
 		clock:      options.Clock,
 		cookiePath: cookiePath(options.BasePath),
@@ -71,6 +85,17 @@ func NewRouter(options RouterOptions) http.Handler {
 	mux.HandleFunc("GET /api/audit", h.withPermission(auth.PermissionViewAuditLog, h.handleListAudit))
 	mux.HandleFunc("GET /api/audit/verify", h.withPermission(auth.PermissionViewAuditLog, h.handleVerifyAudit))
 	mux.HandleFunc("GET /api/audit/export", h.withPermission(auth.PermissionViewAuditLog, h.handleExportAudit))
+
+	mux.HandleFunc("GET /api/enrollment-tokens", h.withPermission(auth.PermissionManageEnrollment, h.handleListEnrollmentTokens))
+	mux.HandleFunc("POST /api/enrollment-tokens", h.withPermission(auth.PermissionManageEnrollment, h.handleCreateEnrollmentToken))
+	mux.HandleFunc("DELETE /api/enrollment-tokens/{id}", h.withPermission(auth.PermissionManageEnrollment, h.handleRevokeEnrollmentToken))
+
+	mux.HandleFunc("GET /api/agents", h.withPermission(auth.PermissionViewFleet, h.handleListAgents))
+	mux.HandleFunc("GET /api/agents/{id}", h.withPermission(auth.PermissionViewFleet, h.handleGetAgent))
+	mux.HandleFunc("PATCH /api/agents/{id}", h.withPermission(auth.PermissionManageMachines, h.handleUpdateAgent))
+	mux.HandleFunc("POST /api/agents/{id}/revoke", h.withPermission(auth.PermissionRevokeAgents, h.handleRevokeAgent))
+	mux.HandleFunc("GET /api/agents/{id}/metrics", h.withPermission(auth.PermissionViewFleet, h.handleAgentMetrics))
+	mux.HandleFunc("GET /api/events", h.withPermission(auth.PermissionViewFleet, h.handleEvents))
 
 	mux.HandleFunc("/api/", handleUnknownAPIRoute)
 	mux.Handle("/", options.WebUI)

@@ -89,7 +89,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/servertls/` | Self-signed and ACME certificates | Built |
 | `internal/server/middleware/` | Security headers, trusted proxies, Origin check, base path | Built |
 | `internal/server/app/` | Assembles the database, services, routes and middleware | Built |
-| `internal/server/api/` | HTTP handlers and the router | Setup, sign-in, sessions, users, audit log |
+| `internal/server/api/` | HTTP handlers and the router | Setup, sign-in, sessions, users, audit log, enrollment, machines, metrics, live events |
 | `internal/server/httpserver/` | Opens the listening socket and serves HTTP | Built |
 | `internal/server/store/` | SQLite connection, transactions, single writer, migrations | Built |
 | `internal/server/auth/` | Setup token, passwords, TOTP, recovery codes, sessions, rate limiting, roles | Built |

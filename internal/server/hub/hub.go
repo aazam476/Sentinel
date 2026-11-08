@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/coder/websocket"
+
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/fleet"
 	"github.com/aazam476/sentinel/internal/server/serverkey"
@@ -72,9 +74,13 @@ type Hub struct {
 	mutex sync.Mutex
 	// connections holds each online agent's connection, by agent ID.
 	connections map[int64]*connection
-	// subscribers get an Event whenever connections changes.
+	// subscribers get an Event whenever something about an agent changes.
 	subscribers    map[int]chan Event
 	nextSubscriber int
+	// shutDown is set by Shutdown; no new connections or subscribers.
+	shutDown bool
+	// handlers counts the running ServeHTTP calls, so Shutdown can wait.
+	handlers sync.WaitGroup
 }
 
 // New returns a Hub with no agents connected.
@@ -101,7 +107,7 @@ func (h *Hub) Disconnect(agentID int64) {
 	conn, ok := h.connections[agentID]
 	if ok {
 		delete(h.connections, agentID)
-		h.publishLocked(Event{AgentID: agentID, Kind: EventOffline})
+		h.publishLocked(eventFor(conn, EventOffline))
 	}
 	h.mutex.Unlock()
 	if ok {
@@ -109,18 +115,51 @@ func (h *Hub) Disconnect(agentID int64) {
 	}
 }
 
+// Shutdown closes every agent connection, telling the agents the server is
+// restarting so they reconnect soon, ends every subscription, and waits
+// for the connections' handlers to finish. Afterwards new connections are
+// refused. Call it before closing the database.
+func (h *Hub) Shutdown() {
+	h.mutex.Lock()
+	h.shutDown = true
+	connections := h.connections
+	h.connections = map[int64]*connection{}
+	h.closeSubscribersLocked()
+	h.mutex.Unlock()
+	for _, conn := range connections {
+		conn.close(websocket.StatusServiceRestart, "the server is restarting")
+	}
+	h.handlers.Wait()
+}
+
+// startHandler counts a new ServeHTTP call, unless the hub is shut down.
+func (h *Hub) startHandler() bool {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	if h.shutDown {
+		return false
+	}
+	h.handlers.Add(1)
+	return true
+}
+
 // register makes conn the agent's live connection, closing any older one:
 // an agent that reconnects before the server noticed its old connection
-// died must not be shut out.
-func (h *Hub) register(conn *connection) {
+// died must not be shut out. It returns false if the hub is shutting down.
+func (h *Hub) register(conn *connection) bool {
 	h.mutex.Lock()
+	if h.shutDown {
+		h.mutex.Unlock()
+		return false
+	}
 	old := h.connections[conn.agent.ID]
 	h.connections[conn.agent.ID] = conn
-	h.publishLocked(Event{AgentID: conn.agent.ID, Kind: EventOnline})
+	h.publishLocked(eventFor(conn, EventOnline))
 	h.mutex.Unlock()
 	if old != nil {
 		old.close(protocol.CloseReplaced, "the agent connected again")
 	}
+	return true
 }
 
 // unregister forgets conn, unless a newer connection already replaced it.
@@ -129,7 +168,7 @@ func (h *Hub) unregister(conn *connection) {
 	defer h.mutex.Unlock()
 	if h.connections[conn.agent.ID] == conn {
 		delete(h.connections, conn.agent.ID)
-		h.publishLocked(Event{AgentID: conn.agent.ID, Kind: EventOffline})
+		h.publishLocked(eventFor(conn, EventOffline))
 	}
 }
 

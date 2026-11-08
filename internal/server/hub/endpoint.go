@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
 
 	"github.com/coder/websocket"
 
@@ -27,6 +28,11 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "This endpoint is for Sentinel agents only.", http.StatusForbidden)
 		return
 	}
+	if !h.startHandler() {
+		http.Error(w, "The server is shutting down.", http.StatusServiceUnavailable)
+		return
+	}
+	defer h.handlers.Done()
 	conn, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		// Accept has already written an error response.
@@ -58,14 +64,20 @@ func (h *Hub) closeAfterFailedHandshake(conn *websocket.Conn, ip string, err err
 	_ = conn.Close(refused.code, refused.reason) // best effort; the agent may already be gone
 }
 
-// serve runs an authenticated connection until it ends.
+// serve runs an authenticated connection until it ends, including the
+// goroutines it starts, so nothing touches the database after it returns.
 func (h *Hub) serve(ctx context.Context, conn *connection) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	h.register(conn)
+	if !h.register(conn) {
+		conn.closeAndWait(websocket.StatusServiceRestart, "the server is restarting")
+		return
+	}
 	defer h.connectionEnded(conn)
 	defer conn.watchdog.Stop()
+
+	var background sync.WaitGroup
+	ctx, cancel := context.WithCancel(ctx)
+	defer background.Wait()
+	defer cancel()
 
 	// Revocation stores the revocation, then calls Disconnect. If it ran
 	// between this agent's handshake and register, Disconnect found
@@ -73,11 +85,11 @@ func (h *Hub) serve(ctx context.Context, conn *connection) {
 	revoked, err := h.fleet.IsRevoked(ctx, conn.agent.ID)
 	if err != nil {
 		h.logger.Error("could not check whether the agent was revoked", "agent", conn.agent.PublicID, "error", err)
-		conn.close(websocket.StatusInternalError, "the server couldn't check the agent")
+		conn.closeAndWait(websocket.StatusInternalError, "the server couldn't check the agent")
 		return
 	}
 	if revoked {
-		conn.close(protocol.CloseRevoked, "this agent was revoked")
+		conn.closeAndWait(protocol.CloseRevoked, "this agent was revoked")
 		return
 	}
 	if err := h.fleet.RecordConnected(ctx, conn.agent.ID, conn.hello.AgentVersion, conn.hello.ProtocolVersion); err != nil {
@@ -92,8 +104,8 @@ func (h *Hub) serve(ctx context.Context, conn *connection) {
 	}
 	h.logger.Info("agent connected", "agent", conn.agent.PublicID, "name", conn.agent.Name(), "version", conn.hello.AgentVersion)
 
-	go conn.watchHeartbeat(ctx)
-	go h.refreshSystemInfo(ctx, conn)
+	background.Go(func() { conn.watchHeartbeat(ctx) })
+	background.Go(func() { h.refreshSystemInfo(ctx, conn) })
 	conn.readLoop(ctx)
 }
 
@@ -121,5 +133,5 @@ func (h *Hub) refreshSystemInfo(ctx context.Context, conn *connection) {
 		h.logger.Warn("could not save the agent's system info", "agent", conn.agent.PublicID, "error", err)
 		return
 	}
-	h.publish(Event{AgentID: conn.agent.ID, Kind: EventInfoUpdated})
+	h.publish(eventFor(conn, EventInfoUpdated))
 }
