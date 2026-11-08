@@ -21,6 +21,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/core"
 	"github.com/aazam476/sentinel/internal/agent/identity"
 	"github.com/aazam476/sentinel/internal/agent/policy"
+	"github.com/aazam476/sentinel/internal/agent/terminal"
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
@@ -48,6 +49,9 @@ type server struct {
 	hub     *hub.Hub
 	http    *httptest.Server
 	admin   auth.Session
+	// shells starts agents' terminal shells; tests that open terminals set
+	// it to a fake.
+	shells terminal.Starter
 }
 
 func newServer(t *testing.T) *server {
@@ -230,6 +234,7 @@ func (s *server) runAgentWith(state identity.State, key ed25519.PrivateKey, loca
 		State: state, Key: key, Policy: localPolicy, Collector: collector, Clock: running.clock,
 		Logger: slog.New(slog.DiscardHandler), Version: "v0.1.1", Random: func() float64 { return 0.5 },
 		Observe: func(event core.Event) { running.events <- event },
+		Shells:  s.shells,
 	})
 	ctx, cancel := context.WithCancel(s.t.Context())
 	done := make(chan struct{})

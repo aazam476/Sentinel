@@ -100,6 +100,8 @@ func (a *Agent) handshake(ctx context.Context, conn *websocket.Conn) (protocol.W
 
 // serve runs the connection's loops until any of them ends it.
 func (c *connection) serve(ctx context.Context, pingInterval time.Duration) error {
+	// Terminal shells outlive the connection: they wait to be resumed.
+	defer c.agent.terminals.DetachAll()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	var loops sync.WaitGroup
@@ -122,15 +124,17 @@ func (c *connection) readLoop(ctx context.Context) error {
 	var requests sync.WaitGroup
 	defer requests.Wait()
 	for {
-		message, err := protocol.ReadMessage(ctx, c.conn)
-		if errors.Is(err, protocol.ErrBinaryFrame) {
-			continue // streams arrive in a later milestone
-		}
+		message, frame, err := protocol.ReadAny(ctx, c.conn)
 		if err != nil {
 			return err
 		}
 		c.lastActivity.Store(c.agent.options.Clock.Now().UnixMilli())
-		if message.Type == protocol.TypeRequest {
+		switch {
+		case frame != nil:
+			c.handleFrame(frame)
+		case message.Type == protocol.TypeStreamClose:
+			c.handleStreamClose(message)
+		case message.Type == protocol.TypeRequest:
 			requests.Go(func() { c.answer(ctx, message) })
 		}
 	}

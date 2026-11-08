@@ -16,6 +16,7 @@ import (
 
 	"github.com/aazam476/sentinel/internal/agent/identity"
 	"github.com/aazam476/sentinel/internal/agent/policy"
+	"github.com/aazam476/sentinel/internal/agent/terminal"
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/shared/clock"
 )
@@ -56,6 +57,8 @@ type Options struct {
 	TLSConfig *tls.Config
 	// Random returns a number in [0, 1) for jitter; nil uses math/rand.
 	Random func() float64
+	// Shells starts the terminal's shells; nil uses this machine's.
+	Shells terminal.Starter
 	// Observe, if set, is told when the agent reaches each Event. Tests
 	// use it to know when to move their fake clock.
 	Observe func(Event)
@@ -88,6 +91,7 @@ type Agent struct {
 	options   Options
 	tlsConfig *tls.Config
 	buffer    *sampleBuffer
+	terminals *terminal.Manager
 	// metricsInterval is how often to sample, as the server last said.
 	metricsInterval atomic.Int64
 }
@@ -97,13 +101,17 @@ func New(options Options) *Agent {
 	if options.Random == nil {
 		options.Random = rand.Float64
 	}
+	if options.Shells == nil {
+		options.Shells = terminal.NewStarter()
+	}
 	tlsConfig := options.TLSConfig
 	if tlsConfig == nil {
 		tlsConfig = TLSConfig(options.State.TLSFingerprint)
 	}
 	agent := &Agent{
 		options: options, tlsConfig: tlsConfig,
-		buffer: newSampleBuffer(int(bufferedTime / defaultMetricsInterval)),
+		buffer:    newSampleBuffer(int(bufferedTime / defaultMetricsInterval)),
+		terminals: terminal.NewManager(options.Shells, options.Clock, options.Logger),
 	}
 	agent.metricsInterval.Store(int64(defaultMetricsInterval))
 	return agent
@@ -111,6 +119,7 @@ func New(options Options) *Agent {
 
 // Run keeps the agent connected until ctx ends.
 func (a *Agent) Run(ctx context.Context) {
+	defer a.terminals.CloseAll()
 	sampling := make(chan struct{})
 	go func() { a.sampleForever(ctx); close(sampling) }()
 	defer func() { <-sampling }()

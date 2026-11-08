@@ -112,3 +112,17 @@ func TestExplainRefusal(t *testing.T) {
 		})
 	}
 }
+
+func TestMalformedStreamMessages(t *testing.T) {
+	// The terminal manager is nil: reaching it would panic, so these pass
+	// only if the malformed messages are dropped first.
+	c := &connection{agent: &Agent{options: Options{Logger: slog.New(slog.DiscardHandler)}}}
+
+	t.Run("drops a stream frame too short to name its stream", func(t *testing.T) {
+		c.handleFrame([]byte{0, 1})
+	})
+
+	t.Run("drops a stream.close whose payload can't be read", func(t *testing.T) {
+		c.handleStreamClose(protocol.Message{Type: protocol.TypeStreamClose, Payload: []byte(`"not an object"`)})
+	})
+}

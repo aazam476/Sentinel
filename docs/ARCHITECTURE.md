@@ -108,13 +108,14 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/shared/keyfile/` | Key files only their owner can read | Built |
 | `internal/testutil/` | Helpers used only by tests, including a fault-injecting network proxy | Built |
 | `internal/protocol/` | Message types, frames and handshake signatures shared by server and agent | Built |
-| `internal/server/{relay,alerts}/` | The rest of the server | Planned |
+| `internal/server/alerts/` | The rest of the server | Planned |
 | `internal/agent/identity/` | The agent's key, ID and saved server key, in a root-only directory | Built |
 | `internal/agent/policy/` | Reads the local policy file that switches capabilities off | Built |
-| `internal/agent/core/` | Enrollment, the connection to the server, heartbeat, reconnects, requests | Built |
+| `internal/agent/core/` | Enrollment, the connection to the server, heartbeat, reconnects, requests, streams | Built |
+| `internal/agent/terminal/` | Shells for the web terminal (a PTY on Linux and macOS, ConPTY on Windows), kept 30 s for a viewer to come back | Built |
 | `internal/agent/collectors/` | Metrics and machine details, through gopsutil | Built |
 | `internal/agent/setup/` | The steps behind install, enroll and uninstall | Built |
-| `internal/agent/<feature>/` | One package per agent feature (terminal, docker, zfs, ...) | Planned |
+| `internal/agent/<feature>/` | One package per agent feature (services, docker, zfs, ...) | Planned |
 | `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |
