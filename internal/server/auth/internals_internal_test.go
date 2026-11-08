@@ -238,6 +238,8 @@ func TestPermissions(t *testing.T) {
 		{PermissionUseDesktop, false, true, true},
 		{PermissionManageFiles, false, true, true},
 		{PermissionManageServices, false, true, true},
+		{PermissionManageProcesses, false, true, true},
+		{PermissionControlPower, false, true, true},
 		{PermissionManageDocker, false, true, true},
 		{PermissionRunScripts, false, true, true},
 		{PermissionManageUsers, false, false, true},

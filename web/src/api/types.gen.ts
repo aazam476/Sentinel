@@ -331,6 +331,10 @@ export interface SignedInResponse {
 }
 
 //////////
+// source: machine.go
+
+
+//////////
 // source: metrics.go
 
 /**
@@ -465,6 +469,99 @@ export interface CompleteSetupRequest {
   setupToken: string;
   setupId: string;
   totpCode: string;
+}
+
+//////////
+// source: system.go
+
+/**
+ * MachineService is one service on a machine.
+ */
+export interface MachineService {
+  name: string;
+  description: string;
+  /**
+   * State is running, stopped, failed, starting, stopping or unknown.
+   */
+  state: 'running' | 'stopped' | 'failed' | 'starting' | 'stopping' | 'unknown';
+  /**
+   * Startup is automatic, manual, disabled or fixed (the service manager
+   * decides, so enable and disable don't apply).
+   */
+  startup: 'automatic' | 'manual' | 'disabled' | 'fixed';
+}
+/**
+ * ServiceList answers GET /api/agents/{id}/services.
+ */
+export interface ServiceList {
+  /**
+   * Manager is systemd, launchd or scm.
+   */
+  manager: 'systemd' | 'launchd' | 'scm';
+  services: MachineService[];
+}
+/**
+ * MachineProcess is one process on a machine.
+ */
+export interface MachineProcess {
+  pid: number /* int32 */;
+  name: string;
+  user: string;
+  /**
+   * CPUPercent is use over the last second; 100 is one whole core.
+   */
+  cpuPercent: number /* float64 */;
+  memoryBytes: number /* uint64 */;
+  command: string;
+}
+/**
+ * ProcessList answers GET /api/agents/{id}/processes.
+ */
+export interface ProcessList {
+  processes: MachineProcess[];
+}
+/**
+ * KillProcessRequest is the body of POST /api/agents/{id}/processes/{pid}/kill.
+ */
+export interface KillProcessRequest {
+  /**
+   * Force kills outright instead of asking the process to stop.
+   */
+  force: boolean;
+}
+/**
+ * MachineLogEntry is one line of a machine's log.
+ */
+export interface MachineLogEntry {
+  /**
+   * Time is UTC Unix milliseconds.
+   */
+  time: number /* int64 */;
+  /**
+   * Level is error, warning, notice, info or debug.
+   */
+  level: 'error' | 'warning' | 'notice' | 'info' | 'debug';
+  source: string;
+  message: string;
+}
+/**
+ * LogEntries answers GET /api/agents/{id}/logs, newest first.
+ */
+export interface LogEntries {
+  entries: MachineLogEntry[];
+  /**
+   * Truncated is true when there were more entries than the limit.
+   */
+  truncated: boolean;
+}
+/**
+ * PowerRequest is the body of POST /api/agents/{id}/power.
+ */
+export interface PowerRequest {
+  /**
+   * Action is reboot or shutdown.
+   */
+  action: 'reboot' | 'shutdown';
 }
 
 //////////

@@ -25,8 +25,12 @@ const (
 	PermissionUseDesktop     Permission = "use_desktop"
 	PermissionManageFiles    Permission = "manage_files"
 	PermissionManageServices Permission = "manage_services"
-	PermissionManageDocker   Permission = "manage_docker"
-	PermissionRunScripts     Permission = "run_scripts"
+	// PermissionManageProcesses covers seeing processes too: their command
+	// lines can hold secrets that a viewer shouldn't see.
+	PermissionManageProcesses Permission = "manage_processes"
+	PermissionControlPower    Permission = "control_power"
+	PermissionManageDocker    Permission = "manage_docker"
+	PermissionRunScripts      Permission = "run_scripts"
 
 	// Admin: manage Sentinel itself.
 	PermissionManageUsers      Permission = "manage_users"
@@ -49,6 +53,8 @@ func requiredRole(permission Permission) (Role, bool) {
 		PermissionUseDesktop,
 		PermissionManageFiles,
 		PermissionManageServices,
+		PermissionManageProcesses,
+		PermissionControlPower,
 		PermissionManageDocker,
 		PermissionRunScripts:
 		return RoleOperator, true

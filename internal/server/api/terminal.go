@@ -87,12 +87,12 @@ func (h *handlers) runTerminal(ctx context.Context, conn *websocket.Conn, sessio
 		return protocol.TerminalOpenPayload{StreamID: id, Cols: request.cols, Rows: request.rows, ResumeSessionID: request.resume}
 	}, &opened)
 	if err != nil {
-		h.auditTerminal(ctx, session, agent, client, "terminal.open", outcomeOf(err), map[string]any{"error": err.Error()})
+		h.auditMachine(ctx, session, agent, client, "terminal.open", outcomeOf(err), map[string]any{"error": err.Error()})
 		_ = conn.Close(websocket.StatusPolicyViolation, closeReason(err)) // best effort; the browser shows the reason
 		return
 	}
 	h.terminals.Attached(opened.SessionID, session.UserID, agent.ID)
-	h.auditTerminal(ctx, session, agent, client, "terminal.open", audit.OutcomeStarted,
+	h.auditMachine(ctx, session, agent, client, "terminal.open", audit.OutcomeStarted,
 		map[string]any{"sessionId": opened.SessionID, "resumed": opened.Resumed})
 
 	startedAt := h.clock.Now()
@@ -106,7 +106,7 @@ func (h *handlers) runTerminal(ctx context.Context, conn *websocket.Conn, sessio
 	} else {
 		h.terminals.Ended(opened.SessionID)
 	}
-	h.auditTerminal(context.WithoutCancel(ctx), session, agent, client, "terminal.close", audit.OutcomeSuccess, map[string]any{
+	h.auditMachine(context.WithoutCancel(ctx), session, agent, client, "terminal.close", audit.OutcomeSuccess, map[string]any{
 		"sessionId": opened.SessionID, "reason": result.Reason, "detached": result.Detached,
 		"durationSeconds": int64(h.clock.Now().Sub(startedAt) / time.Second),
 		"bytesIn":         result.BytesIn, "bytesOut": result.BytesOut,
@@ -116,12 +116,14 @@ func (h *handlers) runTerminal(ctx context.Context, conn *websocket.Conn, sessio
 	_ = conn.Close(websocket.StatusNormalClosure, "") // best effort; the browser may be gone
 }
 
-func (h *handlers) auditTerminal(ctx context.Context, session auth.Session, agent fleet.Agent, client auth.RequestInfo, action string, outcome audit.Outcome, details map[string]any) {
+// auditMachine records an action on a machine (SEC-40), naming the
+// machine in the details.
+func (h *handlers) auditMachine(ctx context.Context, session auth.Session, agent fleet.Agent, client auth.RequestInfo, action string, outcome audit.Outcome, details map[string]any) {
 	userID, agentID := session.UserID, agent.ID
 	details["agentId"], details["machine"] = agent.PublicID, agent.Name()
 	entry := audit.Entry{UserID: &userID, Username: session.Username, AgentID: &agentID, Action: action, Outcome: outcome, IP: client.IP, Details: details}
 	if err := h.auditLog.Record(ctx, entry); err != nil {
-		h.logger.Error("could not audit a terminal session", "action", action, "error", err)
+		h.logger.Error("could not audit an action on a machine", "action", action, "error", err)
 	}
 }
 

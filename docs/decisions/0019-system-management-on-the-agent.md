@@ -33,6 +33,11 @@ be able to do more than the action it was given for, and the local policy's powe
 - **The agent won't end PID 1 or itself.**
 - **Reboot and shutdown run two seconds after the agent answers**, so the server records that
   the request was accepted before the connection drops.
+- **Two new operator permissions**: `manage_processes` (seeing and ending processes) and
+  `control_power` (reboot, shutdown). §8.6 lets viewers see logs but doesn't mention
+  processes; process command lines can carry secrets (database passwords, tokens), so seeing
+  them is for operators. Services and logs stay visible to viewers. Every state-changing
+  action is audited with its outcome, and a refusal by the local policy as "denied".
 - **Logs**: entries come back newest first, at most 1,000 (default 200), from the last hour
   unless asked otherwise, with severities folded into five levels. `log show` on macOS has no
   limit or newest-first option, so the agent reads the whole window and keeps the newest.
@@ -41,6 +46,7 @@ be able to do more than the action it was given for, and the local policy's powe
 
 - The spec's mention of wevtapi should say wevtutil (or "the Event Log API, through
   wevtutil").
+- §8.6 should list processes and power under Operator.
 - OpenRC (Alpine and others) isn't supported yet: services report "unsupported" where
   systemctl is missing. The spec lists OpenRC under Services.
 - Golden files for systemd 255 unit files are captured from a real system; the others follow
