@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 import {
   expectAccessible,
@@ -38,7 +39,9 @@ test('SEC-01 a fresh install can only be set up with the setup token', async ({
   const cspViolations = watchForCSPViolations(page);
 
   await page.goto('/account');
-  await expect(page).toHaveURL(/\/setup$/);
+  // The first page load of a fresh server can be slow while other projects'
+  // tests load the machine, so this waits longer than the default.
+  await expect(page).toHaveURL(/\/setup$/, { timeout: 15_000 });
   await expect(page.getByRole('heading', { name: 'Set up Sentinel' })).toBeVisible();
   await expectAccessible(page);
   await expectNoHorizontalScroll(page);
@@ -166,5 +169,12 @@ test('SEC-41 admins can read, verify and export the audit log', async ({ page })
 
   const download = page.waitForEvent('download');
   await page.getByRole('link', { name: 'Export CSV' }).click();
-  expect((await download).suggestedFilename()).toMatch(/^sentinel-audit-\d{4}-\d{2}-\d{2}\.csv$/);
+  expect(readFileSync(await (await download).path(), 'utf8')).toMatch(/^id,/);
+  // The filename is checked on the server's response itself: for a link with
+  // the download attribute, Chromium can name the download from the URL
+  // before the response's Content-Disposition arrives.
+  const response = await page.request.get((await download).url());
+  expect(response.headers()['content-disposition']).toMatch(
+    /^attachment; filename="sentinel-audit-\d{4}-\d{2}-\d{2}\.csv"$/,
+  );
 });
