@@ -19,12 +19,13 @@ packages:
       import type * as protocol from './protocol.gen';
     type_mappings:
       protocol.Image: "protocol.Image"
-  # The Docker API passes the agent's answers through unchanged, so the
-  # browser uses the protocol's types for them.
+  # The Docker and storage APIs pass the agent's answers through
+  # unchanged, so the browser uses the protocol's types for them.
   - path: "github.com/aazam476/sentinel/internal/protocol"
     output_path: "web/src/api/protocol.gen.ts"
     include_files:
       - "payloads_docker.go"
+      - "payloads_storage.go"
     type_mappings:
       json.RawMessage: "unknown"
     frontmatter: |

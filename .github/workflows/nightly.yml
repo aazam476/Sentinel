@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# The slower tests that need a real machine (§13.8): they run every night
+# and can be started by hand.
+name: Nightly
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  zfs:
+    name: ZFS with real pools
+    # GitHub's Ubuntu runners are VMs whose kernel has the ZFS module, so
+    # the test can build pools from sparse files as root.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Install OpenZFS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zfsutils-linux
+          sudo modprobe zfs
+          zfs version
+      - name: Compile the test as the runner user, then run it as root
+        run: |
+          go test -c -tags zfs -o storage.test ./internal/agent/storage
+          cd internal/agent/storage
+          sudo ../../../storage.test -test.run TestRealZFS -test.v

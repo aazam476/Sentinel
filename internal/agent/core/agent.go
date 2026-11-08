@@ -25,6 +25,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/processes"
 	"github.com/aazam476/sentinel/internal/agent/services"
 	"github.com/aazam476/sentinel/internal/agent/stacks"
+	"github.com/aazam476/sentinel/internal/agent/storage"
 	"github.com/aazam476/sentinel/internal/agent/terminal"
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/shared/clock"
@@ -80,9 +81,20 @@ type Options struct {
 	// Stacks runs compose stacks; nil keeps them in the folder the local
 	// policy names, or the system's default.
 	Stacks Stacks
+	// Storage reads disks, filesystems and ZFS (§9.5); nil reads this
+	// machine's.
+	Storage Storage
 	// Observe, if set, is told when the agent reaches each Event. Tests
 	// use it to know when to move their fake clock.
 	Observe func(Event)
+}
+
+// Storage reads the machine's storage, never changing it
+// (internal/agent/storage).
+type Storage interface {
+	Overview(ctx context.Context) (protocol.StorageOverviewPayload, error)
+	PoolStatus(ctx context.Context, pool string) (protocol.ZFSPool, error)
+	PoolUsage(ctx context.Context) ([]protocol.PoolUsage, error)
 }
 
 // Processes lists and ends processes (internal/agent/processes).
@@ -139,6 +151,9 @@ const (
 	EventConnected Event = "connected"
 	// EventWaiting: a connection ended or failed; the retry is scheduled.
 	EventWaiting Event = "waiting"
+	// EventStorageChecked: storage health was read (and sent if it
+	// changed), and the next check is scheduled.
+	EventStorageChecked Event = "storage-checked"
 )
 
 func (a *Agent) observe(event Event) {
@@ -200,6 +215,9 @@ func withMachineDefaults(options *Options) {
 	if options.Stacks == nil {
 		options.Stacks = stacks.New(runner, options.Policy.Docker.StacksDir, runtime.GOOS)
 	}
+	if options.Storage == nil {
+		options.Storage = storage.New(storage.Options{GOOS: runtime.GOOS, Runner: runner, Logger: options.Logger})
+	}
 }
 
 // Run keeps the agent connected until ctx ends.
@@ -237,7 +255,13 @@ func (a *Agent) sampleForever(ctx context.Context, timer clock.Timer) {
 			return
 		case <-timer.C():
 		}
-		a.buffer.add(a.options.Collector.Sample(ctx, a.options.Clock.Now()))
+		sample := a.options.Collector.Sample(ctx, a.options.Clock.Now())
+		if a.options.Policy.Allows(policy.Storage) {
+			if pools, err := a.options.Storage.PoolUsage(ctx); err == nil {
+				sample.Pools = pools
+			}
+		}
+		a.buffer.add(sample)
 		timer.Reset(time.Duration(a.metricsInterval.Load()))
 		a.observe(EventSampled)
 	}

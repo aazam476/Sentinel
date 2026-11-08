@@ -28,6 +28,10 @@ Record each run as: **pass/fail · OS and version · date · tester · notes**.
 ## Real hardware
 
 - [ ] SMART readings and temperatures are correct on physical disks
+- [ ] On a ZFS machine with real disks, each member disk shows "Member of <pool> (<vdev>)",
+      including disks named by `/dev/disk/by-id` paths and NVMe partitions used as log or cache
+- [ ] A SATA disk in standby stays asleep while the Storage tab is open (`hdparm -C`)
+- [ ] macOS with smartmontools lists the internal disk; Windows lists disks with their health
 
 ## Agents
 

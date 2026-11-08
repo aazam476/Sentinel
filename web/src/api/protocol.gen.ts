@@ -448,3 +448,308 @@ export interface StackSavePayload {
    */
   validateOnly?: boolean;
 }
+
+//////////
+// source: payloads_storage.go
+
+/**
+ * ActionStorageOverview asks for the whole storage view: pools,
+ * datasets, vdevs, ARC, physical disks and other filesystems.
+ */
+export const ActionStorageOverview = "storage.overview";
+/**
+ * ActionZFSPoolStatus asks for one pool, with its vdev tree.
+ */
+export const ActionZFSPoolStatus = "zfs.pool.status";
+/**
+ * ActionStorageHealth is the event an agent sends when its storage
+ * health changes (pool state, errors, fullness, SMART), and on
+ * connecting. The server raises and resolves storage alerts from it.
+ */
+export const ActionStorageHealth = "storage.health";
+/**
+ * StorageOverviewPayload answers storage.overview.
+ */
+export interface StorageOverviewPayload {
+  zfs: ZFSPresence;
+  /**
+   * Pools and Datasets are empty without ZFS.
+   */
+  pools: ZFSPool[];
+  datasets: ZFSDataset[];
+  /**
+   * ARC is the ZFS cache; Linux reports it, other systems don't.
+   */
+  arc?: ZFSARC;
+  /**
+   * Disks are the physical disks, with their pool membership.
+   */
+  disks: PhysicalDisk[];
+  /**
+   * SMARTAvailable is false when smartmontools isn't installed.
+   */
+  smartAvailable: boolean;
+  /**
+   * Filesystems are every mount except ZFS datasets.
+   */
+  filesystems: StorageFilesystem[];
+}
+/**
+ * ZFSPresence says whether the machine has ZFS.
+ */
+export interface ZFSPresence {
+  installed: boolean;
+  /**
+   * Problem explains installed ZFS that can't be read, such as when
+   * its kernel module isn't loaded.
+   */
+  problem?: string;
+}
+/**
+ * ZFSPoolStatusPayload asks for one pool.
+ */
+export interface ZFSPoolStatusPayload {
+  pool: string;
+}
+/**
+ * ZFSPool is one pool, as `zpool list` and `zpool status` describe it.
+ */
+export interface ZFSPool {
+  name: string;
+  health: string;
+  /**
+   * Sizes are what `zpool list` reports, so raidz sizes include parity.
+   */
+  sizeBytes: number /* uint64 */;
+  allocatedBytes: number /* uint64 */;
+  freeBytes: number /* uint64 */;
+  /**
+   * FragmentationPercent is absent where the pool doesn't report it.
+   */
+  fragmentationPercent?: number /* uint64 */;
+  dedupRatio: number /* float64 */;
+  /**
+   * CompressRatio is the pool's root dataset's.
+   */
+  compressRatio: number /* float64 */;
+  scan: ZFSScan;
+  /**
+   * Status and Action are zpool status's explanation of a problem and
+   * what to do about it; both are empty for a healthy pool.
+   */
+  status?: string;
+  action?: string;
+  /**
+   * DataErrors is zpool status's errors line, e.g. "No known data errors".
+   */
+  dataErrors: string;
+  /**
+   * Vdevs are the pool's top-level vdevs, each section's in order.
+   */
+  vdevs: ZFSVdev[];
+}
+/**
+ * ZFSScan is a pool's last (or running) scrub or resilver.
+ */
+export interface ZFSScan {
+  /**
+   * Kind is "scrub", "resilver" or "none".
+   */
+  kind: string;
+  /**
+   * State is "finished", "in_progress", "canceled" or "none".
+   */
+  state: string;
+  /**
+   * Time is when it finished, or started if running, UTC Unix
+   * milliseconds; 0 if unknown.
+   */
+  time?: number /* int64 */;
+  /**
+   * Errors found by a finished scan.
+   */
+  errors: number /* uint64 */;
+  /**
+   * Text is zpool status's own description, for anything not parsed.
+   */
+  text: string;
+}
+/**
+ * ZFSVdev is one vdev or member device.
+ */
+export interface ZFSVdev {
+  /**
+   * Name is the vdev ("mirror-0", "raidz2-1") or the device path.
+   */
+  name: string;
+  /**
+   * Kind is "mirror", "raidz1", "raidz2", "raidz3", "draid",
+   * "replacing", "spare" or "device".
+   */
+  kind: string;
+  /**
+   * Section is "data", "log", "cache", "spare", "special" or "dedup".
+   */
+  section: string;
+  state: string;
+  readErrors: number /* uint64 */;
+  writeErrors: number /* uint64 */;
+  checksumErrors: number /* uint64 */;
+  /**
+   * Note is what zpool status adds after the counts, e.g.
+   * "(resilvering)" or "was /dev/sdb1".
+   */
+  note?: string;
+  children?: ZFSVdev[];
+}
+/**
+ * ZFSDataset is one filesystem or volume (zvol), as `zfs list` reports it.
+ */
+export interface ZFSDataset {
+  name: string;
+  /**
+   * Type is "filesystem" or "volume".
+   */
+  type: string;
+  usedBytes: number /* uint64 */;
+  availableBytes: number /* uint64 */;
+  referencedBytes: number /* uint64 */;
+  snapshotBytes: number /* uint64 */;
+  childrenBytes: number /* uint64 */;
+  /**
+   * QuotaBytes and ReservationBytes are 0 when not set.
+   */
+  quotaBytes: number /* uint64 */;
+  reservationBytes: number /* uint64 */;
+  /**
+   * VolumeSizeBytes is a volume's size; 0 for filesystems.
+   */
+  volumeSizeBytes: number /* uint64 */;
+  compressRatio: number /* float64 */;
+  /**
+   * Mountpoint is empty for volumes and unmountable datasets.
+   */
+  mountpoint: string;
+}
+/**
+ * ZFSARC is the ZFS adaptive replacement cache.
+ */
+export interface ZFSARC {
+  sizeBytes: number /* uint64 */;
+  targetMaxBytes: number /* uint64 */;
+  hits: number /* uint64 */;
+  misses: number /* uint64 */;
+}
+/**
+ * PhysicalDisk is one disk, and the pool it belongs to if any.
+ */
+export interface PhysicalDisk {
+  name: string;
+  path: string;
+  model: string;
+  serial: string;
+  /**
+   * SizeBytes is 0 if unknown.
+   */
+  sizeBytes: number /* uint64 */;
+  /**
+   * Kind is "ssd", "hdd", "nvme" or "unknown".
+   */
+  kind: string;
+  /**
+   * SMART is absent when it couldn't be read.
+   */
+  smart?: DiskSMART;
+  /**
+   * Pool and Vdev name the pool the disk (or one of its partitions)
+   * belongs to, e.g. "tank" and "mirror-0"; empty if none.
+   */
+  pool?: string;
+  vdev?: string;
+}
+/**
+ * DiskSMART is a disk's SMART health.
+ */
+export interface DiskSMART {
+  passed: boolean;
+  /**
+   * TemperatureCelsius is absent if the disk doesn't report one.
+   */
+  temperatureCelsius?: number /* float64 */;
+  /**
+   * Failing lists attributes failing now; Warnings lists pre-fail
+   * attributes that failed in the past, and NVMe critical warnings.
+   */
+  failing: string[];
+  warnings: string[];
+}
+/**
+ * StorageFilesystem is one mounted filesystem other than a ZFS dataset.
+ */
+export interface StorageFilesystem {
+  mount: string;
+  device: string;
+  type: string;
+  usedBytes: number /* uint64 */;
+  totalBytes: number /* uint64 */;
+  /**
+   * System marks pseudo and system mounts (tmpfs, overlay, squashfs,
+   * Docker layers), which the UI hides by default.
+   */
+  system: boolean;
+}
+/**
+ * PoolUsage is a pool's fullness, sent with each metrics sample so the
+ * fleet's disk % can count pools instead of their member disks.
+ */
+export interface PoolUsage {
+  name: string;
+  sizeBytes: number /* uint64 */;
+  allocatedBytes: number /* uint64 */;
+}
+/**
+ * StorageHealthPayload is the storage.health event: what storage alerts
+ * are raised from. Percentages are whole numbers so that a pool filling
+ * slowly doesn't send an event every minute.
+ */
+export interface StorageHealthPayload {
+  pools: PoolHealth[];
+  datasets: DatasetHealth[];
+  disks: DiskHealth[];
+}
+/**
+ * PoolHealth is the part of a pool that alerts depend on.
+ */
+export interface PoolHealth {
+  name: string;
+  health: string;
+  usedPercent: number /* uint64 */;
+  /**
+   * The error counts are totals over every vdev in the pool.
+   */
+  readErrors: number /* uint64 */;
+  writeErrors: number /* uint64 */;
+  checksumErrors: number /* uint64 */;
+  /**
+   * ScanErrors is what the last finished scrub or resilver found.
+   */
+  scanErrors: number /* uint64 */;
+}
+/**
+ * DatasetHealth is a dataset with a quota, and how full it is against it.
+ */
+export interface DatasetHealth {
+  name: string;
+  usedPercent: number /* uint64 */;
+}
+/**
+ * DiskHealth is a disk whose SMART could be read.
+ */
+export interface DiskHealth {
+  name: string;
+  model: string;
+  serial: string;
+  passed: boolean;
+  failing: string[];
+  warnings: string[];
+}

@@ -89,7 +89,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/servertls/` | Self-signed and ACME certificates | Built |
 | `internal/server/middleware/` | Security headers, trusted proxies, Origin check, base path | Built |
 | `internal/server/app/` | Assembles the database, services, routes and middleware | Built |
-| `internal/server/api/` | HTTP handlers and the router | Setup, sign-in, sessions, users, audit log, enrollment, machines, metrics, live events |
+| `internal/server/api/` | HTTP handlers and the router | Setup, sign-in, sessions, users, audit log, enrollment, machines, metrics, live events, system tools, Docker, storage and alerts |
 | `internal/server/httpserver/` | Opens the listening socket and serves HTTP | Built |
 | `internal/server/store/` | SQLite connection, transactions, single writer, migrations | Built |
 | `internal/server/auth/` | Setup token, passwords, TOTP, recovery codes, sessions, rate limiting, roles | Built |
@@ -109,7 +109,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/shared/keyfile/` | Key files only their owner can read | Built |
 | `internal/testutil/` | Helpers used only by tests, including a fault-injecting network proxy | Built |
 | `internal/protocol/` | Message types, frames and handshake signatures shared by server and agent | Built |
-| `internal/server/alerts/` | The rest of the server | Planned |
+| `internal/server/alerts/` | Machines' alerts, firing and resolved; raised so far from storage health | Storage alerts |
 | `internal/agent/identity/` | The agent's key, ID and saved server key, in a root-only directory | Built |
 | `internal/agent/policy/` | Reads the local policy file that switches capabilities off | Built |
 | `internal/agent/core/` | Enrollment, the connection to the server, heartbeat, reconnects, requests, streams | Built |
@@ -123,7 +123,8 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/power/` | Reboots or shuts down the machine, just after answering | Built |
 | `internal/agent/docker/` | Containers, images, volumes, networks and their logs, through the Docker Engine API (Docker or Podman) | Built |
 | `internal/agent/stacks/` | Compose stacks: Sentinel's own folder of stacks, and projects started elsewhere | Built |
-| `internal/agent/<feature>/` | One package per agent feature (zfs, files, ...) | Planned |
+| `internal/agent/storage/` | ZFS pools, datasets, vdevs and ARC; physical disks with SMART and pool membership; other filesystems. Read-only: zfs and zpool may only list, status and get | Built |
+| `internal/agent/<feature>/` | One package per agent feature (files, scripts, ...) | Planned |
 | `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power and Docker |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |

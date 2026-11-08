@@ -15,6 +15,8 @@ const (
 	EventInfoUpdated EventKind = "info_updated"
 	// EventMetrics: a metrics sample from the agent was stored.
 	EventMetrics EventKind = "metrics"
+	// EventAlerts: an alert on the agent's machine started or resolved.
+	EventAlerts EventKind = "alerts"
 )
 
 // Event says something changed about an agent.

@@ -1,0 +1,97 @@
+{
+   "json_format_version": [
+      1,
+      0
+   ],
+   "smartctl": {
+      "version": [
+         7,
+         4
+      ],
+      "exit_status": 24
+   },
+   "device": {
+      "name": "/dev/sdd",
+      "info_name": "/dev/sdd [SAT]",
+      "type": "sat",
+      "protocol": "ATA"
+   },
+   "model_name": "ST2000DM008-2FR102",
+   "serial_number": "ZFL1ABCD",
+   "user_capacity": {
+      "blocks": 3907029168,
+      "bytes": 2000398934016
+   },
+   "rotation_rate": 7200,
+   "smart_status": {
+      "passed": false
+   },
+   "ata_smart_attributes": {
+      "revision": 10,
+      "table": [
+         {
+            "id": 5,
+            "name": "Reallocated_Sector_Ct",
+            "value": 1,
+            "worst": 1,
+            "thresh": 10,
+            "when_failed": "now",
+            "flags": {
+               "value": 51,
+               "prefailure": true
+            },
+            "raw": {
+               "value": 65528
+            }
+         },
+         {
+            "id": 187,
+            "name": "Reported_Uncorrect",
+            "value": 1,
+            "worst": 1,
+            "thresh": 0,
+            "when_failed": "",
+            "flags": {
+               "value": 50,
+               "prefailure": false
+            },
+            "raw": {
+               "value": 1183
+            }
+         },
+         {
+            "id": 10,
+            "name": "Spin_Retry_Count",
+            "value": 100,
+            "worst": 97,
+            "thresh": 97,
+            "when_failed": "past",
+            "flags": {
+               "value": 19,
+               "prefailure": true
+            },
+            "raw": {
+               "value": 0
+            }
+         },
+         {
+            "id": 190,
+            "name": "Airflow_Temperature_Cel",
+            "value": 59,
+            "worst": 40,
+            "thresh": 45,
+            "when_failed": "past",
+            "flags": {
+               "value": 34,
+               "prefailure": false
+            },
+            "raw": {
+               "value": 41
+            }
+         }
+      ]
+   },
+   "temperature": {
+      "current": 41
+   }
+}

@@ -14,6 +14,7 @@ import (
 	"github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/sensors"
 
+	"github.com/aazam476/sentinel/internal/agent/storage"
 	"github.com/aazam476/sentinel/internal/protocol"
 )
 
@@ -47,8 +48,9 @@ func (HostSource) Memory(ctx context.Context) (used, total uint64, err error) {
 	return memory.Used, memory.Total, nil
 }
 
-// Filesystems lists real, mounted filesystems (not /proc, tmpfs and the
-// like), each once.
+// Filesystems lists real, mounted filesystems, each once. Pseudo and
+// system mounts (/proc, tmpfs, snaps, container layers) are left out, and
+// so are ZFS datasets: their pools are sent instead (§9.5).
 func (HostSource) Filesystems(ctx context.Context) ([]protocol.FilesystemUsage, error) {
 	partitions, err := disk.PartitionsWithContext(ctx, false)
 	if err != nil {
@@ -57,7 +59,8 @@ func (HostSource) Filesystems(ctx context.Context) ([]protocol.FilesystemUsage, 
 	result := []protocol.FilesystemUsage{}
 	seen := map[string]bool{}
 	for _, partition := range partitions {
-		if seen[partition.Mountpoint] {
+		if seen[partition.Mountpoint] || storage.IsZFSMount(partition.Fstype) ||
+			storage.IsSystemMount(partition.Mountpoint, partition.Fstype) {
 			continue
 		}
 		seen[partition.Mountpoint] = true

@@ -1,0 +1,80 @@
+{
+   "blockdevices": [
+      {
+         "name": "sda",
+         "model": "Samsung SSD 870 EVO 500GB",
+         "serial": "S6PXNM0T401234A",
+         "size": "500107862016",
+         "rota": "0",
+         "tran": "sata",
+         "type": "disk",
+         "children": [
+            {
+               "name": "sda1",
+               "model": null,
+               "serial": null,
+               "size": "536870912",
+               "rota": "0",
+               "tran": null,
+               "type": "part"
+            },
+            {
+               "name": "sda2",
+               "model": null,
+               "serial": null,
+               "size": "499569655808",
+               "rota": "0",
+               "tran": null,
+               "type": "part"
+            }
+         ]
+      },
+      {
+         "name": "nvme0n1",
+         "model": "Samsung SSD 980 PRO 1TB",
+         "serial": "S5GXNX0T912345K",
+         "size": "1000204886016",
+         "rota": "0",
+         "tran": "nvme",
+         "type": "disk",
+         "children": [
+            {
+               "name": "nvme0n1p1",
+               "model": null,
+               "serial": null,
+               "size": "1073741824",
+               "rota": "0",
+               "tran": null,
+               "type": "part"
+            },
+            {
+               "name": "nvme0n1p4",
+               "model": null,
+               "serial": null,
+               "size": "17179869184",
+               "rota": "0",
+               "tran": null,
+               "type": "part"
+            },
+            {
+               "name": "nvme0n1p5",
+               "model": null,
+               "serial": null,
+               "size": "107374182400",
+               "rota": "0",
+               "tran": null,
+               "type": "part"
+            }
+         ]
+      },
+      {
+         "name": "vda",
+         "model": null,
+         "serial": null,
+         "size": "21474836480",
+         "rota": "1",
+         "tran": null,
+         "type": "disk"
+      }
+   ]
+}

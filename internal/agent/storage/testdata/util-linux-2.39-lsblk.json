@@ -1,0 +1,192 @@
+{
+   "blockdevices": [
+      {
+         "name": "sda",
+         "model": "Samsung SSD 870 EVO 500GB",
+         "serial": "S6PXNM0T401234A",
+         "size": 500107862016,
+         "rota": false,
+         "tran": "sata",
+         "type": "disk",
+         "children": [
+            {
+               "name": "sda1",
+               "model": null,
+               "serial": null,
+               "size": 536870912,
+               "rota": false,
+               "tran": null,
+               "type": "part"
+            },
+            {
+               "name": "sda2",
+               "model": null,
+               "serial": null,
+               "size": 499569655808,
+               "rota": false,
+               "tran": null,
+               "type": "part"
+            }
+         ]
+      },
+      {
+         "name": "sdb",
+         "model": "WDC WD20EFRX-68EUZN0",
+         "serial": "WD-WCC4M1234567",
+         "size": 2000398934016,
+         "rota": true,
+         "tran": "sata",
+         "type": "disk",
+         "children": [
+            {
+               "name": "sdb1",
+               "model": null,
+               "serial": null,
+               "size": 2000389406720,
+               "rota": true,
+               "tran": null,
+               "type": "part"
+            },
+            {
+               "name": "sdb9",
+               "model": null,
+               "serial": null,
+               "size": 8388608,
+               "rota": true,
+               "tran": null,
+               "type": "part"
+            }
+         ]
+      },
+      {
+         "name": "sdc",
+         "model": "WDC WD20EFRX-68EUZN0",
+         "serial": "WD-WCC4M7654321",
+         "size": 2000398934016,
+         "rota": true,
+         "tran": "sata",
+         "type": "disk",
+         "children": [
+            {
+               "name": "sdc1",
+               "model": null,
+               "serial": null,
+               "size": 2000389406720,
+               "rota": true,
+               "tran": null,
+               "type": "part"
+            },
+            {
+               "name": "sdc9",
+               "model": null,
+               "serial": null,
+               "size": 8388608,
+               "rota": true,
+               "tran": null,
+               "type": "part"
+            }
+         ]
+      },
+      {
+         "name": "sdd",
+         "model": "ST2000DM008-2FR102",
+         "serial": "ZFL1ABCD",
+         "size": 2000398934016,
+         "rota": true,
+         "tran": "sata",
+         "type": "disk"
+      },
+      {
+         "name": "sde",
+         "model": "ST2000DM008-2FR102",
+         "serial": "ZFL1ABCE",
+         "size": 2000398934016,
+         "rota": true,
+         "tran": "sata",
+         "type": "disk"
+      },
+      {
+         "name": "sdf",
+         "model": "ST2000DM008-2FR102",
+         "serial": "ZFL1ABCF",
+         "size": 2000398934016,
+         "rota": true,
+         "tran": "sata",
+         "type": "disk"
+      },
+      {
+         "name": "nvme0n1",
+         "model": "Samsung SSD 980 PRO 1TB",
+         "serial": "S5GXNX0T912345K",
+         "size": 1000204886016,
+         "rota": false,
+         "tran": "nvme",
+         "type": "disk",
+         "children": [
+            {
+               "name": "nvme0n1p1",
+               "model": null,
+               "serial": null,
+               "size": 1073741824,
+               "rota": false,
+               "tran": null,
+               "type": "part"
+            },
+            {
+               "name": "nvme0n1p4",
+               "model": null,
+               "serial": null,
+               "size": 17179869184,
+               "rota": false,
+               "tran": null,
+               "type": "part"
+            },
+            {
+               "name": "nvme0n1p5",
+               "model": null,
+               "serial": null,
+               "size": 107374182400,
+               "rota": false,
+               "tran": null,
+               "type": "part"
+            }
+         ]
+      },
+      {
+         "name": "zd0",
+         "model": null,
+         "serial": null,
+         "size": 53687091200,
+         "rota": false,
+         "tran": null,
+         "type": "disk"
+      },
+      {
+         "name": "zram0",
+         "model": null,
+         "serial": null,
+         "size": 8589934592,
+         "rota": false,
+         "tran": null,
+         "type": "disk"
+      },
+      {
+         "name": "loop0",
+         "model": null,
+         "serial": null,
+         "size": 67108864,
+         "rota": false,
+         "tran": null,
+         "type": "loop"
+      },
+      {
+         "name": "sr0",
+         "model": "QEMU DVD-ROM",
+         "serial": "QM00003",
+         "size": 1073741312,
+         "rota": true,
+         "tran": "ata",
+         "type": "rom"
+      }
+   ]
+}

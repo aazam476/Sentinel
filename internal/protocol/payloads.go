@@ -21,8 +21,11 @@ type MetricsSample struct {
 	// MemoryUsedBytes and MemoryTotalBytes describe RAM.
 	MemoryUsedBytes  uint64 `json:"memoryUsedBytes"`
 	MemoryTotalBytes uint64 `json:"memoryTotalBytes"`
-	// Filesystems lists mounted filesystems with their usage.
+	// Filesystems lists mounted filesystems with their usage, leaving out
+	// ZFS datasets and pseudo filesystems.
 	Filesystems []FilesystemUsage `json:"filesystems"`
+	// Pools lists ZFS pools with their usage; absent without ZFS.
+	Pools []PoolUsage `json:"pools,omitempty"`
 	// Network and disk counters since boot.
 	NetworkReceivedBytes uint64 `json:"networkReceivedBytes"`
 	NetworkSentBytes     uint64 `json:"networkSentBytes"`

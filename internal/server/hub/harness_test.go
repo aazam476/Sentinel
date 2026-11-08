@@ -19,6 +19,7 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/aazam476/sentinel/internal/protocol"
+	"github.com/aazam476/sentinel/internal/server/alerts"
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
 	"github.com/aazam476/sentinel/internal/server/fleet"
@@ -37,6 +38,7 @@ type harness struct {
 	fleet   *fleet.Service
 	faults  *faultyFleet
 	metrics *metrics.Service
+	alerts  *alerts.Service
 	clock   *fakeclock.Clock
 	key     serverkey.Key
 	url     string
@@ -59,12 +61,13 @@ func newHarness(t testing.TB) *harness {
 	h := &harness{
 		fleet:   fleet.NewService(fleet.Options{Database: database, AuditLog: audit.New(database), Clock: clock}),
 		metrics: metrics.NewService(database, clock),
+		alerts:  alerts.NewService(database, clock),
 		clock:   clock,
 		key:     serverkey.FromPrivateKey(private),
 		admin:   addAdmin(t, database),
 	}
 	h.faults = &faultyFleet{Fleet: h.fleet}
-	h.hub = hub.New(hub.Options{Fleet: h.faults, Metrics: h.metrics, Key: h.key, Clock: clock, Logger: slog.New(slog.DiscardHandler)})
+	h.hub = hub.New(hub.Options{Fleet: h.faults, Metrics: h.metrics, Alerts: h.alerts, Key: h.key, Clock: clock, Logger: slog.New(slog.DiscardHandler)})
 	server := httptest.NewServer(middleware.WithClientInfo(h.hub, nil))
 	t.Cleanup(server.Close)
 	h.url = "ws" + strings.TrimPrefix(server.URL, "http")

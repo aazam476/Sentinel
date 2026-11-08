@@ -118,6 +118,7 @@ func (c *connection) serve(ctx context.Context, pingInterval time.Duration) erro
 	loops.Go(func() { c.pingForever(ctx, pingTimer, pingInterval); cancel() })
 	loops.Go(func() { c.watchSilence(ctx, silenceTimer); cancel() })
 	loops.Go(func() { c.sendSamples(ctx); cancel() })
+	loops.Go(func() { c.watchStorage(ctx) })
 	c.agent.observe(EventConnected)
 	return c.readLoop(ctx)
 }

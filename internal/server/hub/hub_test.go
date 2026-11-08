@@ -400,6 +400,21 @@ func TestConnection(t *testing.T) {
 		}
 	})
 
+	t.Run("raises storage alerts from storage health, and ignores malformed health", func(t *testing.T) {
+		h := newHarness(t)
+		events := h.subscribe(t)
+		agent := h.online(t)
+		id := h.agentID(t, agent)
+		agent.answerSystemInfo(protocol.SystemInfo{Hostname: "nas-01"})
+		event := protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionStorageHealth}
+		agent.send(event, map[string]string{"pools": "many"})
+		agent.send(event, protocol.StorageHealthPayload{Pools: []protocol.PoolHealth{{Name: "tank", Health: "DEGRADED"}}})
+		waitForEvent(t, events, hub.Event{AgentID: id, PublicID: agent.id, Kind: hub.EventAlerts})
+		if counts, err := h.alerts.FiringCounts(t.Context()); err != nil || counts[id] != 1 {
+			t.Errorf("counts %v, %v", counts, err)
+		}
+	})
+
 	t.Run("ignores malformed samples, unknown events and unexpected messages", func(t *testing.T) {
 		h := newHarness(t)
 		agent := h.online(t)

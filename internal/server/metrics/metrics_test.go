@@ -126,6 +126,46 @@ func TestIngest(t *testing.T) {
 		}
 	})
 
+	diskCases := []struct {
+		name        string
+		filesystems []protocol.FilesystemUsage
+		pools       []protocol.PoolUsage
+		want        float64
+	}{
+		{
+			name: "counts the fullest pool, never a dataset's own use, toward disk %",
+			filesystems: []protocol.FilesystemUsage{
+				{Mount: "/", Type: "ext4", UsedBytes: 30, TotalBytes: 100},
+				{Mount: "/tank/full", Type: "zfs", UsedBytes: 99, TotalBytes: 100},
+			},
+			pools: []protocol.PoolUsage{{Name: "tank", SizeBytes: 200, AllocatedBytes: 120}},
+			want:  60,
+		},
+		{
+			name:        "counts a filesystem fuller than every pool",
+			filesystems: []protocol.FilesystemUsage{{Mount: "/", Type: "ext4", UsedBytes: 95, TotalBytes: 100}},
+			pools:       []protocol.PoolUsage{{Name: "tank", SizeBytes: 200, AllocatedBytes: 20}},
+			want:        95,
+		},
+		{
+			name:        "counts datasets as before for an agent that reports no pools",
+			filesystems: []protocol.FilesystemUsage{{Mount: "/tank", Type: "zfs", UsedBytes: 70, TotalBytes: 100}},
+			want:        70,
+		},
+	}
+	for _, tc := range diskCases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			sample := h.sample()
+			sample.Filesystems, sample.Pools = tc.filesystems, tc.pools
+			h.ingest(t, sample)
+			snapshot, _ := h.service.Latest(h.agentID)
+			if got := snapshot.Values[metrics.DiskPercent]; got != tc.want {
+				t.Errorf("disk %% = %v, want %v", got, tc.want)
+			}
+		})
+	}
+
 	t.Run("turns counters into rates per second", func(t *testing.T) {
 		h := newHarness(t)
 		first := h.sample()

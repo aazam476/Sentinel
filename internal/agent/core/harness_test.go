@@ -23,6 +23,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/agent/terminal"
 	"github.com/aazam476/sentinel/internal/protocol"
+	"github.com/aazam476/sentinel/internal/server/alerts"
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
 	"github.com/aazam476/sentinel/internal/server/fleet"
@@ -46,6 +47,7 @@ type server struct {
 	store   *store.Store
 	fleet   *fleet.Service
 	metrics *metrics.Service
+	alerts  *alerts.Service
 	hub     *hub.Hub
 	http    *httptest.Server
 	admin   auth.Session
@@ -84,7 +86,10 @@ func (s *server) start() {
 	s.store = database
 	s.fleet = fleet.NewService(fleet.Options{Database: database, AuditLog: audit.New(database), Clock: s.clock})
 	s.metrics = metrics.NewService(database, s.clock)
-	s.hub = hub.New(hub.Options{Fleet: s.fleet, Metrics: s.metrics, Key: s.key, Clock: s.clock, Logger: slog.New(slog.DiscardHandler)})
+	s.alerts = alerts.NewService(database, s.clock)
+	s.hub = hub.New(hub.Options{
+		Fleet: s.fleet, Metrics: s.metrics, Alerts: s.alerts, Key: s.key, Clock: s.clock, Logger: slog.New(slog.DiscardHandler),
+	})
 	mux := http.NewServeMux()
 	mux.Handle(core.AgentPath, s.hub)
 	s.http = httptest.NewUnstartedServer(mux)
@@ -232,6 +237,10 @@ func (s *server) runAgent(state identity.State, key ed25519.PrivateKey, localPol
 
 func (s *server) runAgentWith(state identity.State, key ed25519.PrivateKey, localPolicy policy.Policy, collector core.Collector) *runningAgent {
 	s.t.Helper()
+	if s.machine.Storage == nil {
+		// Without a fake, the agent would read this machine's disks.
+		s.machine.Storage = &fakeStorage{}
+	}
 	running := &runningAgent{state: state, clock: fakeclock.New(s.clock.Now()), events: make(chan core.Event, 1000)}
 	agent := core.New(core.Options{
 		State: state, Key: key, Policy: localPolicy, Collector: collector, Clock: running.clock,
@@ -239,7 +248,7 @@ func (s *server) runAgentWith(state identity.State, key ed25519.PrivateKey, loca
 		Observe:  func(event core.Event) { running.events <- event },
 		Shells:   s.shells,
 		Services: s.machine.Services, Logs: s.machine.Logs, Processes: s.machine.Processes, Power: s.machine.Power,
-		Docker: s.machine.Docker, Stacks: s.machine.Stacks,
+		Docker: s.machine.Docker, Stacks: s.machine.Stacks, Storage: s.machine.Storage,
 	})
 	ctx, cancel := context.WithCancel(s.t.Context())
 	done := make(chan struct{})

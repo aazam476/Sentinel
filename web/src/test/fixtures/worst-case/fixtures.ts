@@ -185,6 +185,7 @@ const base: Agent = {
   lastSeenAt: fixtureNow,
   enrolledAt: fixtureNow - 400 * 86_400_000,
   tags: maxTags,
+  firingAlerts: 0,
   current: {
     time: fixtureNow,
     uptimeSeconds: 3_650 * 86_400,
@@ -205,6 +206,7 @@ export function worstAgents(): Agent[] {
       name: 'خادم-الملفات-الرئيسي',
       displayName: 'خادم-الملفات-الرئيسي',
       tags: ['مكتب'],
+      firingAlerts: 0,
     },
     {
       ...base,
@@ -213,6 +215,7 @@ export function worstAgents(): Agent[] {
       displayName: '',
       hostname: 'x',
       tags: [],
+      firingAlerts: 0,
       platform: '',
       platformVersion: '',
     },
@@ -254,6 +257,7 @@ export function worstAgents(): Agent[] {
     displayName: '',
     hostname: `web-${String(index).padStart(4, '0')}`,
     tags: ['web'],
+    firingAlerts: 0,
   }));
   return [...hard, ...plain];
 }

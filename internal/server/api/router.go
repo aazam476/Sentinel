@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/aazam476/sentinel/internal/protocol"
+	"github.com/aazam476/sentinel/internal/server/alerts"
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
 	"github.com/aazam476/sentinel/internal/server/fleet"
@@ -30,6 +31,7 @@ type RouterOptions struct {
 	Hub       *hub.Hub
 	Metrics   *metrics.Service
 	Registry  *registry.Service
+	Alerts    *alerts.Service
 	ServerKey serverkey.Key
 	// TLSFingerprint is the self-signed certificate's key fingerprint, or
 	// "" when agents check the server's certificate the usual way.
@@ -53,6 +55,7 @@ func NewRouter(options RouterOptions) http.Handler {
 		hub:        options.Hub,
 		metrics:    options.Metrics,
 		registries: options.Registry,
+		alerts:     options.Alerts,
 		terminals:  relay.NewSessions(options.Clock),
 		serverKey:  options.ServerKey,
 		tlsPin:     options.TLSFingerprint,
@@ -71,6 +74,7 @@ func NewRouter(options RouterOptions) http.Handler {
 	h.addAdminRoutes(mux)
 	h.addMachineRoutes(mux)
 	h.addDockerRoutes(mux)
+	h.addStorageRoutes(mux)
 	mux.HandleFunc("/api/", handleUnknownAPIRoute)
 	mux.Handle("/", options.WebUI)
 	return mux

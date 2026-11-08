@@ -34,6 +34,10 @@ export interface Agent {
    * Current is the newest sample, while the machine is online.
    */
   current: CurrentMetrics | null;
+  /**
+   * FiringAlerts counts the machine's alerts that are firing.
+   */
+  firingAlerts: number /* int */;
 }
 /**
  * CurrentMetrics is a machine's newest metrics sample.
@@ -549,6 +553,33 @@ export interface CompleteSetupRequest {
   setupToken: string;
   setupId: string;
   totpCode: string;
+}
+
+//////////
+// source: storage.go
+
+/**
+ * MachineAlert is one alert on a machine.
+ */
+export interface MachineAlert {
+  id: number /* int64 */;
+  kind: string;
+  subject: string;
+  severity: string;
+  message: string;
+  state: string;
+  /**
+   * StartedAt and ResolvedAt are UTC Unix milliseconds.
+   */
+  startedAt: number /* int64 */;
+  resolvedAt: number | null;
+}
+/**
+ * MachineAlerts lists a machine's firing alerts, then its recently
+ * resolved ones.
+ */
+export interface MachineAlerts {
+  alerts: MachineAlert[];
 }
 
 //////////

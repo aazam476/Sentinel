@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aazam476/sentinel/internal/server/alerts"
 	"github.com/aazam476/sentinel/internal/server/api"
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
@@ -59,6 +60,7 @@ type App struct {
 	Hub       *hub.Hub
 	Metrics   *metrics.Service
 	Registry  *registry.Service
+	Alerts    *alerts.Service
 	ServerKey serverkey.Key
 	database  *store.Store
 	clock     Clock
@@ -75,6 +77,7 @@ type services struct {
 	hub       *hub.Hub
 	metrics   *metrics.Service
 	registry  *registry.Service
+	alerts    *alerts.Service
 	serverKey serverkey.Key
 }
 
@@ -99,7 +102,7 @@ func New(ctx context.Context, options Options) (*App, error) {
 	}
 	return &App{
 		Handler: handler, Auth: built.auth, AuditLog: built.auditLog, Fleet: built.fleet, Hub: built.hub,
-		Metrics: built.metrics, Registry: built.registry, ServerKey: built.serverKey, database: database, clock: options.Clock, logger: options.Logger,
+		Metrics: built.metrics, Registry: built.registry, Alerts: built.alerts, ServerKey: built.serverKey, database: database, clock: options.Clock, logger: options.Logger,
 	}, nil
 }
 
@@ -122,10 +125,11 @@ func buildServices(database *store.Store, options Options) (services, error) {
 		fleet:     fleet.NewService(fleet.Options{Database: database, AuditLog: auditLog, Clock: options.Clock}),
 		metrics:   metrics.NewService(database, options.Clock),
 		registry:  registry.NewService(database, auditLog, box, options.Clock),
+		alerts:    alerts.NewService(database, options.Clock),
 		serverKey: serverKey,
 	}
 	built.hub = hub.New(hub.Options{
-		Fleet: built.fleet, Metrics: built.metrics, Key: serverKey, Clock: options.Clock, Logger: options.Logger,
+		Fleet: built.fleet, Metrics: built.metrics, Alerts: built.alerts, Key: serverKey, Clock: options.Clock, Logger: options.Logger,
 	})
 	return built, nil
 }
@@ -199,6 +203,7 @@ func buildHandler(options Options, built services) (http.Handler, error) {
 		Hub:            built.hub,
 		Metrics:        built.metrics,
 		Registry:       built.registry,
+		Alerts:         built.alerts,
 		ServerKey:      built.serverKey,
 		TLSFingerprint: options.TLSFingerprint,
 		Logger:         options.Logger,

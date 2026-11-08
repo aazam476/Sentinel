@@ -95,8 +95,26 @@ func (c *connection) handleEvent(ctx context.Context, message protocol.Message) 
 			return
 		}
 		c.hub.publish(eventFor(c, EventMetrics))
+	case protocol.ActionStorageHealth:
+		c.handleStorageHealth(ctx, message)
 	default:
 		c.hub.logger.Debug("agent sent an event this server doesn't handle", "agent", c.agent.PublicID, "action", message.Action)
+	}
+}
+
+func (c *connection) handleStorageHealth(ctx context.Context, message protocol.Message) {
+	var health protocol.StorageHealthPayload
+	if err := protocol.DecodePayload(message, &health); err != nil {
+		c.hub.logger.Warn("agent sent malformed storage health", "agent", c.agent.PublicID, "error", err)
+		return
+	}
+	changed, err := c.hub.alerts.RecordStorageHealth(ctx, c.agent.ID, health)
+	if err != nil {
+		c.hub.logger.Error("could not record storage health", "agent", c.agent.PublicID, "error", err)
+		return
+	}
+	if changed {
+		c.hub.publish(eventFor(c, EventAlerts))
 	}
 }
 

@@ -74,19 +74,32 @@ func (s *Service) remember(agentID int64, sample protocol.MetricsSample) Snapsho
 	return snapshot
 }
 
+// fullestStorage is the use of the fullest pool or filesystem (§9.5).
+// ZFS datasets are left out: a dataset's own used and free space says
+// little, since it shares its pool's space. Agents before M5 sent datasets
+// as filesystems and no pools; for them, datasets count as before.
+func fullestStorage(sample protocol.MetricsSample) (float64, bool) {
+	fullest, found := 0.0, false
+	for _, filesystem := range sample.Filesystems {
+		if filesystem.TotalBytes > 0 && (filesystem.Type != "zfs" || len(sample.Pools) == 0) {
+			fullest, found = math.Max(fullest, percent(filesystem.UsedBytes, filesystem.TotalBytes)), true
+		}
+	}
+	for _, pool := range sample.Pools {
+		if pool.SizeBytes > 0 {
+			fullest, found = math.Max(fullest, percent(pool.AllocatedBytes, pool.SizeBytes)), true
+		}
+	}
+	return fullest, found
+}
+
 // gauges are the metrics read straight off a sample.
 func gauges(sample protocol.MetricsSample) map[string]float64 {
 	values := map[string]float64{CPUPercent: clampPercent(sample.CPUPercent)}
 	if sample.MemoryTotalBytes > 0 {
 		values[MemoryPercent] = percent(sample.MemoryUsedBytes, sample.MemoryTotalBytes)
 	}
-	fullest, found := 0.0, false
-	for _, filesystem := range sample.Filesystems {
-		if filesystem.TotalBytes > 0 {
-			fullest, found = math.Max(fullest, percent(filesystem.UsedBytes, filesystem.TotalBytes)), true
-		}
-	}
-	if found {
+	if fullest, found := fullestStorage(sample); found {
 		values[DiskPercent] = fullest
 	}
 	hottest, found := 0.0, false

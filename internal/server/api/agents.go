@@ -30,6 +30,8 @@ type Agent struct {
 	Tags            []string `json:"tags"`
 	// Current is the newest sample, while the machine is online.
 	Current *CurrentMetrics `json:"current" tstype:"CurrentMetrics | null,required"`
+	// FiringAlerts counts the machine's alerts that are firing.
+	FiringAlerts int `json:"firingAlerts"`
 }
 
 // CurrentMetrics is a machine's newest metrics sample.
@@ -95,9 +97,14 @@ func (h *handlers) handleListAgents(w http.ResponseWriter, r *http.Request, sess
 		h.writeError(w, err)
 		return
 	}
+	counts, err := h.alerts.FiringCounts(r.Context())
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
 	response := AgentsResponse{Agents: make([]Agent, 0, len(agents))}
 	for _, agent := range agents {
-		response.Agents = append(response.Agents, h.agentSummary(agent))
+		response.Agents = append(response.Agents, h.agentSummary(agent, counts))
 	}
 	writeJSON(w, http.StatusOK, response)
 }
@@ -108,7 +115,7 @@ func (h *handlers) handleGetAgent(w http.ResponseWriter, r *http.Request, sessio
 		h.writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, h.agentDetails(agent))
+	h.writeAgentDetails(w, r, agent)
 }
 
 func (h *handlers) handleUpdateAgent(w http.ResponseWriter, r *http.Request, session auth.Session) {
@@ -122,7 +129,7 @@ func (h *handlers) handleUpdateAgent(w http.ResponseWriter, r *http.Request, ses
 		h.writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, h.agentDetails(agent))
+	h.writeAgentDetails(w, r, agent)
 }
 
 // handleRevokeAgent revokes a machine and closes its live connection
@@ -138,12 +145,22 @@ func (h *handlers) handleRevokeAgent(w http.ResponseWriter, r *http.Request, ses
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *handlers) agentSummary(agent fleet.Agent) Agent {
+// writeAgentDetails answers with one machine's details.
+func (h *handlers) writeAgentDetails(w http.ResponseWriter, r *http.Request, agent fleet.Agent) {
+	counts, err := h.alerts.FiringCounts(r.Context())
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, h.agentDetails(agent, counts))
+}
+
+func (h *handlers) agentSummary(agent fleet.Agent, firingAlerts map[int64]int) Agent {
 	summary := Agent{
 		ID: agent.PublicID, Name: agent.Name(), DisplayName: agent.DisplayName, Hostname: agent.Hostname,
 		OS: agent.OS, Platform: agent.SystemInfo.Platform, PlatformVersion: agent.SystemInfo.PlatformVersion,
 		Arch: agent.Arch, AgentVersion: agent.AgentVersion, Online: h.hub.IsOnline(agent.ID),
-		LastSeenAt: agent.LastSeenAt, EnrolledAt: agent.EnrolledAt, Tags: agent.Tags,
+		LastSeenAt: agent.LastSeenAt, EnrolledAt: agent.EnrolledAt, Tags: agent.Tags, FiringAlerts: firingAlerts[agent.ID],
 	}
 	if snapshot, ok := h.metrics.Latest(agent.ID); ok && summary.Online {
 		summary.Current = currentMetrics(snapshot)
@@ -151,9 +168,9 @@ func (h *handlers) agentSummary(agent fleet.Agent) Agent {
 	return summary
 }
 
-func (h *handlers) agentDetails(agent fleet.Agent) AgentDetails {
+func (h *handlers) agentDetails(agent fleet.Agent, firingAlerts map[int64]int) AgentDetails {
 	details := AgentDetails{
-		Agent: h.agentSummary(agent), KernelVersion: agent.SystemInfo.KernelVersion,
+		Agent: h.agentSummary(agent, firingAlerts), KernelVersion: agent.SystemInfo.KernelVersion,
 		CPUModel: agent.SystemInfo.CPUModel, CPUCores: agent.SystemInfo.CPUCores,
 		MemoryTotalBytes: agent.SystemInfo.MemoryTotal,
 		Capabilities:     capabilities(agent.SystemInfo.Capabilities),

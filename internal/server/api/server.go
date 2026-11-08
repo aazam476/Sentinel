@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/aazam476/sentinel/internal/server/alerts"
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
 	"github.com/aazam476/sentinel/internal/server/fleet"
@@ -30,6 +31,7 @@ type handlers struct {
 	hub        *hub.Hub
 	metrics    *metrics.Service
 	registries *registry.Service
+	alerts     *alerts.Service
 	terminals  *relay.Sessions
 	serverKey  serverkey.Key
 	tlsPin     string
