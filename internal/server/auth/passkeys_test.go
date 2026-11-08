@@ -4,6 +4,7 @@ package auth_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -245,10 +246,19 @@ func TestPasskeyManagement(t *testing.T) {
 		if err := h.service.StepUp(t.Context(), h.authenticate(t, adminToken), h.code(admin.totpSecret), testClient()); err != nil {
 			t.Fatal(err)
 		}
-		long := string(make([]rune, 65))
+		long := strings.Repeat("k", 65)
 		var validation *auth.ValidationError
 		if _, err := registerPasskey(t, h, h.authenticate(t, adminToken), softauthn.New(testSite().Origin), long); !errors.As(err, &validation) {
 			t.Errorf("error = %v, want a validation error", err)
+		}
+	})
+
+	t.Run("refuses a name with control or bidirectional characters", func(t *testing.T) {
+		for _, name := range []string{"YubiKey\x00", "Work \u202eyeK"} {
+			var validation *auth.ValidationError
+			if _, err := registerPasskey(t, h, h.authenticate(t, adminToken), softauthn.New(testSite().Origin), name); !errors.As(err, &validation) {
+				t.Errorf("%q: error = %v, want a validation error", name, err)
+			}
 		}
 	})
 

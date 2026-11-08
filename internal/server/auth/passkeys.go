@@ -171,5 +171,8 @@ func validatePasskeyName(name string) (string, error) {
 	if utf8.RuneCountInString(name) > maxPasskeyNameLength || !utf8.ValidString(name) {
 		return "", &ValidationError{Field: "name", Message: "use at most 64 characters"}
 	}
+	if HasHiddenControls(name) {
+		return "", &ValidationError{Field: "name", Message: "remove the control characters"}
+	}
 	return name, nil
 }
