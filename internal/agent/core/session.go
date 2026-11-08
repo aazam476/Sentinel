@@ -203,8 +203,14 @@ func (c *connection) sendSamples(ctx context.Context) {
 }
 
 // send writes one message, giving up after writeTimeout.
+//
+// The limit is real time, not the agent's Clock: it is about the network,
+// not about anything the agent schedules. (With a fake clock, a test's
+// jump of several seconds could otherwise expire a write in the instant
+// between the server receiving it and the write returning, and the
+// WebSocket library closes the connection when a write's context ends.)
 func (c *connection) send(ctx context.Context, message protocol.Message, payload any) error {
-	ctx, cancel := clock.WithTimeout(ctx, c.agent.options.Clock, writeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	return protocol.WriteMessage(ctx, c.conn, message, payload)
 }

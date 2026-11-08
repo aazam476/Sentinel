@@ -6,7 +6,6 @@ import (
 	"context"
 
 	"github.com/aazam476/sentinel/internal/protocol"
-	"github.com/aazam476/sentinel/internal/shared/clock"
 )
 
 // streamOutput lets a terminal session send on this connection's streams.
@@ -14,9 +13,10 @@ type streamOutput struct {
 	conn *connection
 }
 
-// SendFrame sends a stream's data, giving up after writeTimeout.
+// SendFrame sends a stream's data, giving up after writeTimeout of real
+// time (see connection.send).
 func (o streamOutput) SendFrame(ctx context.Context, stream protocol.StreamID, data []byte) error {
-	ctx, cancel := clock.WithTimeout(ctx, o.conn.agent.options.Clock, writeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	return protocol.WriteFrame(ctx, o.conn.conn, stream, data)
 }
