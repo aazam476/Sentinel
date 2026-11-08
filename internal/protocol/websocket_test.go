@@ -85,6 +85,29 @@ func TestWebSocketMessages(t *testing.T) {
 		}
 	})
 
+	t.Run("ReadAny returns a stream frame whole, and WriteFrame sends one", func(t *testing.T) {
+		client, server := pipe(t)
+		if err := protocol.WriteFrame(t.Context(), client, 9, []byte("ls -la\n")); err != nil {
+			t.Fatal(err)
+		}
+		message, frame, err := protocol.ReadAny(t.Context(), server)
+		if err != nil || message.Type != "" {
+			t.Fatalf("got %+v (%v)", message, err)
+		}
+		stream, data, err := protocol.DecodeFrame(frame)
+		if err != nil || stream != 9 || string(data) != "ls -la\n" {
+			t.Errorf("frame = %d %q (%v)", stream, data, err)
+		}
+	})
+
+	t.Run("WriteFrame reports a closed connection", func(t *testing.T) {
+		client, _ := pipe(t)
+		_ = client.CloseNow()
+		if err := protocol.WriteFrame(t.Context(), client, 1, nil); err == nil {
+			t.Error("WriteFrame returned nil")
+		}
+	})
+
 	t.Run("an invalid message is refused before sending", func(t *testing.T) {
 		client, _ := pipe(t)
 		if err := protocol.WriteMessage(t.Context(), client, protocol.Message{Type: "nonsense"}, nil); err == nil {

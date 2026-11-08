@@ -12,6 +12,7 @@ import (
 	"github.com/aazam476/sentinel/internal/server/fleet"
 	"github.com/aazam476/sentinel/internal/server/hub"
 	"github.com/aazam476/sentinel/internal/server/metrics"
+	"github.com/aazam476/sentinel/internal/server/relay"
 	"github.com/aazam476/sentinel/internal/server/serverkey"
 )
 
@@ -48,6 +49,7 @@ func NewRouter(options RouterOptions) http.Handler {
 		fleet:      options.Fleet,
 		hub:        options.Hub,
 		metrics:    options.Metrics,
+		terminals:  relay.NewSessions(options.Clock),
 		serverKey:  options.ServerKey,
 		tlsPin:     options.TLSFingerprint,
 		logger:     options.Logger,
@@ -60,7 +62,17 @@ func NewRouter(options RouterOptions) http.Handler {
 	// Without a method in the pattern, so a POST gets 405 here instead of
 	// falling through to the web UI's "/" route.
 	mux.HandleFunc("/healthz", handleHealthz)
+	h.addSignInRoutes(mux)
+	h.addAccountRoutes(mux)
+	h.addAdminRoutes(mux)
+	h.addMachineRoutes(mux)
+	mux.HandleFunc("/api/", handleUnknownAPIRoute)
+	mux.Handle("/", options.WebUI)
+	return mux
+}
 
+// addSignInRoutes adds first-boot setup and the sign-in steps.
+func (h *handlers) addSignInRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/setup/status", h.handleSetupStatus)
 	mux.HandleFunc("POST /api/setup/begin", h.handleBeginSetup)
 	mux.HandleFunc("POST /api/setup/complete", h.handleCompleteSetup)
@@ -71,17 +83,23 @@ func NewRouter(options RouterOptions) http.Handler {
 	mux.HandleFunc("POST /api/auth/totp/enrollment/confirm", h.anySession(h.handleConfirmEnrollment))
 	mux.HandleFunc("GET /api/auth/session", h.anySession(h.handleSession))
 	mux.HandleFunc("POST /api/auth/logout", h.anySession(h.handleLogout))
+	mux.HandleFunc("POST /api/auth/passkeys/assertion/begin", h.anySession(h.handleBeginPasskeyAssertion))
+	mux.HandleFunc("POST /api/auth/passkeys/assertion/finish", h.anySession(h.handleFinishPasskeyAssertion))
+}
+
+// addAccountRoutes adds what a user manages about their own account.
+func (h *handlers) addAccountRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/step-up", h.signedIn(h.handleStepUp))
 	mux.HandleFunc("GET /api/auth/sessions", h.signedIn(h.handleListSessions))
 	mux.HandleFunc("DELETE /api/auth/sessions/{id}", h.signedIn(h.handleRevokeSession))
-
 	mux.HandleFunc("POST /api/auth/passkeys/registration/begin", h.anySession(h.handleBeginPasskeyRegistration))
 	mux.HandleFunc("POST /api/auth/passkeys/registration/finish", h.anySession(h.handleFinishPasskeyRegistration))
-	mux.HandleFunc("POST /api/auth/passkeys/assertion/begin", h.anySession(h.handleBeginPasskeyAssertion))
-	mux.HandleFunc("POST /api/auth/passkeys/assertion/finish", h.anySession(h.handleFinishPasskeyAssertion))
 	mux.HandleFunc("GET /api/auth/passkeys", h.signedIn(h.handleListPasskeys))
 	mux.HandleFunc("DELETE /api/auth/passkeys/{id}", h.signedIn(h.handleDeletePasskey))
+}
 
+// addAdminRoutes adds users, the audit log and enrollment tokens.
+func (h *handlers) addAdminRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/users", h.withPermission(auth.PermissionManageUsers, h.handleListUsers))
 	mux.HandleFunc("POST /api/users", h.withPermission(auth.PermissionManageUsers, h.handleCreateUser))
 	mux.HandleFunc("PATCH /api/users/{id}", h.withPermission(auth.PermissionManageUsers, h.handleUpdateUser))
@@ -93,17 +111,17 @@ func NewRouter(options RouterOptions) http.Handler {
 	mux.HandleFunc("GET /api/enrollment-tokens", h.withPermission(auth.PermissionManageEnrollment, h.handleListEnrollmentTokens))
 	mux.HandleFunc("POST /api/enrollment-tokens", h.withPermission(auth.PermissionManageEnrollment, h.handleCreateEnrollmentToken))
 	mux.HandleFunc("DELETE /api/enrollment-tokens/{id}", h.withPermission(auth.PermissionManageEnrollment, h.handleRevokeEnrollmentToken))
+}
 
+// addMachineRoutes adds the fleet and everything done on one machine.
+func (h *handlers) addMachineRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/agents", h.withPermission(auth.PermissionViewFleet, h.handleListAgents))
 	mux.HandleFunc("GET /api/agents/{id}", h.withPermission(auth.PermissionViewFleet, h.handleGetAgent))
 	mux.HandleFunc("PATCH /api/agents/{id}", h.withPermission(auth.PermissionManageMachines, h.handleUpdateAgent))
 	mux.HandleFunc("POST /api/agents/{id}/revoke", h.withPermission(auth.PermissionRevokeAgents, h.handleRevokeAgent))
 	mux.HandleFunc("GET /api/agents/{id}/metrics", h.withPermission(auth.PermissionViewFleet, h.handleAgentMetrics))
+	mux.HandleFunc("GET /api/agents/{id}/terminal", h.withPermission(auth.PermissionUseTerminal, h.handleTerminal))
 	mux.HandleFunc("GET /api/events", h.withPermission(auth.PermissionViewFleet, h.handleEvents))
-
-	mux.HandleFunc("/api/", handleUnknownAPIRoute)
-	mux.Handle("/", options.WebUI)
-	return mux
 }
 
 // cookiePath limits the session cookie to Sentinel's base path, so other

@@ -39,14 +39,37 @@ var ErrBinaryFrame = errors.New("expected a JSON message, got a binary frame")
 
 // ReadMessage reads the next control message from conn.
 func ReadMessage(ctx context.Context, conn *websocket.Conn) (Message, error) {
-	kind, data, err := conn.Read(ctx)
-	if err != nil {
-		return Message{}, fmt.Errorf("read message: %w", err)
-	}
-	if kind != websocket.MessageText {
+	message, frame, err := ReadAny(ctx, conn)
+	if err == nil && frame != nil {
 		return Message{}, ErrBinaryFrame
 	}
-	return Decode(data)
+	return message, err
+}
+
+// ReadAny reads the next control message or stream frame from conn. For a
+// binary frame, frame is the whole frame (see DecodeFrame) and message is
+// empty; for a control message, frame is nil.
+func ReadAny(ctx context.Context, conn *websocket.Conn) (message Message, frame []byte, err error) {
+	kind, data, err := conn.Read(ctx)
+	if err != nil {
+		return Message{}, nil, fmt.Errorf("read message: %w", err)
+	}
+	if kind == websocket.MessageBinary {
+		if data == nil {
+			data = []byte{}
+		}
+		return Message{}, data, nil
+	}
+	message, err = Decode(data)
+	return message, nil, err
+}
+
+// WriteFrame sends data on a stream as one binary frame.
+func WriteFrame(ctx context.Context, conn *websocket.Conn, stream StreamID, data []byte) error {
+	if err := conn.Write(ctx, websocket.MessageBinary, EncodeFrame(stream, data)); err != nil {
+		return fmt.Errorf("send stream %d data: %w", stream, err)
+	}
+	return nil
 }
 
 // WriteMessage sends a control message, with payload as its payload unless

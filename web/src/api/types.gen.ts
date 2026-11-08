@@ -468,6 +468,10 @@ export interface CompleteSetupRequest {
 }
 
 //////////
+// source: terminal.go
+
+
+//////////
 // source: users.go
 
 /**

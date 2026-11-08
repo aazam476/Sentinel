@@ -4,7 +4,6 @@ package hub
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,8 +31,12 @@ type connection struct {
 	mutex sync.Mutex
 	// pending holds the requests waiting for a response, by message ID.
 	pending map[string]chan protocol.Message
-	// closed is set once the connection is closing; no new requests start.
+	// closed is set once the connection is closing; no new requests or
+	// streams start.
 	closed bool
+	// streams holds the open streams, by ID; lastStreamID is the newest ID.
+	streams      map[protocol.StreamID]*Stream
+	lastStreamID protocol.StreamID
 }
 
 func newConnection(hub *Hub, conn *websocket.Conn, agent fleet.Agent, hello protocol.HelloPayload) *connection {
@@ -41,6 +44,7 @@ func newConnection(hub *Hub, conn *websocket.Conn, agent fleet.Agent, hello prot
 		hub: hub, conn: conn, agent: agent, hello: hello,
 		watchdog: hub.clock.NewTimer(OfflineAfter),
 		pending:  map[string]chan protocol.Message{},
+		streams:  map[protocol.StreamID]*Stream{},
 	}
 	c.lastActivity.Store(hub.clock.Now().UnixMilli())
 	return c
@@ -49,16 +53,16 @@ func newConnection(hub *Hub, conn *websocket.Conn, agent fleet.Agent, hello prot
 // readLoop handles messages until the connection ends.
 func (c *connection) readLoop(ctx context.Context) {
 	for {
-		message, err := protocol.ReadMessage(ctx, c.conn)
-		if errors.Is(err, protocol.ErrBinaryFrame) {
-			// Streams arrive in a later milestone; nothing uses them yet.
-			continue
-		}
+		message, frame, err := protocol.ReadAny(ctx, c.conn)
 		if err != nil {
 			c.hub.logger.Debug("agent connection ended", "agent", c.agent.PublicID, "error", err)
 			return
 		}
 		c.lastActivity.Store(c.hub.clock.Now().UnixMilli())
+		if frame != nil {
+			c.deliverFrame(ctx, frame)
+			continue
+		}
 		c.handle(ctx, message)
 	}
 }
@@ -71,6 +75,8 @@ func (c *connection) handle(ctx context.Context, message protocol.Message) {
 		c.deliver(message)
 	case protocol.TypeEvent:
 		c.handleEvent(ctx, message)
+	case protocol.TypeStreamClose:
+		c.handleStreamClose(message)
 	default:
 		c.hub.logger.Warn("agent sent an unexpected message", "agent", c.agent.PublicID, "type", message.Type)
 	}

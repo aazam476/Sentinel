@@ -111,6 +111,7 @@ func (h *Hub) serve(ctx context.Context, conn *connection) {
 
 func (h *Hub) connectionEnded(conn *connection) {
 	conn.failPending()
+	conn.endStreams()
 	// The request is over, so this uses a fresh context. It runs before
 	// unregister, so whoever sees the agent go offline also sees when it
 	// was last seen.

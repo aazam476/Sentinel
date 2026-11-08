@@ -16,19 +16,22 @@ import (
 // or nil for messages without a payload.
 func goldenPayloads() map[string]func() any {
 	return map[string]func() any{
-		"request-system-info.json":  nil,
-		"response-system-info.json": func() any { return &protocol.SystemInfo{} },
-		"response-error.json":       nil,
-		"event-metrics-sample.json": func() any { return &protocol.MetricsSample{} },
-		"stream-close.json":         func() any { return &protocol.StreamClosePayload{} },
-		"ping.json":                 nil,
-		"pong.json":                 nil,
-		"enroll.json":               func() any { return &protocol.EnrollPayload{} },
-		"enrolled.json":             func() any { return &protocol.EnrolledPayload{} },
-		"hello.json":                func() any { return &protocol.HelloPayload{} },
-		"challenge.json":            func() any { return &protocol.ChallengePayload{} },
-		"prove.json":                func() any { return &protocol.ProvePayload{} },
-		"welcome.json":              func() any { return &protocol.WelcomePayload{} },
+		"request-system-info.json":      nil,
+		"response-system-info.json":     func() any { return &protocol.SystemInfo{} },
+		"response-error.json":           nil,
+		"event-metrics-sample.json":     func() any { return &protocol.MetricsSample{} },
+		"stream-close.json":             func() any { return &protocol.StreamClosePayload{} },
+		"ping.json":                     nil,
+		"pong.json":                     nil,
+		"enroll.json":                   func() any { return &protocol.EnrollPayload{} },
+		"enrolled.json":                 func() any { return &protocol.EnrolledPayload{} },
+		"hello.json":                    func() any { return &protocol.HelloPayload{} },
+		"challenge.json":                func() any { return &protocol.ChallengePayload{} },
+		"prove.json":                    func() any { return &protocol.ProvePayload{} },
+		"welcome.json":                  func() any { return &protocol.WelcomePayload{} },
+		"request-terminal-open.json":    func() any { return &protocol.TerminalOpenPayload{} },
+		"response-terminal-opened.json": func() any { return &protocol.TerminalOpenedPayload{} },
+		"request-terminal-resize.json":  func() any { return &protocol.TerminalResizePayload{} },
 	}
 }
 

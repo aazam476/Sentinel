@@ -76,4 +76,42 @@ type Capability struct {
 type StreamClosePayload struct {
 	StreamID StreamID `json:"streamId"`
 	Reason   string   `json:"reason"`
+	// KeepSession, from the server, means the viewer went away rather than
+	// closed it: the agent keeps a terminal's shell running for 30 seconds
+	// so the browser can reattach.
+	KeepSession bool `json:"keepSession,omitempty"`
+}
+
+// Terminal actions (§9.2). The server picks the stream ID and sends it in
+// terminal.open, so it is ready for the terminal's output before the agent
+// can send any.
+const (
+	ActionTerminalOpen   = "terminal.open"
+	ActionTerminalResize = "terminal.resize"
+)
+
+// TerminalOpenPayload asks the agent to start a shell, or to reattach to
+// one whose browser connection dropped less than 30 seconds ago.
+type TerminalOpenPayload struct {
+	StreamID StreamID `json:"streamId"`
+	Cols     uint16   `json:"cols"`
+	Rows     uint16   `json:"rows"`
+	// ResumeSessionID reattaches to that session instead of starting one.
+	ResumeSessionID string `json:"resumeSessionId,omitempty"`
+}
+
+// TerminalOpenedPayload answers terminal.open.
+type TerminalOpenedPayload struct {
+	// SessionID identifies the shell, for reattaching after a drop.
+	SessionID string `json:"sessionId"`
+	// Resumed is true when an existing shell was reattached; its recent
+	// output is sent again first so the screen can be redrawn.
+	Resumed bool `json:"resumed"`
+}
+
+// TerminalResizePayload changes a terminal's size.
+type TerminalResizePayload struct {
+	StreamID StreamID `json:"streamId"`
+	Cols     uint16   `json:"cols"`
+	Rows     uint16   `json:"rows"`
 }
