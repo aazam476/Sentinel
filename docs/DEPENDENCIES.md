@@ -2,7 +2,7 @@
 
 Every third-party dependency, what it's for, and why the standard library (or something we
 already have) isn't enough. Add a row **before** adding a dependency. Only permissive
-licenses are allowed (MIT, BSD, Apache-2.0, ISC, MPL-2.0); `make check-licenses` fails on
+licenses are allowed (MIT, BSD, Apache-2.0, ISC, Zlib, MPL-2.0); `make check-licenses` fails on
 anything GPL-family.
 
 ## Go modules
@@ -20,6 +20,7 @@ anything GPL-family.
 | github.com/shirou/gopsutil/v4 | v4.26.10 | BSD-3-Clause | The agent's metrics and machine details: CPU, memory, filesystems, network and disk counters, temperatures, uptime, OS | Reading these takes different system calls and files on Linux, macOS and Windows; gopsutil does all three in pure Go |
 | github.com/tklauser/go-sysconf, github.com/tklauser/numcpus, github.com/ebitengine/purego, github.com/yusufpapurcu/wmi, github.com/go-ole/go-ole, github.com/lufia/plan9stats, github.com/power-devops/perfstat | (indirect) | BSD-3-Clause, Apache-2.0, MIT | Platform back ends for gopsutil (sysconf, macOS without cgo, Windows WMI) | Pulled in by gopsutil |
 | golang.org/x/sys | v0.49.0 | BSD-3-Clause | Setting the agent state directory's access list on Windows (SEC-20) | The standard library has no API for Windows access lists |
+| github.com/kardianos/service | v1.3.0 | Zlib | Installing and running the agent as a systemd, launchd or Windows service | Each service manager has its own files, commands and APIs; one small library covers all three |
 | modernc.org/sqlite | v1.61.1 | BSD-3-Clause | The SQLite database, in pure Go | No embedded database in the standard library; pure Go keeps the server buildable with `CGO_ENABLED=0` |
 | ↳ reviewed 2026-11-07 | | | `LICENSE-3RD-PARTY.md` in the module lists every linked component as BSD-3-Clause, MIT or public domain (SQLite itself). GPL text appears there only for tools used by its own test suite, which are never compiled into Sentinel | |
 | modernc.org/libc, mathutil, memory; github.com/dustin/go-humanize, google/uuid, mattn/go-isatty, ncruces/go-strftime, remyoudompheng/bigfft | (indirect) | BSD-3-Clause, MIT | The C-to-Go runtime that modernc.org/sqlite is built on | Pulled in by modernc.org/sqlite |

@@ -84,7 +84,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | Path | What's there | Status |
 |---|---|---|
 | `cmd/sentinel-server/` | Server entry point: parses flags, wires packages together | Serves the web UI |
-| `cmd/sentinel-agent/` | Agent entry point and subcommands | `version` only |
+| `cmd/sentinel-agent/` | Agent entry point and subcommands | `install`, `enroll`, `run`, `uninstall`, `version` |
 | `internal/server/config/` | Reads and validates `server.toml` | Built |
 | `internal/server/servertls/` | Self-signed and ACME certificates | Built |
 | `internal/server/middleware/` | Security headers, trusted proxies, Origin check, base path | Built |
@@ -112,6 +112,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/policy/` | Reads the local policy file that switches capabilities off | Built |
 | `internal/agent/core/` | Enrollment, the connection to the server, heartbeat, reconnects, requests | Built |
 | `internal/agent/collectors/` | Metrics and machine details, through gopsutil | Built |
+| `internal/agent/setup/` | The steps behind install, enroll and uninstall | Built |
 | `internal/agent/<feature>/` | One package per agent feature (terminal, docker, zfs, ...) | Planned |
 | `web/` | The React web UI | Setup, sign-in, account, audit log |
 | `scripts/` | Dev and CI helper scripts | Built |
