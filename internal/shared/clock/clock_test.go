@@ -3,6 +3,8 @@
 package clock_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -34,5 +36,25 @@ func TestSystemTimer(t *testing.T) {
 		}
 		timer.Reset(time.Millisecond)
 		<-timer.C()
+	})
+}
+
+func TestWithTimeout(t *testing.T) {
+	t.Run("ends the context with ErrTimeout when the timer fires", func(t *testing.T) {
+		ctx, cancel := clock.WithTimeout(t.Context(), clock.System{}, time.Millisecond)
+		defer cancel()
+		<-ctx.Done()
+		if !errors.Is(context.Cause(ctx), clock.ErrTimeout) {
+			t.Errorf("cause = %v, want ErrTimeout", context.Cause(ctx))
+		}
+	})
+
+	t.Run("cancel ends the context without a timeout", func(t *testing.T) {
+		ctx, cancel := clock.WithTimeout(t.Context(), clock.System{}, time.Hour)
+		cancel()
+		<-ctx.Done()
+		if errors.Is(context.Cause(ctx), clock.ErrTimeout) {
+			t.Error("cause = ErrTimeout after cancel")
+		}
 	})
 }

@@ -89,3 +89,27 @@ func assertNotFired(t *testing.T, channel <-chan time.Time) {
 	default:
 	}
 }
+
+func TestWaitForArmed(t *testing.T) {
+	t.Run("waits until timers are stopped down to the count", func(t *testing.T) {
+		clock := fakeclock.New(testStart())
+		first, second := clock.NewTimer(time.Second), clock.NewTimer(time.Second)
+		done := make(chan error)
+		go func() { done <- clock.WaitForArmed(t.Context(), 1) }()
+		first.Stop()
+		if err := <-done; err != nil {
+			t.Errorf("WaitForArmed returned %v", err)
+		}
+		second.Stop()
+	})
+
+	t.Run("gives up when the context ends", func(t *testing.T) {
+		clock := fakeclock.New(testStart())
+		clock.NewTimer(time.Second)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		if err := clock.WaitForArmed(ctx, 0); !errors.Is(err, context.Canceled) {
+			t.Errorf("WaitForArmed returned %v, want context.Canceled", err)
+		}
+	})
+}

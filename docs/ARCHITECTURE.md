@@ -96,12 +96,18 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/localaccess/` | Checks who may run `reset-admin` on the server host | Built |
 | `internal/server/audit/` | Append-only, hash-chained audit log; verify and export | Built |
 | `internal/server/secrets/` | Encrypts stored secrets with the key in `secret.key` | Built |
+| `internal/server/serverkey/` | The server's Ed25519 identity key and its fingerprint | Built |
+| `internal/server/fleet/` | Enrollment tokens and the list of managed machines | Built |
+| `internal/server/hub/` | The agents' WebSocket endpoint: handshake, heartbeat, requests, online status | Built |
+| `internal/server/metrics/` | Stores metric samples, rolls them up and answers chart queries | Built |
+| `internal/server/scheduler/` | Runs periodic jobs (metric rollups and cleanup) | Built |
 | `internal/server/web/` | Embeds the built React app into the server binary | Built |
 | `internal/shared/buildinfo/` | Version string shared by both binaries | Built |
-| `internal/shared/clock/` | The real clock; tests use `internal/testutil/fakeclock` | Built |
+| `internal/shared/clock/` | The real clock and its timers; tests use `internal/testutil/fakeclock` | Built |
+| `internal/shared/keyfile/` | Key files only their owner can read | Built |
 | `internal/testutil/` | Helpers used only by tests | Built |
 | `internal/protocol/` | Message types, frames and handshake signatures shared by server and agent | Built |
-| `internal/server/{hub,relay,metrics,alerts,scheduler}/` | The rest of the server | Planned |
+| `internal/server/{relay,alerts}/` | The rest of the server | Planned |
 | `internal/agent/<feature>/` | One package per agent feature (terminal, docker, zfs, ...) | Planned |
 | `web/` | The React web UI | Setup, sign-in, account, audit log |
 | `scripts/` | Dev and CI helper scripts | Built |

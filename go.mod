@@ -6,6 +6,7 @@ toolchain go1.27.3
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/coder/websocket v1.8.15
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/pquerna/otp v1.5.0
 	golang.org/x/crypto v0.58.0

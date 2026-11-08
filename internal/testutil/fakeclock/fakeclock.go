@@ -83,6 +83,25 @@ func (c *Clock) WaitForTimers(ctx context.Context, count int) error {
 	}
 }
 
+// WaitForArmed blocks until exactly count timers are waiting to fire, or
+// ctx ends. Tests call it when timers from finished work may still be
+// disarming, to be sure Advance fires only the timers they mean to.
+func (c *Clock) WaitForArmed(ctx context.Context, count int) error {
+	for {
+		c.mutex.Lock()
+		armed, changed := len(c.armed), c.changed
+		c.mutex.Unlock()
+		if armed == count {
+			return nil
+		}
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			return fmt.Errorf("waiting for exactly %d timers, %d armed: %w", count, armed, ctx.Err())
+		}
+	}
+}
+
 func (c *Clock) setLocked(now time.Time) {
 	c.now = now
 	slices.SortStableFunc(c.armed, func(a, b *Timer) int { return a.deadline.Compare(b.deadline) })
