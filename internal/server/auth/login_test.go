@@ -229,6 +229,22 @@ func TestLoginRefusesWrongCredentials(t *testing.T) {
 	})
 }
 
+func TestHugeUsernamesAreCappedInTheAuditLog(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.setUpAdmin(t)
+
+	_, err := h.service.Login(t.Context(), auth.LoginInput{Username: strings.Repeat("a", 10_000), Password: "whatever-password"}, testClient())
+
+	if !errors.Is(err, auth.ErrInvalidCredentials) {
+		t.Fatalf("Login error = %v, want ErrInvalidCredentials", err)
+	}
+	stored := h.queryString(t, `SELECT username FROM audit_log ORDER BY id DESC LIMIT 1`)
+	if len(stored) != 128 {
+		t.Errorf("audited username is %d characters, want it capped at 128", len(stored))
+	}
+}
+
 // recoveryLogin is the outcome of a login finished with a recovery code.
 type recoveryLogin struct {
 	err       error

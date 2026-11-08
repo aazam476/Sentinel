@@ -11,6 +11,12 @@ import (
 	"github.com/aazam476/sentinel/internal/server/audit"
 )
 
+// maxAuditedUsernameLength caps a username typed at the login form before
+// it goes into the audit log. Real usernames are at most 64 characters; a
+// longer one can't exist, and storing whatever an attacker sends would let
+// them fill the log with huge entries.
+const maxAuditedUsernameLength = 128
+
 // failedAttempt describes a failed login step for recordFailedAttempt.
 type failedAttempt struct {
 	// user is the account, or a User with ID 0 when the username doesn't exist.
@@ -33,7 +39,7 @@ func (s *Service) checkRateLimit(ctx context.Context, username string, request R
 
 	err := &TooManyAttemptsError{RetryAfter: wait}
 	entry := auditEntry(request, "auth.login", audit.OutcomeDenied, map[string]any{"reason": "rate_limited"})
-	entry.Username = username
+	entry.Username = truncate(username, maxAuditedUsernameLength)
 	if recordErr := s.audit.Record(ctx, entry); recordErr != nil {
 		return recordErr
 	}
@@ -72,7 +78,7 @@ func (s *Service) recordFailedAttempt(ctx context.Context, attempt failedAttempt
 
 	err := s.database.Write(ctx, func(tx *sql.Tx) error {
 		entry := auditEntry(attempt.request, attempt.action, audit.OutcomeFailure, map[string]any{"reason": attempt.reason})
-		entry.Username = attempt.username
+		entry.Username = truncate(attempt.username, maxAuditedUsernameLength)
 		if attempt.user.ID != 0 {
 			entry = forUser(entry, attempt.user.ID, attempt.username)
 		}
@@ -110,7 +116,8 @@ func (s *Service) resetRateLimit(username string) {
 	s.usernameLimit.Reset(usernameKey(username))
 }
 
-// usernameKey is case-insensitive, like usernames.
+// usernameKey is case-insensitive, like usernames. It is capped like the
+// audited name, so huge typed usernames can't bloat the limiter's memory.
 func usernameKey(username string) string {
-	return "user:" + strings.ToLower(username)
+	return "user:" + strings.ToLower(truncate(username, maxAuditedUsernameLength))
 }
