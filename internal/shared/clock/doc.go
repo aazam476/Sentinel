@@ -11,4 +11,7 @@
 // and receives clock.System{} in production, or a fake clock from
 // internal/testutil/fakeclock in tests. Tests can then move time forward
 // instantly instead of sleeping.
+//
+// Code that waits (timeouts, heartbeats, retry delays) also takes its
+// timers from the clock, through NewTimer, for the same reason.
 package clock

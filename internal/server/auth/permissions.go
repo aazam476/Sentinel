@@ -31,6 +31,7 @@ const (
 	// Admin: manage Sentinel itself.
 	PermissionManageUsers      Permission = "manage_users"
 	PermissionManageEnrollment Permission = "manage_enrollment"
+	PermissionManageMachines   Permission = "manage_machines"
 	PermissionRevokeAgents     Permission = "revoke_agents"
 	PermissionManageAlerts     Permission = "manage_alerts"
 	PermissionManageSettings   Permission = "manage_settings"
@@ -54,6 +55,7 @@ func requiredRole(permission Permission) (Role, bool) {
 
 	case PermissionManageUsers,
 		PermissionManageEnrollment,
+		PermissionManageMachines,
 		PermissionRevokeAgents,
 		PermissionManageAlerts,
 		PermissionManageSettings,

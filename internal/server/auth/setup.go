@@ -193,7 +193,7 @@ func (s *Service) checkSetupAllowed(ctx context.Context, setupToken string, requ
 // startSession creates a session for userID and returns its token.
 // secondFactorAt is nil for a session that has only passed the password.
 func (s *Service) startSession(ctx context.Context, tx *sql.Tx, userID int64, secondFactorAt *int64, request RequestInfo) (string, error) {
-	token, tokenHash := newToken()
+	token, tokenHash := NewToken()
 	_, err := insertSession(ctx, tx, newSessionRow{
 		userID:         userID,
 		tokenHash:      tokenHash,

@@ -20,3 +20,19 @@ func TestSystem(t *testing.T) {
 		}
 	})
 }
+
+func TestSystemTimer(t *testing.T) {
+	t.Run("fires after its duration", func(t *testing.T) {
+		timer := clock.System{}.NewTimer(time.Millisecond)
+		<-timer.C()
+	})
+
+	t.Run("can be stopped and reset", func(t *testing.T) {
+		timer := clock.System{}.NewTimer(time.Hour)
+		if !timer.Stop() {
+			t.Error("Stop() = false for an armed timer")
+		}
+		timer.Reset(time.Millisecond)
+		<-timer.C()
+	})
+}

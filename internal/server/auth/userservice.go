@@ -24,8 +24,10 @@ type UpdateUserInput struct {
 	Disabled *bool
 }
 
-// authorize returns ErrForbidden unless session's role has permission.
-func authorize(session Session, permission Permission) error {
+// Authorize returns ErrNotAuthenticated unless session is fully signed in,
+// and ErrForbidden unless its role has permission. Other services use it
+// so every permission check goes through the table in permissions.go.
+func Authorize(session Session, permission Permission) error {
 	if !session.IsSignedIn() {
 		return ErrNotAuthenticated
 	}
@@ -37,7 +39,7 @@ func authorize(session Session, permission Permission) error {
 
 // ListUsers returns every user, for admins.
 func (s *Service) ListUsers(ctx context.Context, actor Session) ([]User, error) {
-	if err := authorize(actor, PermissionManageUsers); err != nil {
+	if err := Authorize(actor, PermissionManageUsers); err != nil {
 		return nil, err
 	}
 	var users []User
@@ -181,7 +183,7 @@ func ensureAnActiveAdmin(ctx context.Context, tx *sql.Tx) error {
 
 // authorizeUserChange checks the admin permission and the step-up window.
 func (s *Service) authorizeUserChange(actor Session) error {
-	if err := authorize(actor, PermissionManageUsers); err != nil {
+	if err := Authorize(actor, PermissionManageUsers); err != nil {
 		return err
 	}
 	return s.RequireRecentSecondFactor(actor)

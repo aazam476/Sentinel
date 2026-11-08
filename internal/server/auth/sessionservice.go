@@ -47,7 +47,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Session, erro
 	var session Session
 	err := s.database.Read(ctx, func(tx *sql.Tx) error {
 		var err error
-		session, err = findSessionByTokenHash(ctx, tx, hashToken(token))
+		session, err = findSessionByTokenHash(ctx, tx, HashToken(token))
 		return err
 	})
 	if errors.Is(err, errSessionNotFound) {

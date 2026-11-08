@@ -46,7 +46,7 @@ func (p *pendingSetups) Add(setup pendingSetup) string {
 		}
 	}
 
-	id, _ := newToken() // only the random token is needed, not its hash
+	id, _ := NewToken() // only the random token is needed, not its hash
 	setup.expiresAt = now.Add(pendingSetupLifetime)
 	p.pending[id] = setup
 	return id

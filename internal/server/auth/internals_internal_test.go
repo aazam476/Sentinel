@@ -242,6 +242,7 @@ func TestPermissions(t *testing.T) {
 		{PermissionRunScripts, false, true, true},
 		{PermissionManageUsers, false, false, true},
 		{PermissionManageEnrollment, false, false, true},
+		{PermissionManageMachines, false, false, true},
 		{PermissionRevokeAgents, false, false, true},
 		{PermissionManageAlerts, false, false, true},
 		{PermissionManageSettings, false, false, true},

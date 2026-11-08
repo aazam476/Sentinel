@@ -15,12 +15,17 @@ cd "$(dirname "$0")/.."
 
 module="$(go list -m)"
 
-# Packages whose bugs would weaken security. Add the handshake package here
-# when it is created.
+# Packages whose bugs would weaken security: authentication of users and
+# agents (the handshake lives in protocol and hub), enrollment, keys,
+# secrets, the audit log, the agent's policy and updates.
 security_critical=(
   "$module/internal/server/secrets"
   "$module/internal/server/auth"
   "$module/internal/server/audit"
+  "$module/internal/server/fleet"
+  "$module/internal/server/hub"
+  "$module/internal/server/serverkey"
+  "$module/internal/shared/keyfile"
   "$module/internal/protocol"
   "$module/internal/agent/identity"
   "$module/internal/agent/policy"
