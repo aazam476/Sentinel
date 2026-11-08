@@ -30,6 +30,10 @@ type EnrollmentToken struct {
 type EnrollmentTokensResponse struct {
 	Tokens            []EnrollmentToken `json:"tokens"`
 	ServerFingerprint string            `json:"serverFingerprint"`
+	// TLSFingerprint is the server's self-signed certificate key, which
+	// install commands pass as --tls-fingerprint; "" when the certificate
+	// comes from a real authority (ACME or a TLS proxy).
+	TLSFingerprint string `json:"tlsFingerprint"`
 }
 
 // CreateEnrollmentTokenRequest describes a new token. Zero values mean the
@@ -46,6 +50,8 @@ type CreateEnrollmentTokenResponse struct {
 	Token             EnrollmentToken `json:"token"`
 	Secret            string          `json:"secret"`
 	ServerFingerprint string          `json:"serverFingerprint"`
+	// TLSFingerprint is as in EnrollmentTokensResponse.
+	TLSFingerprint string `json:"tlsFingerprint"`
 }
 
 func (h *handlers) handleListEnrollmentTokens(w http.ResponseWriter, r *http.Request, session auth.Session) {
@@ -54,7 +60,7 @@ func (h *handlers) handleListEnrollmentTokens(w http.ResponseWriter, r *http.Req
 		h.writeError(w, err)
 		return
 	}
-	response := EnrollmentTokensResponse{Tokens: make([]EnrollmentToken, 0, len(tokens)), ServerFingerprint: h.serverKey.Fingerprint()}
+	response := EnrollmentTokensResponse{Tokens: make([]EnrollmentToken, 0, len(tokens)), ServerFingerprint: h.serverKey.Fingerprint(), TLSFingerprint: h.tlsPin}
 	now := h.clock.Now().UnixMilli()
 	for _, token := range tokens {
 		response.Tokens = append(response.Tokens, enrollmentToken(token, now))
@@ -78,6 +84,7 @@ func (h *handlers) handleCreateEnrollmentToken(w http.ResponseWriter, r *http.Re
 		Token:             enrollmentToken(created.EnrollmentToken, h.clock.Now().UnixMilli()),
 		Secret:            created.Token,
 		ServerFingerprint: h.serverKey.Fingerprint(),
+		TLSFingerprint:    h.tlsPin,
 	})
 }
 

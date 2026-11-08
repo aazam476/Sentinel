@@ -27,8 +27,11 @@ type RouterOptions struct {
 	Hub       *hub.Hub
 	Metrics   *metrics.Service
 	ServerKey serverkey.Key
-	Logger    *slog.Logger
-	Clock     Clock
+	// TLSFingerprint is the self-signed certificate's key fingerprint, or
+	// "" when agents check the server's certificate the usual way.
+	TLSFingerprint string
+	Logger         *slog.Logger
+	Clock          Clock
 	// BasePath is the configured base path; the session cookie is limited
 	// to it.
 	BasePath string
@@ -46,6 +49,7 @@ func NewRouter(options RouterOptions) http.Handler {
 		hub:        options.Hub,
 		metrics:    options.Metrics,
 		serverKey:  options.ServerKey,
+		tlsPin:     options.TLSFingerprint,
 		logger:     options.Logger,
 		clock:      options.Clock,
 		cookiePath: cookiePath(options.BasePath),

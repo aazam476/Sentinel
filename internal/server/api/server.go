@@ -28,6 +28,7 @@ type handlers struct {
 	hub        *hub.Hub
 	metrics    *metrics.Service
 	serverKey  serverkey.Key
+	tlsPin     string
 	logger     *slog.Logger
 	clock      Clock
 	cookiePath string

@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
@@ -149,6 +150,16 @@ const fingerprintPrefix = "SHA256:"
 // even if someone else terminates TLS (§7.2).
 func Fingerprint(publicKey ed25519.PublicKey) string {
 	sum := sha256.Sum256(publicKey)
+	return fingerprintPrefix + base64.RawURLEncoding.EncodeToString(sum[:])
+}
+
+// CertificateKeyFingerprint identifies a TLS certificate's public key the
+// same way: "SHA256:" and the unpadded base64url SHA-256 of its
+// SubjectPublicKeyInfo. A server with a self-signed certificate puts it in
+// install commands, and the agent then trusts only a certificate with that
+// key (§7.2). Pinning the key, not the certificate, survives renewal.
+func CertificateKeyFingerprint(certificate *x509.Certificate) string {
+	sum := sha256.Sum256(certificate.RawSubjectPublicKeyInfo)
 	return fingerprintPrefix + base64.RawURLEncoding.EncodeToString(sum[:])
 }
 

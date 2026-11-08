@@ -105,9 +105,13 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/shared/buildinfo/` | Version string shared by both binaries | Built |
 | `internal/shared/clock/` | The real clock and its timers; tests use `internal/testutil/fakeclock` | Built |
 | `internal/shared/keyfile/` | Key files only their owner can read | Built |
-| `internal/testutil/` | Helpers used only by tests | Built |
+| `internal/testutil/` | Helpers used only by tests, including a fault-injecting network proxy | Built |
 | `internal/protocol/` | Message types, frames and handshake signatures shared by server and agent | Built |
 | `internal/server/{relay,alerts}/` | The rest of the server | Planned |
+| `internal/agent/identity/` | The agent's key, ID and saved server key, in a root-only directory | Built |
+| `internal/agent/policy/` | Reads the local policy file that switches capabilities off | Built |
+| `internal/agent/core/` | Enrollment, the connection to the server, heartbeat, reconnects, requests | Built |
+| `internal/agent/collectors/` | Metrics and machine details, through gopsutil | Built |
 | `internal/agent/<feature>/` | One package per agent feature (terminal, docker, zfs, ...) | Planned |
 | `web/` | The React web UI | Setup, sign-in, account, audit log |
 | `scripts/` | Dev and CI helper scripts | Built |

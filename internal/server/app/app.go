@@ -43,6 +43,9 @@ type Options struct {
 	// WebUI overrides the embedded web UI; tests pass a stub. Nil means the
 	// UI built into the binary.
 	WebUI http.Handler
+	// TLSFingerprint is the self-signed certificate's key fingerprint for
+	// install commands, or "" when agents check the certificate normally.
+	TLSFingerprint string
 }
 
 // App is an assembled server, ready to serve.
@@ -173,17 +176,18 @@ func buildHandler(options Options, built services) (http.Handler, error) {
 	}
 
 	handler := api.NewRouter(api.RouterOptions{
-		WebUI:     webUI,
-		Auth:      built.auth,
-		AuditLog:  built.auditLog,
-		Fleet:     built.fleet,
-		Hub:       built.hub,
-		Metrics:   built.metrics,
-		ServerKey: built.serverKey,
-		Logger:    options.Logger,
-		Clock:     options.Clock,
-		BasePath:  settings.BasePath,
-		PublicURL: settings.PublicURL,
+		WebUI:          webUI,
+		Auth:           built.auth,
+		AuditLog:       built.auditLog,
+		Fleet:          built.fleet,
+		Hub:            built.hub,
+		Metrics:        built.metrics,
+		ServerKey:      built.serverKey,
+		TLSFingerprint: options.TLSFingerprint,
+		Logger:         options.Logger,
+		Clock:          options.Clock,
+		BasePath:       settings.BasePath,
+		PublicURL:      settings.PublicURL,
 	})
 	handler = middleware.RequireSameOrigin(handler, settings.PublicURL)
 	handler = withAgentEndpoint(handler, built.hub)

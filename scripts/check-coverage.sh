@@ -16,7 +16,7 @@ cd "$(dirname "$0")/.."
 module="$(go list -m)"
 
 # Packages whose bugs would weaken security: authentication of users and
-# agents (the handshake lives in protocol and hub), enrollment, keys,
+# agents (the handshake lives in protocol, hub and agent/core), enrollment, keys,
 # secrets, the audit log, the agent's policy and updates.
 security_critical=(
   "$module/internal/server/secrets"
@@ -27,6 +27,7 @@ security_critical=(
   "$module/internal/server/serverkey"
   "$module/internal/shared/keyfile"
   "$module/internal/protocol"
+  "$module/internal/agent/core"
   "$module/internal/agent/identity"
   "$module/internal/agent/policy"
   "$module/internal/agent/update"

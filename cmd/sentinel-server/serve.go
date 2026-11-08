@@ -29,7 +29,13 @@ func serve(logger *slog.Logger, stdout io.Writer, settings config.Config) error 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	server, err := app.New(ctx, app.Options{Settings: settings, Logger: logger, Clock: clock.System{}})
+	tlsConfig, err := buildTLSConfig(settings)
+	if err != nil {
+		return err
+	}
+	server, err := app.New(ctx, app.Options{
+		Settings: settings, Logger: logger, Clock: clock.System{}, TLSFingerprint: tlsFingerprint(settings, tlsConfig),
+	})
 	if err != nil {
 		return err
 	}
@@ -39,16 +45,23 @@ func serve(logger *slog.Logger, stdout io.Writer, settings config.Config) error 
 		return err
 	}
 	server.Start(ctx)
-	return listenAndServe(ctx, logger, settings, server.Handler)
+	return listenAndServe(ctx, logger, settings, tlsConfig, server.Handler)
+}
+
+// tlsFingerprint is the self-signed certificate's key fingerprint, which
+// install commands carry so agents can trust that certificate (§7.2). With
+// ACME or a TLS proxy, agents check the certificate the usual way instead.
+func tlsFingerprint(settings config.Config, tlsConfig *tls.Config) string {
+	if settings.TLS.Mode != config.TLSSelfSigned || tlsConfig == nil || len(tlsConfig.Certificates) == 0 ||
+		tlsConfig.Certificates[0].Leaf == nil {
+		return ""
+	}
+	return servertls.PublicKeyFingerprint(tlsConfig.Certificates[0].Leaf)
 }
 
 // listenAndServe opens the listening socket, adds TLS when it is on, and
 // serves until ctx is canceled.
-func listenAndServe(ctx context.Context, logger *slog.Logger, settings config.Config, handler http.Handler) error {
-	tlsConfig, err := buildTLSConfig(settings)
-	if err != nil {
-		return err
-	}
+func listenAndServe(ctx context.Context, logger *slog.Logger, settings config.Config, tlsConfig *tls.Config, handler http.Handler) error {
 	listener, err := httpserver.Listen(ctx, settings.ListenAddress)
 	if err != nil {
 		return err

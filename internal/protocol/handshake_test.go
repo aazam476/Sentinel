@@ -4,6 +4,7 @@ package protocol_test
 
 import (
 	"crypto/ed25519"
+	"crypto/x509"
 	"errors"
 	"strings"
 	"testing"
@@ -122,6 +123,23 @@ func FuzzVerifyAgentProof(f *testing.F) {
 		// Only the real signature over these exact inputs may verify.
 		if err == nil && string(protocol.SignAgentProof(private, serverNonce, agentNonce, agentID)) != string(signature) {
 			t.Fatalf("a forged signature verified")
+		}
+	})
+}
+
+func TestCertificateKeyFingerprint(t *testing.T) {
+	t.Run("hashes the certificate's public key info, not the whole certificate", func(t *testing.T) {
+		first := &x509.Certificate{Raw: []byte("certificate 1"), RawSubjectPublicKeyInfo: []byte("same key")}
+		renewed := &x509.Certificate{Raw: []byte("certificate 2"), RawSubjectPublicKeyInfo: []byte("same key")}
+		other := &x509.Certificate{Raw: []byte("certificate 1"), RawSubjectPublicKeyInfo: []byte("other key")}
+		if protocol.CertificateKeyFingerprint(first) != protocol.CertificateKeyFingerprint(renewed) {
+			t.Error("a renewed certificate with the same key got a different fingerprint")
+		}
+		if protocol.CertificateKeyFingerprint(first) == protocol.CertificateKeyFingerprint(other) {
+			t.Error("different keys got the same fingerprint")
+		}
+		if got := protocol.CertificateKeyFingerprint(first); !strings.HasPrefix(got, "SHA256:") {
+			t.Errorf("fingerprint = %q", got)
 		}
 	})
 }

@@ -173,6 +173,12 @@ export interface EnrollmentToken {
 export interface EnrollmentTokensResponse {
   tokens: EnrollmentToken[];
   serverFingerprint: string;
+  /**
+   * TLSFingerprint is the server's self-signed certificate key, which
+   * install commands pass as --tls-fingerprint; "" when the certificate
+   * comes from a real authority (ACME or a TLS proxy).
+   */
+  tlsFingerprint: string;
 }
 /**
  * CreateEnrollmentTokenRequest describes a new token. Zero values mean the
@@ -191,6 +197,10 @@ export interface CreateEnrollmentTokenResponse {
   token: EnrollmentToken;
   secret: string;
   serverFingerprint: string;
+  /**
+   * TLSFingerprint is as in EnrollmentTokensResponse.
+   */
+  tlsFingerprint: string;
 }
 
 //////////

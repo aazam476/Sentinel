@@ -20,7 +20,10 @@ SEC-11  Content-Security-Policy, X-Frame-Options, Referrer-Policy
 SEC-12  CSRF protection: SameSite=Strict cookies plus Origin check
 SEC-13  WebSocket upgrades check the Origin header
 SEC-14  public_url, base_path and trusted_proxies; X-Forwarded-* only from trusted proxies
+SEC-20  Agent key and state in a directory only root/SYSTEM can read
 SEC-21  Mutual Ed25519 handshake between agent and server; revocation closes the live connection
+SEC-22  Local policy file switches capabilities off; the server can't change it
+SEC-26  The agent never listens on a network port
 SEC-40  Append-only, hash-chained audit log
 SEC-41  Audit log view, CSV/JSON export, and verify command
 SEC-15  Server-side input validation, parameterized SQL, no shell string building

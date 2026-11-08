@@ -17,6 +17,8 @@ import (
 	"path/filepath"
 	"slices"
 	"time"
+
+	"github.com/aazam476/sentinel/internal/protocol"
 )
 
 // Certificate lifetime and renewal. A self-signed certificate isn't checked
@@ -91,12 +93,16 @@ func needsRenewal(certificate tls.Certificate, options SelfSignedOptions) bool {
 	return false
 }
 
-// createSelfSigned generates a new key and certificate, writes both to disk
+// createSelfSigned makes a new certificate, writes it and its key to disk
 // readable only by the server's user, and returns them.
+//
+// It keeps the existing private key when there is one. Agents pin the
+// certificate's public key (see PublicKeyFingerprint), so renewing must not
+// change it.
 func createSelfSigned(options SelfSignedOptions, certificatePath, privateKeyPath string) (tls.Certificate, error) {
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privateKey, err := existingOrNewKey(privateKeyPath)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("generate TLS key: %w", err)
+		return tls.Certificate{}, err
 	}
 
 	template, err := certificateTemplate(options)
@@ -166,4 +172,45 @@ func writeKeyPair(certificatePath string, certificatePEM []byte, privateKeyPath 
 		return fmt.Errorf("write TLS certificate: %w", err)
 	}
 	return nil
+}
+
+// existingOrNewKey reads the P-256 key at path, or generates a new one if
+// there is none or it can't be used.
+func existingOrNewKey(path string) (*ecdsa.PrivateKey, error) {
+	if key := readP256Key(path); key != nil {
+		return key, nil
+	}
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("generate TLS key: %w", err)
+	}
+	return key, nil
+}
+
+// readP256Key returns the key in path, or nil if it isn't a readable P-256
+// key in PKCS #8 PEM.
+func readP256Key(path string) *ecdsa.PrivateKey {
+	data, err := os.ReadFile(path) //nolint:gosec // G304: the path is <data dir>/tls/self-signed.key
+	if err != nil {
+		return nil
+	}
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil
+	}
+	parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil
+	}
+	key, ok := parsed.(*ecdsa.PrivateKey)
+	if !ok || key.Curve != elliptic.P256() {
+		return nil
+	}
+	return key
+}
+
+// PublicKeyFingerprint is the certificate key fingerprint install commands
+// carry for a self-signed server (protocol.CertificateKeyFingerprint).
+func PublicKeyFingerprint(certificate *x509.Certificate) string {
+	return protocol.CertificateKeyFingerprint(certificate)
 }

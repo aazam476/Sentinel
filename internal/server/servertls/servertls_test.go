@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,8 +93,34 @@ func TestSelfSignedRenewal(t *testing.T) {
 			if renewed != test.wantRenewed {
 				t.Errorf("renewed = %v, want %v", renewed, test.wantRenewed)
 			}
+			// Agents pin the public key, so it survives renewal.
+			if servertls.PublicKeyFingerprint(leafOf(t, first)) != servertls.PublicKeyFingerprint(leafOf(t, second)) {
+				t.Error("the certificate's key changed; every agent would refuse the server")
+			}
 		})
 	}
+
+	t.Run("makes a new key when the old one can't be read", func(t *testing.T) {
+		dataDir := t.TempDir()
+		clock := fakeclock.New(startTime())
+		first := mustSelfSigned(t, dataDir, []string{"localhost"}, clock)
+		if err := os.WriteFile(filepath.Join(dataDir, "tls", "self-signed.key"), []byte("garbage"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		second := mustSelfSigned(t, dataDir, []string{"localhost"}, clock)
+		if servertls.PublicKeyFingerprint(leafOf(t, first)) == servertls.PublicKeyFingerprint(leafOf(t, second)) {
+			t.Error("kept a key it couldn't have read")
+		}
+	})
+}
+
+func TestPublicKeyFingerprint(t *testing.T) {
+	t.Run("is SHA256: and 43 base64url characters", func(t *testing.T) {
+		fingerprint := servertls.PublicKeyFingerprint(leafOf(t, mustSelfSigned(t, t.TempDir(), []string{"localhost"}, fakeclock.New(startTime()))))
+		if !strings.HasPrefix(fingerprint, "SHA256:") || len(fingerprint) != len("SHA256:")+43 {
+			t.Errorf("fingerprint = %q", fingerprint)
+		}
+	})
 }
 
 func TestSelfSignedErrors(t *testing.T) {
