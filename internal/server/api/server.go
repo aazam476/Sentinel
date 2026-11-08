@@ -5,6 +5,7 @@ package api
 import (
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/aazam476/sentinel/internal/server/audit"
@@ -21,6 +22,7 @@ type handlers struct {
 	logger     *slog.Logger
 	clock      Clock
 	cookiePath string
+	publicURL  *url.URL
 }
 
 // Clock tells the current time.

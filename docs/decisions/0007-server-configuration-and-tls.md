@@ -45,7 +45,7 @@ a certificate warning, so sending it with a self-signed certificate would lock u
 
 **Development** (`make dev`) runs the server with the self-signed certificate on
 `https://127.0.0.1:7443` and sets `public_url` to the Vite dev server,
-`http://127.0.0.1:5173`, which forwards API calls to the Go server.
+`http://localhost:5173` (a host name, because passkeys need one), which forwards API calls to the Go server.
 
 ## Consequences
 

@@ -22,7 +22,10 @@ type Session struct {
 	SecondFactorAt *int64
 	IP             string
 	UserAgent      string
-	// HasSecondFactor reports whether the user has set up 2FA at all.
+	// HasTOTP and HasPasskey report which second factors the user has set
+	// up; HasSecondFactor is true when they have either.
+	HasTOTP         bool
+	HasPasskey      bool
 	HasSecondFactor bool
 	userDisabled    bool
 }
@@ -37,14 +40,15 @@ var errSessionNotFound = errors.New("session not found")
 
 const selectSession = `SELECT s.id, s.user_id, u.username, u.role, s.created_at, s.last_seen_at, s.last_2fa_at,
 	s.ip, s.user_agent, u.disabled_at IS NOT NULL,
-	EXISTS (SELECT 1 FROM totp_secrets t WHERE t.user_id = u.id AND t.confirmed_at IS NOT NULL)
+	EXISTS (SELECT 1 FROM totp_secrets t WHERE t.user_id = u.id AND t.confirmed_at IS NOT NULL),
+	EXISTS (SELECT 1 FROM passkeys p WHERE p.user_id = u.id)
 	FROM sessions s JOIN users u ON u.id = s.user_id`
 
 func scanSession(row interface{ Scan(...any) error }) (Session, error) {
 	var session Session
 	var role string
 	err := row.Scan(&session.ID, &session.UserID, &session.Username, &role, &session.CreatedAt, &session.LastSeenAt,
-		&session.SecondFactorAt, &session.IP, &session.UserAgent, &session.userDisabled, &session.HasSecondFactor)
+		&session.SecondFactorAt, &session.IP, &session.UserAgent, &session.userDisabled, &session.HasTOTP, &session.HasPasskey)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Session{}, errSessionNotFound
 	}
@@ -52,6 +56,7 @@ func scanSession(row interface{ Scan(...any) error }) (Session, error) {
 		return Session{}, fmt.Errorf("read session: %w", err)
 	}
 	session.Role = Role(role)
+	session.HasSecondFactor = session.HasTOTP || session.HasPasskey
 	return session, nil
 }
 

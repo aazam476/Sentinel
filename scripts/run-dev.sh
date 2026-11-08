@@ -5,10 +5,10 @@
 #
 #   - sentinel-server on https://127.0.0.1:7443 (self-signed certificate),
 #     keeping its data in .dev/data
-#   - the Vite dev server on http://127.0.0.1:5173, with hot reload, which
+#   - the Vite dev server on http://localhost:5173, with hot reload, which
 #     forwards API and agent traffic to sentinel-server
 #
-# Work in the browser at http://127.0.0.1:5173. That is the server's
+# Work in the browser at http://localhost:5173. That is the server's
 # configured public URL in development, so logins and forms only work there.
 # Press Ctrl+C to stop both.
 #
@@ -27,7 +27,8 @@ if [ ! -f "$config_file" ]; then
 listen = "127.0.0.1:7443"
 data_dir = ".dev/data"
 # The browser talks to the Vite dev server, so that is the public origin.
-public_url = "http://127.0.0.1:5173"
+# A host name rather than 127.0.0.1, because passkeys need one.
+public_url = "http://localhost:5173"
 TOML
 fi
 
@@ -51,5 +52,5 @@ stop_server() {
 }
 trap stop_server EXIT
 
-echo "==> Starting the Vite dev server on http://127.0.0.1:5173"
+echo "==> Starting the Vite dev server on http://localhost:5173"
 (cd web && SENTINEL_DEV_BACKEND="https://127.0.0.1:7443" npm run dev)

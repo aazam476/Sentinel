@@ -66,15 +66,17 @@ func (s *Service) saveTOTPSecret(ctx context.Context, tx *sql.Tx, userID int64, 
 	return nil
 }
 
-// hasConfirmedTOTP reports whether the user has finished setting up TOTP.
-func hasConfirmedTOTP(ctx context.Context, tx *sql.Tx, userID int64) (bool, error) {
-	var confirmed bool
-	err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM totp_secrets WHERE user_id = ? AND confirmed_at IS NOT NULL)`,
-		userID).Scan(&confirmed)
+// hasSecondFactor reports whether the user has finished setting up TOTP or
+// has at least one passkey.
+func hasSecondFactor(ctx context.Context, tx *sql.Tx, userID int64) (bool, error) {
+	var found bool
+	err := tx.QueryRowContext(ctx, `SELECT
+		EXISTS (SELECT 1 FROM totp_secrets WHERE user_id = ? AND confirmed_at IS NOT NULL)
+		OR EXISTS (SELECT 1 FROM passkeys WHERE user_id = ?)`, userID, userID).Scan(&found)
 	if err != nil {
-		return false, fmt.Errorf("check TOTP setup: %w", err)
+		return false, fmt.Errorf("check second factors: %w", err)
 	}
-	return confirmed, nil
+	return found, nil
 }
 
 func confirmTOTPSecret(ctx context.Context, tx *sql.Tx, userID, confirmedAt, step int64) error {

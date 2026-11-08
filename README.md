@@ -25,7 +25,7 @@ cd sentinel
 make dev
 ```
 
-Then open <http://127.0.0.1:5173>, the web UI with hot reload in front of the server.
+Then open <http://localhost:5173>, the web UI with hot reload in front of the server.
 
 Screenshots will be added here once there is a dashboard to show.
 

@@ -113,6 +113,18 @@ export interface SessionResponse {
    * milliseconds), for signed-in sessions.
    */
   stepUpValidUntil: number | null;
+  /**
+   * SecondFactors says which second factors the user has set up, so the
+   * sign-in and step-up pages offer the right ones.
+   */
+  secondFactors: SecondFactors;
+}
+/**
+ * SecondFactors lists the second factors a user has set up.
+ */
+export interface SecondFactors {
+  totp: boolean;
+  passkey: boolean;
 }
 /**
  * UserIdentity is who the session belongs to.
@@ -135,6 +147,47 @@ export interface SignedInResponse {
    * RemainingRecoveryCodes is set after signing in with a recovery code.
    */
   remainingRecoveryCodes: number | null;
+}
+
+//////////
+// source: passkeys.go
+
+/**
+ * PasskeyOptionsResponse carries the options for the browser's
+ * navigator.credentials.create() or .get() call, with binary values as
+ * base64url strings.
+ */
+export interface PasskeyOptionsResponse {
+  options: { [key: string]: unknown };
+}
+/**
+ * FinishPasskeyRequest returns the browser's answer.
+ */
+export interface FinishPasskeyRequest {
+  /**
+   * Name labels a new passkey, e.g. "Laptop". Ignored when signing in.
+   */
+  name?: string;
+  /**
+   * Credential is the PublicKeyCredential from the browser, serialized
+   * with its binary values as base64url strings.
+   */
+  credential: { [key: string]: unknown };
+}
+/**
+ * PasskeySummary is one of the user's passkeys.
+ */
+export interface PasskeySummary {
+  id: number /* int64 */;
+  name: string;
+  createdAt: number /* int64 */;
+  lastUsedAt: number | null;
+}
+/**
+ * PasskeysResponse lists the user's passkeys.
+ */
+export interface PasskeysResponse {
+  passkeys: PasskeySummary[];
 }
 
 //////////

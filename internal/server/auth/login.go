@@ -78,12 +78,12 @@ func (s *Service) startPasswordSession(ctx context.Context, user User, request R
 			return err
 		}
 		result.SessionToken = token
-		hasSecondFactor, err := hasConfirmedTOTP(ctx, tx, user.ID)
+		secondFactorReady, err := hasSecondFactor(ctx, tx, user.ID)
 		if err != nil {
 			return err
 		}
 		result.NextStep = NextStepSecondFactor
-		if !hasSecondFactor {
+		if !secondFactorReady {
 			result.NextStep = NextStepEnrollSecondFactor
 		}
 		entry := forUser(auditEntry(request, "auth.login.password", audit.OutcomeSuccess, nil), user.ID, user.Username)

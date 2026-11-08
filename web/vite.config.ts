@@ -21,7 +21,8 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    host: '127.0.0.1',
+    // A host name rather than 127.0.0.1, because passkeys need one.
+    host: 'localhost',
     port: 5173,
     strictPort: true,
     proxy: {

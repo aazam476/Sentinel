@@ -14,6 +14,8 @@ anything GPL-family.
 | golang.org/x/net, golang.org/x/text | (indirect) | BSD-3-Clause | Required by `golang.org/x/crypto/acme` | Pulled in by the module above |
 | github.com/pquerna/otp | v1.5.0 | Apache-2.0 | TOTP secrets, codes, otpauth URLs and QR codes for authenticator apps | TOTP and QR encoding aren't in the standard library |
 | github.com/boombuler/barcode | (indirect) | MIT | Draws the QR code for `pquerna/otp` | Pulled in by the module above |
+| github.com/go-webauthn/webauthn | v0.18.2 | BSD-3-Clause | Passkeys: creating and checking WebAuthn credentials | WebAuthn's CBOR, COSE keys and attestation formats are large and easy to get subtly wrong |
+| github.com/fxamacker/cbor/v2, github.com/x448/float16, github.com/go-webauthn/x, github.com/golang-jwt/jwt/v5, github.com/google/go-tpm, github.com/go-viper/mapstructure/v2, github.com/tinylib/msgp, github.com/philhofer/fwd | (indirect) | MIT, BSD-3-Clause, Apache-2.0 | Encodings and attestation formats used by `go-webauthn` | Pulled in by the module above |
 | modernc.org/sqlite | v1.61.1 | BSD-3-Clause | The SQLite database, in pure Go | No embedded database in the standard library; pure Go keeps the server buildable with `CGO_ENABLED=0` |
 | ↳ reviewed 2026-11-07 | | | `LICENSE-3RD-PARTY.md` in the module lists every linked component as BSD-3-Clause, MIT or public domain (SQLite itself). GPL text appears there only for tools used by its own test suite, which are never compiled into Sentinel | |
 | modernc.org/libc, mathutil, memory; github.com/dustin/go-humanize, google/uuid, mattn/go-isatty, ncruces/go-strftime, remyoudompheng/bigfft | (indirect) | BSD-3-Clause, MIT | The C-to-Go runtime that modernc.org/sqlite is built on | Pulled in by modernc.org/sqlite |

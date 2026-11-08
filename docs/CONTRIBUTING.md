@@ -30,7 +30,7 @@ make dev
 
 This builds the web UI and the server, starts `sentinel-server` on
 <https://127.0.0.1:7443> with a self-signed certificate, and starts the Vite dev server on
-<http://127.0.0.1:5173> with hot reload. **Use <http://127.0.0.1:5173>.** It is the
+<http://localhost:5173> with hot reload. **Use <http://localhost:5173>.** It is the
 configured public URL in development, and requests to `/api`, `/healthz` and `/agent` are
 forwarded to the Go server. Press Ctrl+C to stop both.
 

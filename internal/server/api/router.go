@@ -5,6 +5,7 @@ package api
 import (
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
@@ -21,6 +22,9 @@ type RouterOptions struct {
 	// BasePath is the configured base path; the session cookie is limited
 	// to it.
 	BasePath string
+	// PublicURL is the configured public origin, or nil. Passkeys belong to
+	// its host name.
+	PublicURL *url.URL
 }
 
 // NewRouter returns the handler for every URL the server answers.
@@ -31,6 +35,7 @@ func NewRouter(options RouterOptions) http.Handler {
 		logger:     options.Logger,
 		clock:      options.Clock,
 		cookiePath: cookiePath(options.BasePath),
+		publicURL:  options.PublicURL,
 	}
 
 	mux := http.NewServeMux()
@@ -51,6 +56,13 @@ func NewRouter(options RouterOptions) http.Handler {
 	mux.HandleFunc("POST /api/auth/step-up", h.signedIn(h.handleStepUp))
 	mux.HandleFunc("GET /api/auth/sessions", h.signedIn(h.handleListSessions))
 	mux.HandleFunc("DELETE /api/auth/sessions/{id}", h.signedIn(h.handleRevokeSession))
+
+	mux.HandleFunc("POST /api/auth/passkeys/registration/begin", h.anySession(h.handleBeginPasskeyRegistration))
+	mux.HandleFunc("POST /api/auth/passkeys/registration/finish", h.anySession(h.handleFinishPasskeyRegistration))
+	mux.HandleFunc("POST /api/auth/passkeys/assertion/begin", h.anySession(h.handleBeginPasskeyAssertion))
+	mux.HandleFunc("POST /api/auth/passkeys/assertion/finish", h.anySession(h.handleFinishPasskeyAssertion))
+	mux.HandleFunc("GET /api/auth/passkeys", h.signedIn(h.handleListPasskeys))
+	mux.HandleFunc("DELETE /api/auth/passkeys/{id}", h.signedIn(h.handleDeletePasskey))
 
 	mux.HandleFunc("GET /api/users", h.withPermission(auth.PermissionManageUsers, h.handleListUsers))
 	mux.HandleFunc("POST /api/users", h.withPermission(auth.PermissionManageUsers, h.handleCreateUser))

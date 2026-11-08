@@ -32,7 +32,7 @@ func TestSEC15_RequestBodiesAreValidated(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			request.Header.Set("Origin", server.server.URL)
+			request.Header.Set("Origin", server.publicOrigin)
 			expect(t, browser.send(request), test.wantStatus, test.wantCode)
 		})
 	}

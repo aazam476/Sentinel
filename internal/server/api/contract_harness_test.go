@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -28,16 +29,23 @@ const strongPassword = "correct horse battery staple"
 
 // testServer is the whole server stack, started in-process over TLS with a
 // temporary data directory and a fake clock. Tests reach it only over HTTP.
+//
+// Its public URL is https://localhost:<port>, because passkeys need a host
+// name rather than an IP address. Requests still go to 127.0.0.1, and carry
+// the public URL as their Origin, like a browser at that address.
 type testServer struct {
-	t      *testing.T
-	server *httptest.Server
-	app    *app.App
-	clock  *fakeclock.Clock
+	t            *testing.T
+	server       *httptest.Server
+	app          *app.App
+	clock        *fakeclock.Clock
+	publicOrigin string
 }
 
 func newTestServer(t *testing.T) *testServer {
 	t.Helper()
-	settings, err := config.File{DataDir: t.TempDir(), Listen: "127.0.0.1:0"}.Resolve()
+	httpServer := httptest.NewUnstartedServer(nil)
+	publicOrigin := "https://localhost:" + portOf(t, httpServer.Listener.Addr().String())
+	settings, err := config.File{DataDir: t.TempDir(), Listen: "127.0.0.1:0", PublicURL: publicOrigin}.Resolve()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,12 +57,22 @@ func newTestServer(t *testing.T) *testServer {
 	if err != nil {
 		t.Fatal(err)
 	}
-	httpServer := httptest.NewTLSServer(server.Handler)
+	httpServer.Config.Handler = server.Handler
+	httpServer.StartTLS()
 	t.Cleanup(func() {
 		httpServer.Close()
 		_ = server.Close() // nothing to check when a test database closes
 	})
-	return &testServer{t: t, server: httpServer, app: server, clock: clock}
+	return &testServer{t: t, server: httpServer, app: server, clock: clock, publicOrigin: publicOrigin}
+}
+
+func portOf(t *testing.T, address string) string {
+	t.Helper()
+	_, port, err := net.SplitHostPort(address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return port
 }
 
 // browser is a client with its own cookie jar, like one browser profile.
@@ -113,7 +131,7 @@ func (b *browser) do(method, path string, body any) response {
 		b.t.Fatal(err)
 	}
 	if method != http.MethodGet {
-		request.Header.Set("Origin", b.server.server.URL)
+		request.Header.Set("Origin", b.server.publicOrigin)
 	}
 	if body != nil {
 		request.Header.Set("Content-Type", "application/json")

@@ -46,6 +46,15 @@ type SessionResponse struct {
 	// StepUpValidUntil is when the current step-up window ends (Unix
 	// milliseconds), for signed-in sessions.
 	StepUpValidUntil *int64 `json:"stepUpValidUntil" tstype:"number | null,required"`
+	// SecondFactors says which second factors the user has set up, so the
+	// sign-in and step-up pages offer the right ones.
+	SecondFactors SecondFactors `json:"secondFactors"`
+}
+
+// SecondFactors lists the second factors a user has set up.
+type SecondFactors struct {
+	TOTP    bool `json:"totp"`
+	Passkey bool `json:"passkey"`
 }
 
 // UserIdentity is who the session belongs to.
@@ -169,8 +178,9 @@ func (h *handlers) respondSignedIn(w http.ResponseWriter, r *http.Request, signe
 
 func sessionResponse(session auth.Session) SessionResponse {
 	response := SessionResponse{
-		State: sessionStateSignedIn,
-		User:  UserIdentity{ID: session.UserID, Username: session.Username, Role: string(session.Role)},
+		State:         sessionStateSignedIn,
+		User:          UserIdentity{ID: session.UserID, Username: session.Username, Role: string(session.Role)},
+		SecondFactors: SecondFactors{TOTP: session.HasTOTP, Passkey: session.HasPasskey},
 	}
 	switch {
 	case !session.IsSignedIn() && session.HasSecondFactor:

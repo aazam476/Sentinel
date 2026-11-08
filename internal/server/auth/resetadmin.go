@@ -19,7 +19,8 @@ var ErrNotAnAdmin = errors.New("that user is not an admin")
 
 // ResetAdmin is the local recovery for a locked-out admin (SEC-08), run by
 // `sentinel-server reset-admin` on the server host. It gives the admin a new
-// random password, removes their second factors and recovery codes, unlocks
+// random password, removes their second factors (TOTP and passkeys) and
+// recovery codes, unlocks
 // and enables the account, and ends their sessions. At the next sign-in they
 // must set up 2FA again, so 2FA stays mandatory.
 //
@@ -103,6 +104,7 @@ func resetCredentials(ctx context.Context, tx *sql.Tx, userID int64, passwordHas
 	for _, statement := range []string{
 		`DELETE FROM totp_secrets WHERE user_id = ?`,
 		`DELETE FROM recovery_codes WHERE user_id = ?`,
+		`DELETE FROM passkeys WHERE user_id = ?`,
 		`DELETE FROM sessions WHERE user_id = ?`,
 	} {
 		if _, err := tx.ExecContext(ctx, statement, userID); err != nil {

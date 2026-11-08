@@ -57,6 +57,7 @@ type Service struct {
 	usernameLimit  *limiter
 	setupTokenPath string
 	pendingSetups  *pendingSetups
+	ceremonies     *ceremonies
 }
 
 // NewService returns a Service. Creating it hashes a dummy password and
@@ -74,6 +75,7 @@ func NewService(options Options) *Service {
 		usernameLimit:  newLimiter(options.Clock, true),
 		setupTokenPath: filepath.Join(options.DataDir, setupTokenFileName),
 		pendingSetups:  newPendingSetups(options.Clock),
+		ceremonies:     newCeremonies(options.Clock),
 	}
 }
 

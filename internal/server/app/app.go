@@ -92,12 +92,13 @@ func buildHandler(options Options, authService *auth.Service, auditLog *audit.Lo
 	}
 
 	handler := api.NewRouter(api.RouterOptions{
-		WebUI:    webUI,
-		Auth:     authService,
-		AuditLog: auditLog,
-		Logger:   options.Logger,
-		Clock:    options.Clock,
-		BasePath: settings.BasePath,
+		WebUI:     webUI,
+		Auth:      authService,
+		AuditLog:  auditLog,
+		Logger:    options.Logger,
+		Clock:     options.Clock,
+		BasePath:  settings.BasePath,
+		PublicURL: settings.PublicURL,
 	})
 	handler = middleware.RequireSameOrigin(handler, settings.PublicURL)
 	handler = middleware.WithClientInfo(handler, settings.TrustedProxies)
