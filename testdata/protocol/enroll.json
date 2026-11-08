@@ -1,0 +1,1 @@
+{"type":"enroll","payload":{"token":"ENROLL-TOKEN-EXAMPLE","publicKey":"A2gFYXuCoB1+Iqt9YBHGiaBUDOAnYqv4HxW3XWdkJDQ=","hostname":"web-01","os":"linux","arch":"amd64","agentVersion":"v0.1.0-beta.1","protocolVersion":1}}

@@ -100,7 +100,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/shared/buildinfo/` | Version string shared by both binaries | Built |
 | `internal/shared/clock/` | The real clock; tests use `internal/testutil/fakeclock` | Built |
 | `internal/testutil/` | Helpers used only by tests | Built |
-| `internal/protocol/` | Message types shared by server and agent | Planned |
+| `internal/protocol/` | Message types, frames and handshake signatures shared by server and agent | Built |
 | `internal/server/{hub,relay,metrics,alerts,scheduler}/` | The rest of the server | Planned |
 | `internal/agent/<feature>/` | One package per agent feature (terminal, docker, zfs, ...) | Planned |
 | `web/` | The React web UI | Setup, sign-in, account, audit log |
