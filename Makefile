@@ -51,7 +51,12 @@ dev: ## Start the server and the web UI dev server with hot reload
 # ---- Linting -----------------------------------------------------------------
 
 .PHONY: lint
-lint: lint-go lint-web check-headers check-generated-types ## Run every linter and formatting check
+lint: lint-go lint-web check-headers check-generated-types check-path-case ## Run every linter and formatting check
+
+# Two files whose names differ only in case break builds on macOS and Windows.
+.PHONY: check-path-case
+check-path-case:
+	scripts/check-path-case.sh
 
 .PHONY: lint-go
 lint-go: ## gofmt, go vet and golangci-lint

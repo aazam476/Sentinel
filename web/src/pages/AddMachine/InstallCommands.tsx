@@ -3,7 +3,7 @@ import type { CreateEnrollmentTokenResponse } from '../../api/types.gen';
 import { CopyButton } from '../../components/CopyButton/CopyButton';
 import { formatDateTime } from '../../formatting/formatting';
 import styles from './AddMachinePage.module.css';
-import { installCommands, serverURL } from './installCommands';
+import { installCommands, serverURL } from './buildInstallCommands';
 
 interface InstallCommandsProps {
   created: CreateEnrollmentTokenResponse;

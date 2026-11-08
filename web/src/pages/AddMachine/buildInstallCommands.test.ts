@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { CreateEnrollmentTokenResponse } from '../../api/types.gen';
-import { installCommands, serverURL } from './installCommands';
+import { installCommands, serverURL } from './buildInstallCommands';
 
 const created: CreateEnrollmentTokenResponse = {
   token: {
