@@ -29,4 +29,4 @@ page.
 - The policy stays strict: no inline styles or scripts on any page.
 - Upgrading Sonner may need the plugin updated; the build says so.
 - Any new UI library must be checked for inline `<style>` or `<script>` injection before it is
-  added.
+  added. xterm.js was, and is patched the same way (ADR 0020).

@@ -10,7 +10,10 @@ import {
   longUsername,
   worstAgents,
   worstAuditEntries,
+  worstLogs,
   worstMachine,
+  worstProcesses,
+  worstServices,
   worstTokens,
   worstPasskeys,
   worstSession,
@@ -117,6 +120,54 @@ describe('worst-case data', () => {
     );
     expect(mounts).toHaveLength(256);
     expect(mounts[0]?.querySelector('[title]')).not.toBeNull();
+    expect(await findAccessibilityViolations(container)).toEqual([]);
+  });
+
+  it('services: escaped, right-to-left and one-letter names, cut descriptions, 1,205 rows', async () => {
+    signedInAs(worstSession);
+    server.use(
+      http.get(apiPath(`agents/${worstMachine.id}`), () => json(worstMachine)),
+      http.get(apiPath(`agents/${worstMachine.id}/services`), () => json(worstServices())),
+    );
+    const { container } = renderApp(`/machines/${worstMachine.id}/services`);
+
+    expect(await screen.findByText('1,205 services')).toBeVisible();
+    const first = worstServices().services[0];
+    expect(screen.getByText(first?.name ?? '')).toBeVisible();
+    expect(screen.getByTitle(first?.description ?? '')).toBeVisible();
+    expect(screen.getByText('خدمة-النسخ-الاحتياطي.service')).toBeVisible();
+    // Virtualized: far fewer rows in the page than services.
+    expect(screen.getAllByRole('article').length).toBeLessThan(50);
+    expect(await findAccessibilityViolations(container)).toEqual([]);
+  });
+
+  it('processes: a 4 KB command line, 3,187% CPU, 1.5 TB, a nameless process', async () => {
+    signedInAs(worstSession);
+    server.use(
+      http.get(apiPath(`agents/${worstMachine.id}`), () => json(worstMachine)),
+      http.get(apiPath(`agents/${worstMachine.id}/processes`), () => json(worstProcesses())),
+    );
+    const { container } = renderApp(`/machines/${worstMachine.id}/processes`);
+
+    expect(await screen.findByText('1,204 processes')).toBeVisible();
+    const java = screen.getByRole('article', { name: 'java (2147483647)' });
+    expect(within(java).getByText('CPU 3187.5%')).toBeVisible();
+    expect(within(java).getByText('1.5 TB')).toBeVisible();
+    expect(within(java).getByTitle(/^\/usr\/lib\/jvm/)).toBeVisible();
+    expect(await findAccessibilityViolations(container)).toEqual([]);
+  });
+
+  it('logs: an unbreakable blob, a stack trace, no source, the newest 1,000 of more', async () => {
+    signedInAs(worstSession);
+    server.use(
+      http.get(apiPath(`agents/${worstMachine.id}`), () => json(worstMachine)),
+      http.get(apiPath(`agents/${worstMachine.id}/logs`), () => json(worstLogs())),
+    );
+    const { container } = renderApp(`/machines/${worstMachine.id}/logs`);
+
+    expect(await screen.findByText(/^The newest 1,000 entries;/)).toBeVisible();
+    expect(screen.getByText(/^certificate rejected: MIIB/)).toBeVisible();
+    expect(screen.getByText(/ValueError: 💥/)).toBeVisible();
     expect(await findAccessibilityViolations(container)).toEqual([]);
   });
 

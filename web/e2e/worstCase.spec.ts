@@ -4,7 +4,10 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   worstAgents,
   worstAuditEntries,
+  worstLogs,
   worstMachine,
+  worstProcesses,
+  worstServices,
   worstTokens,
   worstPasskeys,
   worstSession,
@@ -28,6 +31,9 @@ async function serveWorstCase(page: Page) {
     audit: { entries: worstAuditEntries(), nextBefore: null },
     agents: { agents: worstAgents() },
     [`agents/${worstMachine.id}`]: worstMachine,
+    [`agents/${worstMachine.id}/services`]: worstServices(),
+    [`agents/${worstMachine.id}/processes`]: worstProcesses(),
+    [`agents/${worstMachine.id}/logs`]: worstLogs(),
     [`agents/${worstMachine.id}/metrics`]: { metric: 'cpu.percent', resolution: 'raw', points: [] },
     'enrollment-tokens': { tokens: worstTokens, serverFingerprint: 'SHA256:x', tlsFingerprint: '' },
   };
@@ -58,11 +64,15 @@ async function expectNothingCutWithoutTooltip(page: Page) {
   expect(cut).toEqual([]);
 }
 
-const screens = [
+/** Each screen and what shows once it has loaded: a heading or a region. */
+const screens: { path: string; ready: string | RegExp; role?: 'heading' | 'region' }[] = [
   { path: '/', ready: /^Machines$/ },
   { path: '/account', ready: 'Passkeys' },
   { path: '/audit', ready: 'Audit log' },
   { path: `/machines/${worstMachine.id}`, ready: 'System' },
+  { path: `/machines/${worstMachine.id}/services`, ready: 'Services', role: 'region' },
+  { path: `/machines/${worstMachine.id}/processes`, ready: 'Processes', role: 'region' },
+  { path: `/machines/${worstMachine.id}/logs`, ready: 'Logs', role: 'region' },
   { path: '/machines/add', ready: 'Add a machine' },
 ];
 
@@ -70,7 +80,10 @@ for (const screen of screens) {
   test(`worst-case data fits on ${screen.path}`, async ({ page }) => {
     await serveWorstCase(page);
     await page.goto(screen.path);
-    await expect(page.getByRole('heading', { name: screen.ready }).first()).toBeVisible();
+    await expect(
+      page.getByRole(screen.role ?? 'heading', { name: screen.ready }).first(),
+    ).toBeVisible();
+    await expect(page.getByText('Loading', { exact: false })).toHaveCount(0);
 
     await expectNoHorizontalScroll(page);
     await expectNothingCutWithoutTooltip(page);

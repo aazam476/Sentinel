@@ -264,6 +264,22 @@ func TestSEC13_ATerminalWebSocketFromAnotherSiteIsRefused(t *testing.T) {
 	}
 }
 
+func TestTerminalPreflight(t *testing.T) {
+	t.Run("a plain GET runs the checks without opening a shell", func(t *testing.T) {
+		f := newTerminalFixture(t)
+		expect(t, f.admin.browser.do(http.MethodGet, "/api/agents/"+f.agentID+"/terminal", nil), http.StatusNoContent, "")
+		if got := auditActions(t, f.server, "terminal."); len(got) != 0 {
+			t.Errorf("audit = %v", got)
+		}
+	})
+
+	t.Run("and reports why a terminal can't open", func(t *testing.T) {
+		f := newTerminalFixture(t)
+		f.server.clock.Advance(16 * time.Minute)
+		expect(t, f.admin.browser.do(http.MethodGet, "/api/agents/"+f.agentID+"/terminal", nil), http.StatusForbidden, "step_up_required")
+	})
+}
+
 func TestTerminalRefusals(t *testing.T) {
 	t.Run("viewers can't open a terminal", func(t *testing.T) {
 		f := newTerminalFixture(t)

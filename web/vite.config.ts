@@ -37,8 +37,46 @@ function sonnerWithoutInlineStyles(): Plugin {
   };
 }
 
+/**
+ * xterm.js styles the terminal by adding <style> elements and, for 24-bit
+ * colors, `style` attributes, both of which the Content-Security-Policy
+ * blocks. In the production build this points the <style> elements at
+ * <sentinel-style> (src/components/Terminal/sentinelStyle.ts), which applies
+ * the same CSS through a constructed stylesheet, and sets colors through
+ * the CSSOM (`style.cssText`), which the policy allows. Like the Sonner
+ * plugin, it fails the build if an upgrade changes the code it patches.
+ */
+function xtermWithoutInlineStyles(): Plugin {
+  const replacements: [search: string, replace: string, count: number][] = [
+    ['createElement("style")', 'createElement("sentinel-style")', 3],
+    [
+      't.setAttribute("style",`${t.getAttribute("style")||""}${e};`)',
+      't.style.cssText+=`${e};`',
+      1,
+    ],
+  ];
+  return {
+    name: 'sentinel:xterm-without-inline-styles',
+    apply: 'build',
+    transform(code, id) {
+      if (!/[\\/]node_modules[\\/]@xterm[\\/]xterm[\\/]lib[\\/]xterm\.mjs$/.test(id)) {
+        return null;
+      }
+      let patched = code;
+      for (const [search, replace, count] of replacements) {
+        const found = patched.split(search).length - 1;
+        if (found !== count) {
+          this.error(`xterm.js no longer matches what this plugin patches (${search}); update it.`);
+        }
+        patched = patched.replaceAll(search, replace);
+      }
+      return { code: patched, map: null };
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), sonnerWithoutInlineStyles()],
+  plugins: [react(), sonnerWithoutInlineStyles(), xtermWithoutInlineStyles()],
   // Asset links are relative, so the built app works under any base path:
   // the server adds a <base> element pointing at the configured one.
   base: './',

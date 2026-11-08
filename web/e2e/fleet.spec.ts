@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-import type { BeginSetupResponse } from '../src/api/types.gen';
 import {
   expectAccessible,
   expectNoHorizontalScroll,
-  totpCode,
+  signInAsNewAdmin,
   watchForCSPViolations,
 } from './helpers';
 import { Agent, agentFlags, OwnServer } from './processes';
@@ -22,23 +21,6 @@ const ports: Record<string, number> = {
   'desktop-reduced-motion': 7492,
   'phone-reduced-motion': 7493,
 };
-
-/** signInAsNewAdmin sets the server up through its API, as the setup page would. */
-async function signInAsNewAdmin(page: Page, server: OwnServer) {
-  const headers = { Origin: server.origin };
-  const setupToken = server.setupToken();
-  const begun = await page.request.post(`${server.origin}/api/setup/begin`, {
-    headers,
-    data: { setupToken, username: 'admin', password: 'correct horse battery staple' },
-  });
-  expect(begun.ok()).toBe(true);
-  const setup = (await begun.json()) as BeginSetupResponse;
-  const completed = await page.request.post(`${server.origin}/api/setup/complete`, {
-    headers,
-    data: { setupToken, setupId: setup.setupId, totpCode: totpCode(setup.totp.secret) },
-  });
-  expect(completed.ok()).toBe(true);
-}
 
 test('M2: an agent enrolls, streams metrics, survives a restart and is revoked', async ({
   page,

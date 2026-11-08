@@ -1,23 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
-import { Link, useOutletContext, useParams } from 'react-router';
+import { Link, NavLink, Outlet, useOutletContext, useParams } from 'react-router';
+import clsx from 'clsx';
 
 import { isApiError } from '../../api/client';
 import { useAgent } from '../../api/agents';
-import { metricNames } from '../../api/metricNames';
 import type { SessionResponse } from '../../api/types.gen';
 import { FormError } from '../../components/FormError/FormError';
 import { MachineStatus } from '../../components/MachineStatus/MachineStatus';
-import { formatPercent, formatRelative } from '../../formatting/formatting';
+import { formatRelative } from '../../formatting/formatting';
 import { useNow } from '../../hooks/useNow';
-import { Capabilities } from './Capabilities';
-import { Filesystems } from './Filesystems';
-import { HistoryChart } from './HistoryChart';
-import { LiveChart } from './LiveChart';
-import { MachineSettings } from './MachineSettings';
+import { allows, canOperate, type MachineContext } from './machineContext';
 import styles from './MachinePage.module.css';
-import { SystemDetails } from './SystemDetails';
+import { PowerActions } from './PowerActions';
 
-/** MachinePage is one machine: live and historical charts, details and settings. */
+/**
+ * MachinePage is one machine: its name and status, power actions, and tabs
+ * for the overview, terminal, services, processes and logs.
+ */
 export function MachinePage() {
   const { id = '' } = useParams();
   const session = useOutletContext<SessionResponse>();
@@ -30,9 +29,7 @@ export function MachinePage() {
   if (agent.data === undefined) {
     return (
       <div className={styles.page}>
-        <Link to="/" className={styles.back} aria-label="Back to machines">
-          <span aria-hidden="true">←</span> Machines
-        </Link>
+        <BackLink />
         {isApiError(agent.error, 'not_found') ? (
           <p className={styles.muted}>This machine doesn’t exist or was revoked.</p>
         ) : (
@@ -43,13 +40,15 @@ export function MachinePage() {
   }
 
   const machine = agent.data;
+  const context: MachineContext = { session, machine };
   return (
     <div className={styles.page}>
-      <Link to="/" className={styles.back} aria-label="Back to machines">
-        <span aria-hidden="true">←</span> Machines
-      </Link>
+      <BackLink />
       <header className={styles.header}>
-        <h1 className={styles.title}>{machine.name}</h1>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>{machine.name}</h1>
+          {canOperate(session) && allows(machine, 'power') && <PowerActions machine={machine} />}
+        </div>
         <p className={styles.subtitle}>
           <MachineStatus isOnline={machine.online} />
           {!machine.online && machine.lastSeenAt !== null && (
@@ -64,29 +63,47 @@ export function MachinePage() {
           ))}
         </p>
       </header>
-      <div className={styles.liveGrid}>
-        <LiveChart
-          agentId={machine.id}
-          metric={metricNames.cpu}
-          title="CPU"
-          current={machine.current}
-          formatValue={formatPercent}
-        />
-        <LiveChart
-          agentId={machine.id}
-          metric={metricNames.memory}
-          title="Memory"
-          current={machine.current}
-          formatValue={formatPercent}
-        />
-      </div>
-      <HistoryChart agentId={machine.id} />
-      <div className={styles.panelGrid}>
-        <SystemDetails agent={machine} />
-        <Capabilities capabilities={machine.capabilities} />
-      </div>
-      <Filesystems filesystems={machine.filesystems} isOnline={machine.online} />
-      {session.user.role === 'admin' && <MachineSettings key={machine.id} agent={machine} />}
+      <MachineTabs session={session} machine={machine} />
+      <Outlet context={context} />
     </div>
+  );
+}
+
+function BackLink() {
+  return (
+    <Link to="/" className={styles.back} aria-label="Back to machines">
+      <span aria-hidden="true">←</span> Machines
+    </Link>
+  );
+}
+
+/** MachineTabs links the machine's sections the user may use. */
+function MachineTabs({ session, machine }: MachineContext) {
+  const tabs = [
+    { to: '', label: 'Overview', shown: true },
+    {
+      to: 'terminal',
+      label: 'Terminal',
+      shown: canOperate(session) && allows(machine, 'terminal'),
+    },
+    { to: 'services', label: 'Services', shown: true },
+    { to: 'processes', label: 'Processes', shown: canOperate(session) },
+    { to: 'logs', label: 'Logs', shown: true },
+  ];
+  return (
+    <nav className={styles.tabs} aria-label="Machine sections">
+      {tabs
+        .filter((tab) => tab.shown)
+        .map((tab) => (
+          <NavLink
+            key={tab.label}
+            to={tab.to}
+            end
+            className={({ isActive }) => clsx(styles.tab, isActive && styles.tabActive)}
+          >
+            {tab.label}
+          </NavLink>
+        ))}
+    </nav>
   );
 }

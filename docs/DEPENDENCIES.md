@@ -46,7 +46,9 @@ anything GPL-family.
 | react-is | 19.3.1 | MIT | Required by recharts, matched to our React version | Peer dependency of recharts |
 | sonner | 2.0.8 | MIT | Toasts for action results ("Passkey added") | Stacking, swiping and timing toasts accessibly is a library's worth of work |
 | clsx | 2.1.1 | MIT | Joining conditional CSS Module class names | Tiny and clearer than string concatenation |
-| react-virtuoso | 4.18.20 | MIT | Rendering only the visible rows of long lists (the audit log) | Rendering thousands of rows at once makes the page slow |
+| @xterm/xterm | 6.0.0 | MIT | The web terminal | A terminal emulator (escape sequences, colors, selection, IME, screen readers) is a project of its own; xterm.js is what VS Code and most web terminals use. Its inline styles are rewritten at build time to satisfy the CSP (ADR 0020) |
+| @xterm/addon-fit | 0.11.0 | MIT | Sizing the terminal to its box | The official add-on for measuring how many rows and columns fit |
+| react-virtuoso | 4.18.20 | MIT | Rendering only the visible rows of long lists (the audit log, services, processes, logs) | Rendering thousands of rows at once makes the page slow |
 
 ## Web UI: build and test tools (never shipped)
 

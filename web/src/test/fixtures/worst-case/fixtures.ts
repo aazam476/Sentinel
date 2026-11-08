@@ -4,7 +4,10 @@ import type {
   AgentDetails,
   AuditEntry,
   EnrollmentToken,
+  LogEntries,
   PasskeySummary,
+  ProcessList,
+  ServiceList,
   SessionResponse,
   SessionSummary,
 } from '../../../api/types.gen';
@@ -306,3 +309,119 @@ export const worstTokens: EnrollmentToken[] = [
     usable: false,
   },
 ];
+
+/**
+ * worstServices: systemd's escaped instance names, a description in Arabic,
+ * one with no description, every state and startup mode, and 1,200 more so
+ * the list must virtualize.
+ */
+export function worstServices(): ServiceList {
+  const hard: ServiceList['services'] = [
+    {
+      name: 'systemd-fsck@dev-disk-by\\x2duuid-0b5c8f3e\\x2d1d2a\\x2d4c6b\\x2d9e1f\\x2d7a3b2c1d0e9f.service',
+      description:
+        'File System Check on /dev/disk/by-uuid/0b5c8f3e-1d2a-4c6b-9e1f-7a3b2c1d0e9f and a description long enough to need cutting',
+      state: 'failed',
+      startup: 'fixed',
+    },
+    {
+      name: 'خدمة-النسخ-الاحتياطي.service',
+      description: 'النسخ الاحتياطي الليلي للخادم',
+      state: 'running',
+      startup: 'automatic',
+    },
+    { name: 'a.service', description: '', state: 'unknown', startup: 'manual' },
+    {
+      name: 'MSSQL$SQLEXPRESS',
+      description: 'SQL Server (SQLEXPRESS) 🚀',
+      state: 'starting',
+      startup: 'disabled',
+    },
+    {
+      name: 'com.example.helper-with-a-very-long-reverse-dns-label-from-a-vendor-installer',
+      description: 'Helper',
+      state: 'stopping',
+      startup: 'automatic',
+    },
+  ];
+  const plain = Array.from({ length: 1200 }, (_, index) => ({
+    name: `worker@${String(index).padStart(4, '0')}.service`,
+    description: `Queue worker ${String(index)}`,
+    state: index % 7 === 0 ? ('failed' as const) : ('running' as const),
+    startup: 'automatic' as const,
+  }));
+  return { manager: 'systemd', services: [...hard, ...plain] };
+}
+
+/** worstProcesses: a 4 KB command line, 32 cores busy, 1.5 TB of memory, no name, 1,200 rows. */
+export function worstProcesses(): ProcessList {
+  const hard: ProcessList['processes'] = [
+    {
+      pid: 2_147_483_647,
+      name: 'java',
+      user: longUsername,
+      cpuPercent: 3187.46,
+      memoryBytes: 1.5 * 1024 ** 4,
+      command: `/usr/lib/jvm/java-21/bin/java -Xmx1400g -cp ${'/opt/app/lib/very-long-library-name-1.2.3.jar:'.repeat(80)} com.example.Main`,
+    },
+    { pid: 2, name: '', user: '', cpuPercent: 0, memoryBytes: 0, command: '' },
+    {
+      pid: 3,
+      name: 'محرك-البحث',
+      user: 'مستخدم',
+      cpuPercent: 0.04,
+      memoryBytes: 1,
+      command: 'محرك-البحث --لغة=العربية',
+    },
+    {
+      pid: 4,
+      name: 'node 🚀',
+      user: 'www-data',
+      cpuPercent: 99.99,
+      memoryBytes: 512,
+      command: 'node server.js',
+    },
+  ];
+  const plain = Array.from({ length: 1200 }, (_, index) => ({
+    pid: 10_000 + index,
+    name: `php-fpm: pool www`,
+    user: 'www-data',
+    cpuPercent: (index % 100) / 10,
+    memoryBytes: (index + 1) * 1024 ** 2,
+    command: 'php-fpm: pool www',
+  }));
+  return { processes: [...hard, ...plain] };
+}
+
+/** worstLogs: an unbreakable base64 blob, a multi-line stack trace, RTL, no source, 1,000 entries, cut off. */
+export function worstLogs(): LogEntries {
+  const hard: LogEntries['entries'] = [
+    {
+      time: fixtureNow - 1000,
+      level: 'error',
+      source: 'kernel-module-with-an-unusually-long-identifier-that-goes-on',
+      message: `certificate rejected: ${'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA'.repeat(20)}`,
+    },
+    {
+      time: fixtureNow - 2000,
+      level: 'warning',
+      source: 'app',
+      message:
+        'Traceback (most recent call last):\n  File "/srv/app.py", line 42, in <module>\n    main()\nValueError: 💥',
+    },
+    {
+      time: fixtureNow - 3000,
+      level: 'notice',
+      source: '',
+      message: 'فشل الاتصال بقاعدة البيانات',
+    },
+    { time: fixtureNow - 4000, level: 'debug', source: 'x', message: '' },
+  ];
+  const plain = Array.from({ length: 996 }, (_, index) => ({
+    time: fixtureNow - 5000 - index * 1000,
+    level: 'info' as const,
+    source: 'cron',
+    message: `(root) CMD (run-parts /etc/cron.hourly) #${String(index)}`,
+  }));
+  return { entries: [...hard, ...plain], truncated: true };
+}

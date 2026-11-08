@@ -5,7 +5,10 @@ import type {
   AuditEntry,
   CurrentMetrics,
   EnrollmentToken,
+  LogEntries,
   PasskeySummary,
+  ProcessList,
+  ServiceList,
   SessionResponse,
   SessionSummary,
 } from '../../../api/types.gen';
@@ -210,3 +213,81 @@ export const enrollmentTokens: EnrollmentToken[] = [
     usable: false,
   },
 ];
+
+export const nasServices: ServiceList = {
+  manager: 'systemd',
+  services: [
+    {
+      name: 'docker.service',
+      description: 'Docker Application Container Engine',
+      state: 'failed',
+      startup: 'automatic',
+    },
+    {
+      name: 'nginx.service',
+      description: 'A high performance web server',
+      state: 'running',
+      startup: 'automatic',
+    },
+    { name: 'nftables.service', description: 'nftables', state: 'stopped', startup: 'manual' },
+    {
+      name: 'dbus.service',
+      description: 'D-Bus System Message Bus',
+      state: 'running',
+      startup: 'fixed',
+    },
+  ],
+};
+
+export const nasProcesses: ProcessList = {
+  processes: [
+    {
+      pid: 1,
+      name: 'systemd',
+      user: 'root',
+      cpuPercent: 0,
+      memoryBytes: 12 * 1024 ** 2,
+      command: '/sbin/init',
+    },
+    {
+      pid: 900,
+      name: 'postgres',
+      user: 'postgres',
+      cpuPercent: 12.5,
+      memoryBytes: 1024 ** 3,
+      command: 'postgres -D /var/lib/postgresql/16/main',
+    },
+    {
+      pid: 4242,
+      name: 'ffmpeg',
+      user: 'media',
+      cpuPercent: 187.3,
+      memoryBytes: 512 * 1024 ** 2,
+      command: 'ffmpeg -i movie.mkv -c:v libx265 out.mkv',
+    },
+  ],
+};
+
+export const nasLogs: LogEntries = {
+  entries: [
+    {
+      time: fixtureNow - 1000,
+      level: 'error',
+      source: 'nginx',
+      message: 'bind() to 0.0.0.0:80 failed (98: Address already in use)',
+    },
+    {
+      time: fixtureNow - 5000,
+      level: 'warning',
+      source: 'kernel',
+      message: 'EXT4-fs (sda1): warning: mounting fs with errors',
+    },
+    {
+      time: fixtureNow - 9000,
+      level: 'info',
+      source: 'systemd',
+      message: 'Started nginx.service.',
+    },
+  ],
+  truncated: false,
+};

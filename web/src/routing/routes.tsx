@@ -44,6 +44,37 @@ export const routes: RouteObject[] = [
         lazy: async () => ({
           Component: (await import('../pages/Machine/MachinePage')).MachinePage,
         }),
+        children: [
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('../pages/Machine/MachineOverview')).MachineOverview,
+            }),
+          },
+          {
+            path: 'terminal',
+            // Separate, so only people who open a terminal load xterm.js.
+            lazy: async () => ({
+              Component: (await import('../pages/Machine/TerminalTab')).TerminalTab,
+            }),
+          },
+          {
+            path: 'services',
+            lazy: async () => ({
+              Component: (await import('../pages/Machine/ServicesTab')).ServicesTab,
+            }),
+          },
+          {
+            path: 'processes',
+            lazy: async () => ({
+              Component: (await import('../pages/Machine/ProcessesTab')).ProcessesTab,
+            }),
+          },
+          {
+            path: 'logs',
+            lazy: async () => ({ Component: (await import('../pages/Machine/LogsTab')).LogsTab }),
+          },
+        ],
       },
       {
         path: '/account',

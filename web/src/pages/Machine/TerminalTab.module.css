@@ -1,0 +1,78 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.terminal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--control-height);
+}
+
+.status,
+.notice {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
+/* The terminal fills most of the viewport; dvh follows a phone's
+   collapsing toolbars and its on-screen keyboard. */
+.screen {
+  height: max(18rem, 70vh);
+  height: max(18rem, 70dvh);
+  min-width: 0;
+  padding: var(--space-2);
+  overflow: hidden;
+  border-radius: var(--radius-medium);
+  background: #16171a;
+  font-family: var(--font-family-mono);
+}
+
+.touchKeys {
+  display: none;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+/* Only phones and tablets lack these keys. */
+@media (pointer: coarse) {
+  .touchKeys {
+    display: flex;
+  }
+}
+
+.touchKey {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-small);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touchKey:active {
+  background: var(--color-surface-muted);
+}
+
+/* <sentinel-style> carries xterm.js's CSS and must never show (see
+   components/Terminal/sentinelStyle.ts). */
+:global(sentinel-style) {
+  display: none;
+}

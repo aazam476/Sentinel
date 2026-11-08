@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/coder/websocket"
@@ -36,6 +37,13 @@ type terminalRequest struct {
 func (h *handlers) handleTerminal(w http.ResponseWriter, r *http.Request, session auth.Session) {
 	agent, request, ok := h.checkTerminal(w, r, session)
 	if !ok {
+		return
+	}
+	// Browsers don't show a page why a WebSocket upgrade was refused, so
+	// the UI first sends a plain GET: it runs the same checks and gets
+	// either their error (step-up needed, offline, ...) or 204.
+	if !isWebSocketUpgrade(r) {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	// The Origin header was already checked against the server's own
@@ -161,6 +169,11 @@ func allowsCapability(agent fleet.Agent, name string) bool {
 		}
 	}
 	return true
+}
+
+// isWebSocketUpgrade reports whether r asks to become a WebSocket.
+func isWebSocketUpgrade(r *http.Request) bool {
+	return strings.EqualFold(r.Header.Get("Upgrade"), "websocket")
 }
 
 // terminalSize reads a column or row count, keeping it between 1 and 1,000.

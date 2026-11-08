@@ -121,7 +121,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/processes/` | Lists processes with their CPU use over the last second; ends one | Built |
 | `internal/agent/power/` | Reboots or shuts down the machine, just after answering | Built |
 | `internal/agent/<feature>/` | One package per agent feature (docker, zfs, files, ...) | Planned |
-| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view |
+| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs and power |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |
 
