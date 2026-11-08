@@ -68,6 +68,7 @@ describe('machine tabs', () => {
       'Services',
       'Processes',
       'Logs',
+      'Files',
       'Storage',
       'Docker',
     ]);

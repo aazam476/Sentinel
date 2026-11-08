@@ -32,7 +32,11 @@ export function apiURL(path: string): string {
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  /** body is sent as JSON. */
   body?: unknown;
+  /** raw is sent as it is, as a file's piece is uploaded. */
+  raw?: Blob;
+  signal?: AbortSignal;
 }
 
 /**
@@ -46,10 +50,15 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     method: options.method ?? 'GET',
     credentials: 'same-origin',
     headers,
+    signal: options.signal,
   };
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json';
     init.body = JSON.stringify(options.body);
+  }
+  if (options.raw !== undefined) {
+    headers['Content-Type'] = 'application/octet-stream';
+    init.body = options.raw;
   }
 
   const response = await fetch(apiURL(path), init);

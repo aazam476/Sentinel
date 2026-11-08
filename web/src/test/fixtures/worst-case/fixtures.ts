@@ -13,6 +13,8 @@ import type {
 } from '../../../api/types.gen';
 import type {
   ContainerListPayload,
+  FileEntry,
+  FileListResultPayload,
   StackListPayload,
   StorageOverviewPayload,
 } from '../../../api/protocol.gen';
@@ -714,3 +716,80 @@ export function worstStorage(): StorageOverviewPayload {
     ],
   };
 }
+
+const worstFolderPath = `/srv/${'department-of-very-long-folder-names/'.repeat(5)}archive`;
+
+/**
+ * worstFolder: a folder at the 5,000-entry limit, names of 255 characters
+ * with no spaces, right-to-left and emoji names, a link to a long target,
+ * a 999 TB file and a socket.
+ */
+export function worstFolder(): FileListResultPayload {
+  const special: FileEntry[] = [
+    {
+      name: 'x'.repeat(255),
+      path: `${worstFolderPath}/${'x'.repeat(255)}`,
+      type: 'dir',
+      sizeBytes: 0,
+      mode: 'drwxrwsrwt',
+      modified: 0,
+    },
+    {
+      name: `${'a'.repeat(200)}.tar.gz`,
+      path: `${worstFolderPath}/${'a'.repeat(200)}.tar.gz`,
+      type: 'file',
+      sizeBytes: 999 * 1024 ** 4,
+      mode: '-rwsr-sr-x',
+      modified: fixtureNow,
+    },
+    {
+      name: 'تقرير-المبيعات-٢٠٢٦.pdf',
+      path: `${worstFolderPath}/تقرير-المبيعات-٢٠٢٦.pdf`,
+      type: 'file',
+      sizeBytes: 1,
+      mode: '-rw-------',
+      modified: fixtureNow,
+    },
+    {
+      name: '📸 Holiday photos 🏖️ (final) (2).zip',
+      path: `${worstFolderPath}/📸 Holiday photos 🏖️ (final) (2).zip`,
+      type: 'file',
+      sizeBytes: 0,
+      mode: '-rw-r--r--',
+      modified: fixtureNow,
+    },
+    {
+      name: 'latest',
+      path: `${worstFolderPath}/latest`,
+      type: 'symlink',
+      sizeBytes: 0,
+      mode: 'Lrwxrwxrwx',
+      modified: fixtureNow,
+      target: `/mnt/${'snapshots/'.repeat(20)}2026-11-08T03:00:00Z`,
+    },
+    {
+      name: 'docker.sock',
+      path: `${worstFolderPath}/docker.sock`,
+      type: 'other',
+      sizeBytes: 0,
+      mode: 'Srw-rw----',
+      modified: fixtureNow,
+    },
+  ];
+  const many = Array.from({ length: 5_000 - special.length }, (_, index): FileEntry => ({
+    name: `log-${String(index).padStart(5, '0')}.jsonl`,
+    path: `${worstFolderPath}/log-${String(index).padStart(5, '0')}.jsonl`,
+    type: 'file',
+    sizeBytes: index * 1_024,
+    mode: '-rw-r-----',
+    modified: fixtureNow - index * 60_000,
+  }));
+  return {
+    path: worstFolderPath,
+    parent: worstFolderPath.slice(0, worstFolderPath.lastIndexOf('/')),
+    truncated: true,
+    entries: [...special, ...many],
+  };
+}
+
+export const worstFolderLink = `/machines/${worstMachine.id}/files?path=${encodeURIComponent(worstFolderPath)}`;

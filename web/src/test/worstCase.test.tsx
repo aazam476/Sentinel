@@ -22,6 +22,8 @@ import {
   worstSessions,
   worstStacks,
   worstStorage,
+  worstFolder,
+  worstFolderLink,
 } from './fixtures/worst-case/fixtures';
 import { renderApp } from './renderApp';
 import { apiPath, json, server, signedInAs } from './server';
@@ -223,6 +225,20 @@ describe('worst-case data', () => {
     expect(rows()).toBe(1503);
     // Rendering 1,503 rows takes jsdom a few seconds, more on a busy CI runner.
   }, 30_000);
+
+  it('files: 5,000 entries, 255-character names, a 999 TB file, only some rendered', async () => {
+    signedInAs(worstSession);
+    server.use(
+      http.get(apiPath(`agents/${worstMachine.id}`), () =>
+        json({ ...worstMachine, capabilities: [] }),
+      ),
+      http.get(apiPath(`agents/${worstMachine.id}/files`), () => json(worstFolder())),
+    );
+    const { container } = renderApp(worstFolderLink);
+    expect(await screen.findByText(/5,000 items · only the first 5,000 are shown/)).toBeVisible();
+    expect(screen.getAllByRole('listitem').length).toBeLessThan(100);
+    expect(await findAccessibilityViolations(container)).toEqual([]);
+  });
 
   it('add machine: a 100-character note and a 1,000-use token', async () => {
     signedInAs(worstSession);

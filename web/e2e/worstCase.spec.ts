@@ -15,6 +15,8 @@ import {
   worstSessions,
   worstStacks,
   worstStorage,
+  worstFolder,
+  worstFolderLink,
 } from '../src/test/fixtures/worst-case/fixtures';
 import { expectAccessible, expectNoHorizontalScroll } from './helpers';
 
@@ -40,6 +42,7 @@ async function serveWorstCase(page: Page) {
     [`agents/${worstMachine.id}/docker/containers`]: worstContainers(),
     [`agents/${worstMachine.id}/docker/stacks`]: worstStacks,
     [`agents/${worstMachine.id}/storage`]: worstStorage(),
+    [`agents/${worstMachine.id}/files`]: worstFolder(),
     [`agents/${worstMachine.id}/alerts`]: {
       alerts: [
         {
@@ -102,6 +105,7 @@ const screens: {
   { path: `/machines/${worstMachine.id}/docker`, ready: 'Containers', role: 'region' },
   { path: `/machines/${worstMachine.id}/docker/stacks`, ready: 'Stacks', role: 'region' },
   { path: `/machines/${worstMachine.id}/storage`, ready: 'Pools', role: 'region', allowAll: true },
+  { path: worstFolderLink, ready: 'Files', role: 'region', allowAll: true },
   { path: '/machines/add', ready: 'Add a machine' },
 ];
 

@@ -53,3 +53,12 @@ but not a 10 GB file going to a browser on a slow link.
   a few chunks at once is a possible later improvement.
 - A cancelled upload's partial file is deleted; one abandoned without cancelling stays as a
   hidden `.<name>.<id>.sentinel-upload` file until the upload is resumed or someone removes it.
+
+## The Files tab
+
+- The folder, and the file being edited, are in the address (`?path=`, `&edit=`), so a reload or
+  a shared link opens the same place, and closing the editor returns to the file's folder.
+- A folder can hold thousands of entries (the agent sends at most 5,000 and says when it left
+  some out); the list renders only those on screen, as the containers list does.
+- Uploads show each file's progress. A failed piece resumes from what the machine has, up to
+  three times, then offers "Resume"; a file that already exists offers "Replace it".

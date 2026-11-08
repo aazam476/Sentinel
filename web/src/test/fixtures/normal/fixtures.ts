@@ -12,7 +12,7 @@ import type {
   SessionResponse,
   SessionSummary,
 } from '../../../api/types.gen';
-import type { StorageOverviewPayload } from '../../../api/protocol.gen';
+import type { FileListResultPayload, StorageOverviewPayload } from '../../../api/protocol.gen';
 
 /** The fixed "now" every fixture is relative to: 2026-11-07 12:00 UTC. */
 export const fixtureNow = Date.UTC(2026, 10, 7, 12, 0, 0);
@@ -570,6 +570,48 @@ export const nasStorage: StorageOverviewPayload = {
       usedBytes: 77 * 1024 ** 2,
       totalBytes: 77 * 1024 ** 2,
       system: true,
+    },
+  ],
+};
+
+/** nasFolder is /srv/media on the NAS: folders first, a link, and files. */
+export const nasFolder: FileListResultPayload = {
+  path: '/srv/media',
+  parent: '/srv',
+  truncated: false,
+  entries: [
+    {
+      name: 'Photos',
+      path: '/srv/media/Photos',
+      type: 'dir',
+      sizeBytes: 0,
+      mode: 'drwxr-xr-x',
+      modified: fixtureNow - 86_400_000,
+    },
+    {
+      name: 'current',
+      path: '/srv/media/current',
+      type: 'symlink',
+      sizeBytes: 0,
+      mode: 'Lrwxrwxrwx',
+      modified: fixtureNow,
+      target: '/srv/media/Photos',
+    },
+    {
+      name: 'backup.tar.gz',
+      path: '/srv/media/backup.tar.gz',
+      type: 'file',
+      sizeBytes: 3 * 1024 ** 3,
+      mode: '-rw-r--r--',
+      modified: fixtureNow - 3_600_000,
+    },
+    {
+      name: 'notes.txt',
+      path: '/srv/media/notes.txt',
+      type: 'file',
+      sizeBytes: 812,
+      mode: '-rw-------',
+      modified: fixtureNow - 60_000,
     },
   ],
 };
