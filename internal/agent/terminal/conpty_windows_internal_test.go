@@ -22,30 +22,28 @@ func TestConPTY(t *testing.T) {
 		if err := shell.Resize(100, 40); err != nil {
 			t.Errorf("Resize: %v", err)
 		}
+		chunks := make(chan []byte, 64)
+		go func() {
+			defer close(chunks)
+			for {
+				buffer := make([]byte, 4096)
+				n, err := shell.Read(buffer)
+				if n > 0 {
+					chunks <- buffer[:n]
+				}
+				if err != nil {
+					return
+				}
+			}
+		}()
+		var seen bytes.Buffer
+		// PowerShell drops what is typed before its prompt is up, as a
+		// user's early keystrokes would be, so wait for the prompt first.
+		waitForOutput(t, chunks, &seen, "PS ")
 		if _, err := shell.Write([]byte("Write-Output (40 + 2)\r")); err != nil {
 			t.Fatal(err)
 		}
-		output := make(chan string, 1)
-		go func() {
-			var seen bytes.Buffer
-			buffer := make([]byte, 4096)
-			for !strings.Contains(seen.String(), "42") {
-				n, err := shell.Read(buffer)
-				seen.Write(buffer[:n])
-				if err != nil {
-					break
-				}
-			}
-			output <- seen.String()
-		}()
-		select {
-		case got := <-output:
-			if !strings.Contains(got, "42") {
-				t.Errorf("output = %q", got)
-			}
-		case <-time.After(30 * time.Second):
-			t.Fatal("PowerShell never answered")
-		}
+		waitForOutput(t, chunks, &seen, "42")
 	})
 
 	t.Run("reports a program that can't be started", func(t *testing.T) {
@@ -53,4 +51,22 @@ func TestConPTY(t *testing.T) {
 			t.Error("startConPTY returned nil")
 		}
 	})
+}
+
+// waitForOutput reads chunks into seen until it contains want. PowerShell's
+// first start on a fresh machine can be slow, hence the long limit.
+func waitForOutput(t *testing.T, chunks <-chan []byte, seen *bytes.Buffer, want string) {
+	t.Helper()
+	deadline := time.After(90 * time.Second)
+	for !strings.Contains(seen.String(), want) {
+		select {
+		case chunk, open := <-chunks:
+			if !open {
+				t.Fatalf("the shell ended before printing %q; output: %q", want, seen.String())
+			}
+			seen.Write(chunk)
+		case <-deadline:
+			t.Fatalf("no %q from PowerShell; output so far: %q", want, seen.String())
+		}
+	}
 }

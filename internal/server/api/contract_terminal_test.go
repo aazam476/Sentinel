@@ -177,14 +177,13 @@ func TestTerminal(t *testing.T) {
 		// The handler audits the end before it returns and drops the
 		// connection, so once the browser sees the connection end, the
 		// entry is there.
-		for {
-			if _, _, err := browser.Read(t.Context()); err != nil {
-				break
-			}
+		var ended error
+		for ended == nil {
+			_, _, ended = browser.Read(t.Context())
 		}
 		want := []string{"terminal.open:started", "terminal.close:success"}
 		if got := auditActions(t, f.server, "terminal."); !slices.Equal(got, want) {
-			t.Errorf("audit = %v, want %v", got, want)
+			t.Errorf("audit = %v, want %v (the browser's connection ended with: %v)", got, want, ended)
 		}
 	})
 
