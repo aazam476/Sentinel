@@ -11,6 +11,7 @@ import type {
   SessionResponse,
   SessionSummary,
 } from '../../../api/types.gen';
+import type { ContainerListPayload, StackListPayload } from '../../../api/protocol.gen';
 import { adminSession, fixtureNow } from '../normal/fixtures';
 
 /**
@@ -425,3 +426,96 @@ export function worstLogs(): LogEntries {
   }));
   return { entries: [...hard, ...plain], truncated: true };
 }
+
+/** worstContainers: compose's long generated names, many ports, RTL, 1,200 rows. */
+export function worstContainers(): ContainerListPayload {
+  const hard: ContainerListPayload['containers'] = [
+    {
+      id: 'a'.repeat(64),
+      name: 'production-europe-west-ecommerce-platform-checkout-service-worker-replica-12',
+      image:
+        'registry.internal.northwind-industries-holdings.example.com:5000/platform/checkout-service@sha256:' +
+        'f'.repeat(64),
+      state: 'restarting',
+      status: 'Restarting (137) 3 seconds ago',
+      created: fixtureNow,
+      ports: Array.from({ length: 12 }, (_, i) => ({
+        ip: '0.0.0.0',
+        privatePort: 8000 + i,
+        publicPort: 18000 + i,
+        protocol: 'tcp',
+      })),
+      stack: 'production-europe-west-ecommerce-platform',
+      service: 'checkout-service-worker',
+      cpuPercent: 3199.97,
+      memoryBytes: 1.9 * 1024 ** 4,
+      memoryLimitBytes: 2 * 1024 ** 4,
+    },
+    {
+      id: 'b',
+      name: 'خدمة-الويب',
+      image: 'nginx',
+      state: 'running',
+      status: 'Up',
+      created: 0,
+      ports: [],
+      cpuPercent: 0,
+      memoryBytes: 0,
+      memoryLimitBytes: 0,
+    },
+    {
+      id: 'c',
+      name: 'x',
+      image: 'x',
+      state: 'dead',
+      status: '',
+      created: 0,
+      ports: [],
+      cpuPercent: 0,
+      memoryBytes: 0,
+      memoryLimitBytes: 0,
+    },
+  ];
+  const plain = Array.from({ length: 1200 }, (_, i) => ({
+    id: `p${String(i)}`,
+    name: `worker-${String(i).padStart(4, '0')}`,
+    image: 'busybox:1.36',
+    state: 'running',
+    status: 'Up 2 days',
+    created: 0,
+    ports: [],
+    cpuPercent: (i % 50) / 10,
+    memoryBytes: i * 1024 ** 2,
+    memoryLimitBytes: 0,
+  }));
+  return {
+    engine: { name: 'Podman', version: '5.4.2', socket: 'unix:///run/podman/podman.sock' },
+    containers: [...hard, ...plain],
+  };
+}
+
+/** worstStacks: a long name, an unreadable external stack with many files, none running. */
+export const worstStacks: StackListPayload = {
+  dir: '/srv/sentinel/stacks-with-a-long-folder-name-for-every-environment',
+  stacks: [
+    {
+      name: 'production-europe-west-ecommerce-platform-checkout-stack-0001',
+      managed: true,
+      containers: { running: 120, exited: 3, restarting: 1 },
+      configFiles: [
+        '/srv/sentinel/stacks-with-a-long-folder-name-for-every-environment/production-europe-west-ecommerce-platform-checkout-stack-0001/compose.yaml',
+      ],
+      editable: true,
+    },
+    {
+      name: 'legacy',
+      managed: false,
+      containers: {},
+      configFiles: [
+        '/home/admin/projects/legacy/docker-compose.yml',
+        '/home/admin/projects/legacy/docker-compose.override.yml',
+      ],
+      editable: false,
+    },
+  ],
+};

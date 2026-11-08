@@ -74,6 +74,61 @@ export const routes: RouteObject[] = [
             path: 'logs',
             lazy: async () => ({ Component: (await import('../pages/Machine/LogsTab')).LogsTab }),
           },
+          {
+            path: 'docker',
+            lazy: async () => ({
+              Component: (await import('../pages/Machine/docker/DockerTab')).DockerTab,
+            }),
+            children: [
+              {
+                index: true,
+                lazy: async () => ({
+                  Component: (await import('../pages/Machine/docker/ContainersView'))
+                    .ContainersView,
+                }),
+              },
+              {
+                path: 'containers/:container/logs',
+                lazy: async () => ({
+                  Component: (await import('../pages/Machine/docker/ContainerLogsView'))
+                    .ContainerLogsView,
+                }),
+              },
+              {
+                path: 'containers/:container/shell',
+                // With the terminal, so xterm.js loads only when it's opened.
+                lazy: async () => ({
+                  Component: (await import('../pages/Machine/docker/ContainerShellView'))
+                    .ContainerShellView,
+                }),
+              },
+              {
+                path: 'images',
+                lazy: async () => ({
+                  Component: (await import('../pages/Machine/docker/ImagesView')).ImagesView,
+                }),
+              },
+              {
+                path: 'volumes',
+                lazy: async () => ({
+                  Component: (await import('../pages/Machine/docker/ResourcesView')).ResourcesView,
+                }),
+              },
+              {
+                path: 'stacks',
+                lazy: async () => ({
+                  Component: (await import('../pages/Machine/docker/StacksView')).StacksView,
+                }),
+              },
+              {
+                path: 'stacks/:stack',
+                // With CodeMirror, so it loads only when a stack is opened.
+                lazy: async () => ({
+                  Component: (await import('../pages/Machine/docker/StackEditor')).StackEditor,
+                }),
+              },
+            ],
+          },
         ],
       },
       {

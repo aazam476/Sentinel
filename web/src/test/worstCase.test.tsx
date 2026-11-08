@@ -10,6 +10,7 @@ import {
   longUsername,
   worstAgents,
   worstAuditEntries,
+  worstContainers,
   worstLogs,
   worstMachine,
   worstProcesses,
@@ -18,6 +19,7 @@ import {
   worstPasskeys,
   worstSession,
   worstSessions,
+  worstStacks,
 } from './fixtures/worst-case/fixtures';
 import { renderApp } from './renderApp';
 import { apiPath, json, server, signedInAs } from './server';
@@ -169,6 +171,29 @@ describe('worst-case data', () => {
     expect(screen.getByText(/^certificate rejected: MIIB/)).toBeVisible();
     expect(screen.getByText(/ValueError: 💥/)).toBeVisible();
     expect(await findAccessibilityViolations(container)).toEqual([]);
+  });
+
+  it('docker: compose’s longest names, a 64-character digest, 1,203 containers, odd stacks', async () => {
+    signedInAs(worstSession);
+    server.use(
+      http.get(apiPath(`agents/${worstMachine.id}`), () =>
+        json({ ...worstMachine, capabilities: [] }),
+      ),
+      http.get(apiPath(`agents/${worstMachine.id}/docker/containers`), () =>
+        json(worstContainers()),
+      ),
+      http.get(apiPath(`agents/${worstMachine.id}/docker/stacks`), () => json(worstStacks)),
+    );
+    const { container } = renderApp(`/machines/${worstMachine.id}/docker`);
+    expect(await screen.findByText('1,203 containers · Podman 5.4.2')).toBeVisible();
+    const longest = worstContainers().containers[0];
+    expect(screen.getByTitle(new RegExp(`^${(longest?.image ?? '').slice(0, 40)}`))).toBeVisible();
+    expect(screen.getAllByRole('article').length).toBeLessThan(50);
+    expect(await findAccessibilityViolations(container)).toEqual([]);
+
+    const { container: stacksView } = renderApp(`/machines/${worstMachine.id}/docker/stacks`);
+    expect(await within(stacksView).findByText('120 of 124 containers running')).toBeVisible();
+    expect(within(stacksView).getByText('Not running')).toBeVisible();
   });
 
   it('add machine: a 100-character note and a 1,000-use token', async () => {

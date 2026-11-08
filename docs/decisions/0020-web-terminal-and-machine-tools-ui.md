@@ -38,7 +38,16 @@ would look like a broken connection. And a phone's connection drops often.
 - **State badges keep their text at full contrast** and show the state's color as a dot, so
   they pass WCAG AA in both themes and color is never the only cue.
 
+- **CodeMirror (the stack editor, M4) is patched the same way.** Its style-mod library uses
+  a constructed stylesheet only inside shadow roots and a `<style>` element in the page
+  itself; a build plugin makes it use a constructed stylesheet in the page too. CodeMirror
+  sets every other style through the CSSOM. The Docker end-to-end test types a compose file
+  into the real editor with the policy on.
+- **Long Docker actions report through `toast.promise`**, tied to the request rather than to
+  the page that started it: saving a new stack moves to the stack's page, and the deploy's
+  result must still be shown.
+
 ## Consequences
 
-- Upgrading xterm.js may need the plugin updated; the build says so.
+- Upgrading xterm.js or style-mod may need its plugin updated; the build says so.
 - The terminal's colors are fixed (a dark theme) rather than following the page's theme.

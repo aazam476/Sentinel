@@ -89,6 +89,7 @@ function MachineTabs({ session, machine }: MachineContext) {
     { to: 'services', label: 'Services', shown: true },
     { to: 'processes', label: 'Processes', shown: canOperate(session) },
     { to: 'logs', label: 'Logs', shown: true },
+    { to: 'docker', label: 'Docker', shown: allows(machine, 'docker') },
   ];
   return (
     <nav className={styles.tabs} aria-label="Machine sections">
@@ -98,7 +99,7 @@ function MachineTabs({ session, machine }: MachineContext) {
           <NavLink
             key={tab.label}
             to={tab.to}
-            end
+            end={tab.to !== 'docker'}
             className={({ isActive }) => clsx(styles.tab, isActive && styles.tabActive)}
           >
             {tab.label}

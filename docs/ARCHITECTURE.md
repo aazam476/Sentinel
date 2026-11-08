@@ -124,7 +124,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/docker/` | Containers, images, volumes, networks and their logs, through the Docker Engine API (Docker or Podman) | Built |
 | `internal/agent/stacks/` | Compose stacks: Sentinel's own folder of stacks, and projects started elsewhere | Built |
 | `internal/agent/<feature>/` | One package per agent feature (zfs, files, ...) | Planned |
-| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs and power |
+| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power and Docker |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |
 

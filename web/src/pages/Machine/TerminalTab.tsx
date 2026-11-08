@@ -5,7 +5,7 @@ import '@xterm/xterm/css/xterm.css';
 import { useEffect, useRef, useState } from 'react';
 
 import { isApiError } from '../../api/client';
-import { TerminalConnection, type TerminalState } from '../../api/terminal';
+import { machineTerminal, TerminalConnection, type TerminalState } from '../../api/terminal';
 import type { SessionResponse } from '../../api/types.gen';
 import { Button } from '../../components/Button/Button';
 import { FormError } from '../../components/FormError/FormError';
@@ -39,7 +39,7 @@ export function TerminalTab() {
   return (
     <TerminalView
       key={attempt}
-      agentId={machine.id}
+      endpoint={machineTerminal(machine.id)}
       session={session}
       onRestart={() => {
         setAttempt((n) => n + 1);
@@ -49,12 +49,14 @@ export function TerminalTab() {
 }
 
 interface TerminalViewProps {
-  agentId: string;
+  /** endpoint is the terminal's WebSocket path; see api/terminal.ts. */
+  endpoint: string;
   session: SessionResponse;
   onRestart: () => void;
 }
 
-function TerminalView({ agentId, session, onRestart }: TerminalViewProps) {
+/** TerminalView is a live terminal on endpoint: a machine's or a container's shell. */
+export function TerminalView({ endpoint, session, onRestart }: TerminalViewProps) {
   const container = useRef<HTMLDivElement>(null);
   const terminal = useRef<{ term: Terminal; connection: TerminalConnection }>(null);
   const [state, setState] = useState<TerminalState>({ kind: 'connecting' });
@@ -80,7 +82,7 @@ function TerminalView({ agentId, session, onRestart }: TerminalViewProps) {
     term.open(element);
     fit.fit();
     const connection = new TerminalConnection(
-      agentId,
+      endpoint,
       { cols: term.cols, rows: term.rows },
       {
         onOutput: (data) => {
@@ -119,7 +121,7 @@ function TerminalView({ agentId, session, onRestart }: TerminalViewProps) {
       term.dispose();
       terminal.current = null;
     };
-  }, [agentId]);
+  }, [endpoint]);
 
   const needsStepUp = state.kind === 'failed' && isApiError(state.error, 'step_up_required');
   const isLive = state.kind === 'open' || state.kind === 'reconnecting';

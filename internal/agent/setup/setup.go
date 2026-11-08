@@ -153,6 +153,12 @@ const starterPolicy = `# Sentinel agent policy (SEC-22). The server can't change
 # storage  = false
 # packages = false
 # power    = false
+
+# Where Docker (or Podman) listens and where stacks are kept, if not the
+# usual places.
+# [docker]
+# socket     = "unix:///run/podman/podman.sock"
+# stacks_dir = "/opt/sentinel/stacks"
 `
 
 func (options Options) writeStarterPolicy() error {

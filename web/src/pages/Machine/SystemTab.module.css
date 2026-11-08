@@ -224,3 +224,21 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+
+.linkButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-medium);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.linkButton:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}

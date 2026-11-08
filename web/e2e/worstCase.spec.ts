@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   worstAgents,
   worstAuditEntries,
+  worstContainers,
   worstLogs,
   worstMachine,
   worstProcesses,
@@ -12,6 +13,7 @@ import {
   worstPasskeys,
   worstSession,
   worstSessions,
+  worstStacks,
 } from '../src/test/fixtures/worst-case/fixtures';
 import { expectAccessible, expectNoHorizontalScroll } from './helpers';
 
@@ -34,6 +36,8 @@ async function serveWorstCase(page: Page) {
     [`agents/${worstMachine.id}/services`]: worstServices(),
     [`agents/${worstMachine.id}/processes`]: worstProcesses(),
     [`agents/${worstMachine.id}/logs`]: worstLogs(),
+    [`agents/${worstMachine.id}/docker/containers`]: worstContainers(),
+    [`agents/${worstMachine.id}/docker/stacks`]: worstStacks,
     [`agents/${worstMachine.id}/metrics`]: { metric: 'cpu.percent', resolution: 'raw', points: [] },
     'enrollment-tokens': { tokens: worstTokens, serverFingerprint: 'SHA256:x', tlsFingerprint: '' },
   };
@@ -73,6 +77,8 @@ const screens: { path: string; ready: string | RegExp; role?: 'heading' | 'regio
   { path: `/machines/${worstMachine.id}/services`, ready: 'Services', role: 'region' },
   { path: `/machines/${worstMachine.id}/processes`, ready: 'Processes', role: 'region' },
   { path: `/machines/${worstMachine.id}/logs`, ready: 'Logs', role: 'region' },
+  { path: `/machines/${worstMachine.id}/docker`, ready: 'Containers', role: 'region' },
+  { path: `/machines/${worstMachine.id}/docker/stacks`, ready: 'Stacks', role: 'region' },
   { path: '/machines/add', ready: 'Add a machine' },
 ];
 

@@ -75,8 +75,42 @@ function xtermWithoutInlineStyles(): Plugin {
   };
 }
 
+/**
+ * CodeMirror's style-mod puts its CSS in a constructed stylesheet only
+ * inside shadow roots; in the page itself it adds a <style> element, which
+ * the Content-Security-Policy blocks. Browsers that run Sentinel all support
+ * constructed stylesheets on the document too, so in the production build
+ * this makes style-mod use one there as well.
+ */
+function styleModWithoutInlineStyles(): Plugin {
+  const search = 'if (!root.head && root.adoptedStyleSheets && win.CSSStyleSheet) {';
+  return {
+    name: 'sentinel:style-mod-without-inline-styles',
+    apply: 'build',
+    transform(code, id) {
+      if (!/[\\/]node_modules[\\/]style-mod[\\/]src[\\/]style-mod\.js$/.test(id)) {
+        return null;
+      }
+      if (!code.includes(search)) {
+        this.error(
+          'style-mod no longer chooses its stylesheet the way this plugin expects; update it.',
+        );
+      }
+      return {
+        code: code.replace(search, 'if (root.adoptedStyleSheets && win.CSSStyleSheet) {'),
+        map: null,
+      };
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), sonnerWithoutInlineStyles(), xtermWithoutInlineStyles()],
+  plugins: [
+    react(),
+    sonnerWithoutInlineStyles(),
+    xtermWithoutInlineStyles(),
+    styleModWithoutInlineStyles(),
+  ],
   // Asset links are relative, so the built app works under any base path:
   // the server adds a <base> element pointing at the configured one.
   base: './',

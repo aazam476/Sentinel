@@ -2,7 +2,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { ApiError } from './client';
-import { TerminalConnection, type TerminalDeps, type TerminalState } from './terminal';
+import {
+  containerTerminal,
+  machineTerminal,
+  TerminalConnection,
+  type TerminalDeps,
+  type TerminalState,
+} from './terminal';
 
 /** FakeSocket is a WebSocket the test drives. */
 class FakeSocket extends EventTarget {
@@ -59,7 +65,7 @@ function harness(preflightAnswers: (Error | undefined)[] = []) {
     clearTimeout: () => undefined,
   };
   const connection = new TerminalConnection(
-    '01JB X',
+    machineTerminal('01JB X'),
     { cols: 120, rows: 40 },
     {
       onOutput: (data) => output.push(new TextDecoder().decode(data)),
@@ -98,6 +104,13 @@ function harness(preflightAnswers: (Error | undefined)[] = []) {
 
 const offline = new ApiError(409, {
   error: { code: 'machine_offline', message: 'The machine is offline.' },
+});
+
+describe('terminal endpoints', () => {
+  it('names a machine’s shell and a container’s', () => {
+    expect(machineTerminal('a b')).toBe('api/agents/a%20b/terminal');
+    expect(containerTerminal('a', 'web/1')).toBe('api/agents/a/docker/containers/web%2F1/exec');
+  });
 });
 
 describe('TerminalConnection', () => {

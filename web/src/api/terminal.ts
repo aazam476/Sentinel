@@ -57,6 +57,16 @@ const defaultDeps: TerminalDeps = {
   },
 };
 
+/** machineTerminal is the endpoint of a machine's own shell. */
+export function machineTerminal(agentId: string): string {
+  return `api/agents/${encodeURIComponent(agentId)}/terminal`;
+}
+
+/** containerTerminal is the endpoint of a shell in one of its containers. */
+export function containerTerminal(agentId: string, container: string): string {
+  return `api/agents/${encodeURIComponent(agentId)}/docker/containers/${encodeURIComponent(container)}/exec`;
+}
+
 /**
  * TerminalConnection runs one terminal session in the browser: a WebSocket
  * to /api/agents/{id}/terminal carrying the shell's bytes (binary) and
@@ -72,8 +82,12 @@ export class TerminalConnection {
   private stopped = false;
   private readonly encoder = new TextEncoder();
 
+  /**
+   * endpoint is the terminal's WebSocket path without its query, such as
+   * api/agents/{id}/terminal or .../docker/containers/{name}/exec.
+   */
   constructor(
-    private readonly agentId: string,
+    private readonly endpoint: string,
     size: TerminalSize,
     private readonly callbacks: TerminalCallbacks,
     private readonly deps: TerminalDeps = defaultDeps,
@@ -137,7 +151,7 @@ export class TerminalConnection {
     if (this.sessionId !== undefined) {
       query.set('resume', this.sessionId);
     }
-    return `api/agents/${encodeURIComponent(this.agentId)}/terminal?${query.toString()}`;
+    return `${this.endpoint}?${query.toString()}`;
   }
 
   private connect() {

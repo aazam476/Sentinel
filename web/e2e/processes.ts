@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { request as playwrightRequest } from '@playwright/test';
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const binaries = resolve('..', 'bin');
@@ -82,6 +82,9 @@ export class OwnServer {
 /** Agent runs the real sentinel-agent with its files in a temporary folder. */
 export class Agent {
   private readonly flags: string[];
+  /** root is the agent's own folder, for files a test needs it to use. */
+  readonly root: string;
+  private readonly configDir: string;
   private process: ChildProcess | undefined;
   /** log is everything the running agent has written to stderr. */
   log = '';
@@ -90,7 +93,9 @@ export class Agent {
     const root = resolve('test-results', 'e2e-agents', name);
     rmSync(root, { recursive: true, force: true });
     mkdirSync(root, { recursive: true });
-    this.flags = ['--state-dir', join(root, 'state'), '--config-dir', join(root, 'etc')];
+    this.root = root;
+    this.configDir = join(root, 'etc');
+    this.flags = ['--state-dir', join(root, 'state'), '--config-dir', this.configDir];
   }
 
   /**
@@ -109,6 +114,12 @@ export class Agent {
       throw new Error(`enroll failed: ${result.stderr}`);
     }
     return result.stdout;
+  }
+
+  /** writePolicy writes the agent's local policy file (SEC-22). */
+  writePolicy(text: string) {
+    mkdirSync(this.configDir, { recursive: true });
+    writeFileSync(join(this.configDir, 'policy.toml'), text, { mode: 0o600 });
   }
 
   /** run starts the agent in the background, as its service would. */
