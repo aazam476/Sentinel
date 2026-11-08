@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/aazam476/sentinel/internal/testutil/clitest"
@@ -151,8 +150,21 @@ func TestSEC01_ServerPrintsTheSetupTokenOnFirstStart(t *testing.T) {
 		t.Fatalf("setup-token: %v", err)
 	}
 	token := strings.TrimSpace(string(saved))
-	if len(token) != 52 || !strings.Contains(stdout.String(), "Sentinel setup token: "+token) {
-		t.Errorf("stdout = %q, want the token from setup-token (%q)", stdout.String(), token)
+
+	// Read stdout line by line until the token line arrives. Reading the
+	// pipe blocks until the server has written it, so this can't race.
+	printed := ""
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		if found, ok := strings.CutPrefix(scanner.Text(), "Sentinel setup token: "); ok {
+			printed = found
+			break
+		}
+	}
+	go func() { _, _ = io.Copy(io.Discard, stdout) }() // ends when the server exits
+
+	if len(token) != 52 || printed != token {
+		t.Errorf("printed token = %q, want the token from setup-token (%q)", printed, token)
 	}
 }
 
@@ -172,17 +184,20 @@ func TestServerServesPlainHTTPOnLoopback(t *testing.T) {
 // address it listens on.
 func startServer(t *testing.T, binary string, args ...string) string {
 	t.Helper()
-	address, _ := startServerWithOutput(t, binary, args...)
+	address, stdout := startServerWithOutput(t, binary, args...)
+	go func() { _, _ = io.Copy(io.Discard, stdout) }() // ends when the server exits
 	return address
 }
 
-// startServerWithOutput is startServer that also returns what the server
-// printed on stdout, which is complete once the server is listening.
-func startServerWithOutput(t *testing.T, binary string, args ...string) (string, *lockedBuffer) {
+// startServerWithOutput is startServer that also returns the server's
+// stdout. The caller must keep reading it, or the server blocks writing.
+func startServerWithOutput(t *testing.T, binary string, args ...string) (string, io.Reader) {
 	t.Helper()
-	stdout := &lockedBuffer{}
 	command := exec.CommandContext(t.Context(), binary, args...)
-	command.Stdout = stdout
+	stdout, err := command.StdoutPipe()
+	if err != nil {
+		t.Fatalf("stdout pipe: %v", err)
+	}
 	stderr, err := command.StderrPipe()
 	if err != nil {
 		t.Fatalf("stderr pipe: %v", err)
@@ -218,25 +233,6 @@ func waitForListeningAddress(t *testing.T, logOutput io.Reader) string {
 	}
 	t.Fatalf("server exited before logging its listening address (scan error: %v)", scanner.Err())
 	return ""
-}
-
-// lockedBuffer collects output written by another goroutine (exec copies a
-// process's stdout in its own goroutine).
-type lockedBuffer struct {
-	mutex  sync.Mutex
-	buffer strings.Builder
-}
-
-func (b *lockedBuffer) Write(data []byte) (int, error) {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-	return b.buffer.Write(data)
-}
-
-func (b *lockedBuffer) String() string {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-	return b.buffer.String()
 }
 
 // clientTrusting returns an HTTP client that trusts only the certificate in
