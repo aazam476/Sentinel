@@ -36,7 +36,10 @@ func TestSystem(t *testing.T) {
 			if err := (processes.System{}).Signal(t.Context(), int32(child.Process.Pid), force); err != nil { //nolint:gosec // G115: as above
 				t.Fatalf("force %v: %v", force, err)
 			}
-			if err := child.Wait(); err == nil {
+			// Waiting returns well before the minute is up only if the
+			// process was ended. On Unix it also reports the signal; Windows
+			// ends it with exit code 0, which reads as a normal exit.
+			if err := child.Wait(); err == nil && runtime.GOOS != "windows" {
 				t.Errorf("force %v: the process exited normally", force)
 			}
 		}

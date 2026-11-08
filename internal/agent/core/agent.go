@@ -163,7 +163,10 @@ func withMachineDefaults(options *Options) {
 func (a *Agent) Run(ctx context.Context) {
 	defer a.terminals.CloseAll()
 	sampling := make(chan struct{})
-	go func() { a.sampleForever(ctx); close(sampling) }()
+	// The timer starts here, not in the goroutine, so the first sample is
+	// due a full interval after Run starts however late the goroutine runs.
+	timer := a.options.Clock.NewTimer(time.Duration(a.metricsInterval.Load()))
+	go func() { a.sampleForever(ctx, timer); close(sampling) }()
 	defer func() { <-sampling }()
 
 	retry := newBackoff(a.options.Random)
@@ -183,8 +186,7 @@ func (a *Agent) Run(ctx context.Context) {
 }
 
 // sampleForever takes a sample every metrics interval, connected or not.
-func (a *Agent) sampleForever(ctx context.Context) {
-	timer := a.options.Clock.NewTimer(time.Duration(a.metricsInterval.Load()))
+func (a *Agent) sampleForever(ctx context.Context, timer clock.Timer) {
 	defer timer.Stop()
 	for {
 		select {
