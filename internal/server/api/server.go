@@ -32,13 +32,15 @@ type handlers struct {
 	metrics    *metrics.Service
 	registries *registry.Service
 	alerts     *alerts.Service
-	terminals  *relay.Sessions
-	serverKey  serverkey.Key
-	tlsPin     string
-	logger     *slog.Logger
-	clock      Clock
-	cookiePath string
-	publicURL  *url.URL
+	// maxFileBytes is the largest file the file manager moves.
+	maxFileBytes int64
+	terminals    *relay.Sessions
+	serverKey    serverkey.Key
+	tlsPin       string
+	logger       *slog.Logger
+	clock        Clock
+	cookiePath   string
+	publicURL    *url.URL
 }
 
 // Clock tells the current time and makes timers.

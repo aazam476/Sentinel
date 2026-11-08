@@ -28,3 +28,4 @@ SEC-40  Append-only, hash-chained audit log
 SEC-41  Audit log view, CSV/JSON export, and verify command
 SEC-15  Server-side input validation, parameterized SQL, no shell string building
 SEC-42  Stored secrets encrypted with AES-256-GCM using <data dir>/secret.key
+SEC-25  File access restricted to the local policy's allowed folders

@@ -3,9 +3,11 @@
 package policy_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -119,6 +121,24 @@ func TestSEC22_APolicyFileThatCantBeTrustedStopsTheAgent(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
+	t.Run("SEC-25 reads the folders the file manager may use, cleaned", func(t *testing.T) {
+		root := filepath.Join(t.TempDir(), "srv")
+		parsed, err := policy.Parse(fmt.Sprintf("[files]\nallowed_paths = [%q, %q]\n", root+string(filepath.Separator), filepath.Join(root, "..", "home")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []string{root, filepath.Join(filepath.Dir(root), "home")}
+		if !slices.Equal(parsed.Files.AllowedPaths, want) {
+			t.Errorf("got %v, want %v", parsed.Files.AllowedPaths, want)
+		}
+	})
+
+	t.Run("SEC-25 refuses an allowed folder that isn't an absolute path", func(t *testing.T) {
+		if _, err := policy.Parse("[files]\nallowed_paths = [\"srv\"]\n"); err == nil {
+			t.Error("expected an error")
+		}
+	})
+
 	t.Run("reads where Docker's socket and the stacks are", func(t *testing.T) {
 		parsed, err := policy.Parse("[docker]\nsocket = \"unix:///run/podman/podman.sock\"\nstacks_dir = \"/srv/stacks\"\n")
 		if err != nil {

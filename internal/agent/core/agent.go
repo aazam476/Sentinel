@@ -18,6 +18,7 @@ import (
 
 	"github.com/aazam476/sentinel/internal/agent/command"
 	"github.com/aazam476/sentinel/internal/agent/docker"
+	"github.com/aazam476/sentinel/internal/agent/files"
 	"github.com/aazam476/sentinel/internal/agent/identity"
 	"github.com/aazam476/sentinel/internal/agent/logs"
 	"github.com/aazam476/sentinel/internal/agent/policy"
@@ -84,6 +85,9 @@ type Options struct {
 	// Storage reads disks, filesystems and ZFS (§9.5); nil reads this
 	// machine's.
 	Storage Storage
+	// Files is the file manager (§9.7); nil uses this machine's, within
+	// the folders the local policy allows (SEC-25).
+	Files Files
 	// Observe, if set, is told when the agent reaches each Event. Tests
 	// use it to know when to move their fake clock.
 	Observe func(Event)
@@ -214,6 +218,9 @@ func withMachineDefaults(options *Options) {
 	}
 	if options.Stacks == nil {
 		options.Stacks = stacks.New(runner, options.Policy.Docker.StacksDir, runtime.GOOS)
+	}
+	if options.Files == nil {
+		options.Files = files.New(options.Policy.Files.AllowedPaths)
 	}
 	if options.Storage == nil {
 		options.Storage = storage.New(storage.Options{GOOS: runtime.GOOS, Runner: runner, Logger: options.Logger})

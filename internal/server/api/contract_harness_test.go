@@ -139,6 +139,34 @@ func (b *browser) do(method, path string, body any) response {
 	return b.send(request)
 }
 
+// putRaw PUTs a body of raw bytes, as an upload piece is sent.
+func (b *browser) putRaw(path string, body []byte) response {
+	b.t.Helper()
+	request, err := http.NewRequestWithContext(b.t.Context(), http.MethodPut, b.server.server.URL+path, bytes.NewReader(body))
+	if err != nil {
+		b.t.Fatal(err)
+	}
+	request.Header.Set("Origin", b.server.publicOrigin)
+	request.Header.Set("Content-Type", "application/octet-stream")
+	return b.send(request)
+}
+
+// doWith sends a request with extra headers, such as Range.
+func (b *browser) doWith(method, path string, body any, headers map[string]string) response {
+	b.t.Helper()
+	if body != nil {
+		b.t.Fatal("doWith sends no body")
+	}
+	request, err := http.NewRequestWithContext(b.t.Context(), method, b.server.server.URL+path, nil)
+	if err != nil {
+		b.t.Fatal(err)
+	}
+	for name, value := range headers {
+		request.Header.Set(name, value)
+	}
+	return b.send(request)
+}
+
 func (b *browser) send(request *http.Request) response {
 	b.t.Helper()
 	httpResponse, err := b.client.Do(request)

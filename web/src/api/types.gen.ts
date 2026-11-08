@@ -307,6 +307,31 @@ export interface MetricsEvent {
 }
 
 //////////
+// source: files.go
+
+/**
+ * FileUploadRequest starts, or resumes, an upload.
+ */
+export interface FileUploadRequest {
+  path: string;
+  sizeBytes: number /* uint64 */;
+  overwrite: boolean;
+}
+/**
+ * FilePathRequest names a file or folder.
+ */
+export interface FilePathRequest {
+  path: string;
+}
+/**
+ * FileRenameRequest moves or renames a file or folder.
+ */
+export interface FileRenameRequest {
+  from: string;
+  to: string;
+}
+
+//////////
 // source: login.go
 
 /**

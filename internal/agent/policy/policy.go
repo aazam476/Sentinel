@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -45,6 +46,16 @@ type Policy struct {
 	// Docker holds the machine's Docker settings; empty fields use the
 	// defaults.
 	Docker DockerSettings
+	// Files limits the file manager (SEC-25).
+	Files FilesSettings
+}
+
+// FilesSettings limit the file manager to some folders (SEC-25). Like the
+// capabilities, only the machine's owner can change them.
+type FilesSettings struct {
+	// AllowedPaths are the folders the file manager may use, with
+	// everything inside them; empty allows the whole file system.
+	AllowedPaths []string `toml:"allowed_paths"`
 }
 
 // DockerSettings are where the agent finds Docker and keeps stacks (§9.4).
@@ -62,6 +73,7 @@ type DockerSettings struct {
 type file struct {
 	Capabilities map[string]bool `toml:"capabilities"`
 	Docker       DockerSettings  `toml:"docker"`
+	Files        FilesSettings   `toml:"files"`
 }
 
 // Allows reports whether the policy allows a capability.
@@ -123,7 +135,11 @@ func Parse(text string) (Policy, error) {
 		}
 		return Policy{}, fmt.Errorf("unknown setting %s", strings.Join(keys, ", "))
 	}
-	policy := Policy{Docker: parsed.Docker}
+	allowed, err := allowedPaths(parsed.Files.AllowedPaths)
+	if err != nil {
+		return Policy{}, err
+	}
+	policy := Policy{Docker: parsed.Docker, Files: FilesSettings{AllowedPaths: allowed}}
 	for name, allowed := range parsed.Capabilities {
 		if !slices.Contains(Capabilities(), name) {
 			return Policy{}, fmt.Errorf("unknown capability %q; the capabilities are %s", name, strings.Join(Capabilities(), ", "))
@@ -134,4 +150,17 @@ func Parse(text string) (Policy, error) {
 	}
 	slices.Sort(policy.disabled)
 	return policy, nil
+}
+
+// allowedPaths checks the file manager's allowed folders: each must be an
+// absolute path. They are cleaned, so "/srv/" and "/srv" mean the same.
+func allowedPaths(paths []string) ([]string, error) {
+	cleaned := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if !filepath.IsAbs(path) {
+			return nil, fmt.Errorf("files.allowed_paths: %q is not an absolute path", path)
+		}
+		cleaned = append(cleaned, filepath.Clean(path))
+	}
+	return cleaned, nil
 }

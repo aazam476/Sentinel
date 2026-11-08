@@ -44,25 +44,29 @@ type RouterOptions struct {
 	// PublicURL is the configured public origin, or nil. Passkeys belong to
 	// its host name.
 	PublicURL *url.URL
+	// MaxFileBytes is the largest file the file manager moves; 0 is the
+	// default, 10 GB.
+	MaxFileBytes int64
 }
 
 // NewRouter returns the handler for every URL the server answers.
 func NewRouter(options RouterOptions) http.Handler {
 	h := &handlers{
-		auth:       options.Auth,
-		auditLog:   options.AuditLog,
-		fleet:      options.Fleet,
-		hub:        options.Hub,
-		metrics:    options.Metrics,
-		registries: options.Registry,
-		alerts:     options.Alerts,
-		terminals:  relay.NewSessions(options.Clock),
-		serverKey:  options.ServerKey,
-		tlsPin:     options.TLSFingerprint,
-		logger:     options.Logger,
-		clock:      options.Clock,
-		cookiePath: cookiePath(options.BasePath),
-		publicURL:  options.PublicURL,
+		auth:         options.Auth,
+		auditLog:     options.AuditLog,
+		fleet:        options.Fleet,
+		hub:          options.Hub,
+		metrics:      options.Metrics,
+		registries:   options.Registry,
+		alerts:       options.Alerts,
+		terminals:    relay.NewSessions(options.Clock),
+		serverKey:    options.ServerKey,
+		tlsPin:       options.TLSFingerprint,
+		logger:       options.Logger,
+		clock:        options.Clock,
+		cookiePath:   cookiePath(options.BasePath),
+		publicURL:    options.PublicURL,
+		maxFileBytes: maxFileBytes(options.MaxFileBytes),
 	}
 
 	mux := http.NewServeMux()
@@ -75,6 +79,7 @@ func NewRouter(options RouterOptions) http.Handler {
 	h.addMachineRoutes(mux)
 	h.addDockerRoutes(mux)
 	h.addStorageRoutes(mux)
+	h.addFileRoutes(mux)
 	mux.HandleFunc("/api/", handleUnknownAPIRoute)
 	mux.Handle("/", options.WebUI)
 	return mux
@@ -184,4 +189,11 @@ func cookiePath(basePath string) string {
 // rather than letting them fall through to the web UI's HTML page.
 func handleUnknownAPIRoute(w http.ResponseWriter, r *http.Request) {
 	writeError(w, http.StatusNotFound, errorCodeNotFound, "There is no API endpoint at this address.")
+}
+
+func maxFileBytes(configured int64) int64 {
+	if configured <= 0 {
+		return 10 << 30
+	}
+	return configured
 }

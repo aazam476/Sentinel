@@ -46,7 +46,12 @@ type Config struct {
 	TrustedProxies []netip.Prefix
 	// TLS holds the HTTPS settings.
 	TLS TLS
+	// MaxFileBytes is the largest file the file manager moves (§9.7).
+	MaxFileBytes int64
 }
+
+// DefaultMaxFileGB is the file manager's size limit when none is set.
+const DefaultMaxFileGB = 10
 
 // TLS is the validated [tls] table.
 type TLS struct {
@@ -85,6 +90,9 @@ func (file File) Resolve() (Config, error) {
 	if err := validateTransport(config); err != nil {
 		return Config{}, err
 	}
+	if config.MaxFileBytes, err = maxFileBytes(file.Files.MaxSizeGB); err != nil {
+		return Config{}, err
+	}
 
 	return config, nil
 }
@@ -94,4 +102,15 @@ func valueOrDefault(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+// maxFileBytes checks files.max_size_gb, from 1 to 1,024 gigabytes.
+func maxFileBytes(gigabytes int64) (int64, error) {
+	switch {
+	case gigabytes == 0:
+		return DefaultMaxFileGB << 30, nil
+	case gigabytes < 0 || gigabytes > 1024:
+		return 0, fmt.Errorf("files.max_size_gb: %d isn't between 1 and 1024", gigabytes)
+	}
+	return gigabytes << 30, nil
 }

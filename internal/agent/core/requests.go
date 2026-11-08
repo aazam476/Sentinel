@@ -40,6 +40,7 @@ func (c *connection) handlers() map[string]handler {
 	maps.Copy(handlers, c.dockerHandlers())
 	maps.Copy(handlers, c.stackHandlers())
 	maps.Copy(handlers, c.storageHandlers())
+	maps.Copy(handlers, c.fileHandlers())
 	return handlers
 }
 

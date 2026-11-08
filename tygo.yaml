@@ -26,6 +26,7 @@ packages:
     include_files:
       - "payloads_docker.go"
       - "payloads_storage.go"
+      - "payloads_files.go"
     type_mappings:
       json.RawMessage: "unknown"
     frontmatter: |

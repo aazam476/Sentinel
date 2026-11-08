@@ -33,6 +33,15 @@ type File struct {
 	TrustedProxies []string `toml:"trusted_proxies"`
 	// TLS configures HTTPS.
 	TLS TLSFile `toml:"tls"`
+	// Files configures the file manager.
+	Files FilesFile `toml:"files"`
+}
+
+// FilesFile is the [files] table of server.toml.
+type FilesFile struct {
+	// MaxSizeGB is the largest file that can be uploaded or downloaded, in
+	// gigabytes (2^30 bytes). 0 means the default, 10.
+	MaxSizeGB int64 `toml:"max_size_gb"`
 }
 
 // TLSFile is the [tls] table of server.toml.

@@ -210,6 +210,7 @@ func buildHandler(options Options, built services) (http.Handler, error) {
 		Clock:          options.Clock,
 		BasePath:       settings.BasePath,
 		PublicURL:      settings.PublicURL,
+		MaxFileBytes:   settings.MaxFileBytes,
 	})
 	handler = middleware.RequireSameOrigin(handler, settings.PublicURL)
 	handler = withAgentEndpoint(handler, built.hub)

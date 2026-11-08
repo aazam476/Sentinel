@@ -344,3 +344,28 @@ func assertError(t *testing.T, err error, wantErr string) {
 		t.Fatalf("Resolve error = %v, want one containing %q", err, wantErr)
 	}
 }
+
+func TestResolveMaxFileSize(t *testing.T) {
+	tests := []struct {
+		name      string
+		gigabytes int64
+		want      int64
+		wantErr   bool
+	}{
+		{name: "defaults to 10 GB", gigabytes: 0, want: 10 << 30},
+		{name: "takes a size in gigabytes", gigabytes: 100, want: 100 << 30},
+		{name: "rejects a negative size", gigabytes: -1, wantErr: true},
+		{name: "rejects more than 1 TB", gigabytes: 1025, wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resolved, err := config.File{Files: config.FilesFile{MaxSizeGB: test.gigabytes}}.Resolve()
+			if (err != nil) != test.wantErr {
+				t.Fatalf("error = %v, want error %v", err, test.wantErr)
+			}
+			if err == nil && resolved.MaxFileBytes != test.want {
+				t.Errorf("MaxFileBytes = %d, want %d", resolved.MaxFileBytes, test.want)
+			}
+		})
+	}
+}

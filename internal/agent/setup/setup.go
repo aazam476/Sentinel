@@ -159,6 +159,11 @@ const starterPolicy = `# Sentinel agent policy (SEC-22). The server can't change
 # [docker]
 # socket     = "unix:///run/podman/podman.sock"
 # stacks_dir = "/opt/sentinel/stacks"
+
+# Limit the file manager to these folders and what is inside them; without
+# this it can reach the whole file system.
+# [files]
+# allowed_paths = ["/srv", "/home"]
 `
 
 func (options Options) writeStarterPolicy() error {

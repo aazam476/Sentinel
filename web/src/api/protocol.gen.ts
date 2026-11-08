@@ -450,6 +450,224 @@ export interface StackSavePayload {
 }
 
 //////////
+// source: payloads_files.go
+
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileList = "file.list";
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileStat = "file.stat";
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileRead = "file.read";
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileMkdir = "file.mkdir";
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileRename = "file.rename";
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileDelete = "file.delete";
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileReadText = "file.text.read";
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileWriteText = "file.text.write";
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileUploadBegin = "file.upload.begin";
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileUploadWrite = "file.upload.write";
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileUploadFinish = "file.upload.finish";
+/**
+ * File actions (§9.7). File data moves in chunks of at most
+ * MaxFileChunk bytes, one request each, so a transfer goes as fast as its
+ * slowest side and can resume from any offset (ADR 0023).
+ */
+export const ActionFileUploadCancel = "file.upload.cancel";
+/**
+ * MaxFileChunk is the most file data one request carries. Base64 makes it
+ * a third bigger, which still fits in MaxMessageSize.
+ */
+export const MaxFileChunk = 512 << 10;
+/**
+ * MaxTextFile is the largest file the browser can view and edit (§9.7).
+ */
+export const MaxTextFile = 1 << 20;
+/**
+ * FilePathPayload names one file or folder. An empty path on file.list
+ * lists the starting points: the allowed folders, or the file system's
+ * roots (/, or each drive on Windows).
+ */
+export interface FilePathPayload {
+  path: string;
+}
+/**
+ * FileEntry is one file or folder.
+ */
+export interface FileEntry {
+  name: string;
+  path: string;
+  /**
+   * Type is "file", "dir", "symlink" or "other" (devices, sockets).
+   */
+  type: string;
+  /**
+   * SizeBytes is a file's size; 0 for folders.
+   */
+  sizeBytes: number /* uint64 */;
+  /**
+   * Mode is the permissions as ls shows them, e.g. "-rw-r--r--".
+   */
+  mode: string;
+  /**
+   * Modified is UTC Unix milliseconds.
+   */
+  modified: number /* int64 */;
+  /**
+   * Target is where a symbolic link points.
+   */
+  target?: string;
+}
+/**
+ * FileListResultPayload answers file.list.
+ */
+export interface FileListResultPayload {
+  /**
+   * Path is the folder listed, cleaned; empty for the starting points.
+   */
+  path: string;
+  /**
+   * Parent is the folder above, or empty at a starting point.
+   */
+  parent: string;
+  entries: FileEntry[];
+  /**
+   * Truncated is set when the folder held more entries than were sent.
+   */
+  truncated: boolean;
+}
+/**
+ * FileReadPayload asks for part of a file.
+ */
+export interface FileReadPayload {
+  path: string;
+  offset: number /* uint64 */;
+  /**
+   * Length is at most MaxFileChunk.
+   */
+  length: number /* uint32 */;
+}
+/**
+ * FileChunkPayload is part of a file, and its size and modification time
+ * when read, so a download can tell if the file changed underneath it.
+ */
+export interface FileChunkPayload {
+  data: string /* []byte */;
+  sizeBytes: number /* uint64 */;
+  modified: number /* int64 */;
+}
+/**
+ * FileRenamePayload moves or renames a file or folder.
+ */
+export interface FileRenamePayload {
+  from: string;
+  to: string;
+}
+/**
+ * FileDeletePayload deletes a file, or a folder with Recursive.
+ */
+export interface FileDeletePayload {
+  path: string;
+  recursive: boolean;
+}
+/**
+ * FileTextPayload is a text file's content, read or to be written.
+ */
+export interface FileTextPayload {
+  path: string;
+  content: string;
+  /**
+   * Modified, when writing, is the modification time the browser read;
+   * the write is refused if the file changed since. 0 creates a file.
+   */
+  modified: number /* int64 */;
+}
+/**
+ * FileUploadBeginPayload starts, or resumes, an upload.
+ */
+export interface FileUploadBeginPayload {
+  path: string;
+  sizeBytes: number /* uint64 */;
+  /**
+   * Overwrite replaces an existing file at Path.
+   */
+  overwrite: boolean;
+}
+/**
+ * FileUploadPayload is an upload in progress, with how much the agent
+ * has stored.
+ */
+export interface FileUploadPayload {
+  uploadId: string;
+  receivedBytes: number /* uint64 */;
+}
+/**
+ * FileUploadWritePayload adds a chunk to an upload, at Offset, which must
+ * be what the agent has received so far.
+ */
+export interface FileUploadWritePayload {
+  uploadId: string;
+  offset: number /* uint64 */;
+  data: string /* []byte */;
+}
+/**
+ * FileUploadIDPayload names an upload, to finish or cancel it.
+ */
+export interface FileUploadIDPayload {
+  uploadId: string;
+}
+
+//////////
 // source: payloads_storage.go
 
 /**
