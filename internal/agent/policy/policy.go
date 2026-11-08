@@ -42,11 +42,26 @@ func Capabilities() []string {
 // Policy is the parsed policy file.
 type Policy struct {
 	disabled []string
+	// Docker holds the machine's Docker settings; empty fields use the
+	// defaults.
+	Docker DockerSettings
+}
+
+// DockerSettings are where the agent finds Docker and keeps stacks (§9.4).
+// They are local settings, like the capabilities: the server can't move
+// the agent to another socket or folder.
+type DockerSettings struct {
+	// Socket is the Docker or Podman API socket, such as
+	// unix:///run/podman/podman.sock.
+	Socket string `toml:"socket"`
+	// StacksDir holds one folder per compose stack.
+	StacksDir string `toml:"stacks_dir"`
 }
 
 // file is the policy file's TOML layout.
 type file struct {
 	Capabilities map[string]bool `toml:"capabilities"`
+	Docker       DockerSettings  `toml:"docker"`
 }
 
 // Allows reports whether the policy allows a capability.
@@ -108,7 +123,7 @@ func Parse(text string) (Policy, error) {
 		}
 		return Policy{}, fmt.Errorf("unknown setting %s", strings.Join(keys, ", "))
 	}
-	var policy Policy
+	policy := Policy{Docker: parsed.Docker}
 	for name, allowed := range parsed.Capabilities {
 		if !slices.Contains(Capabilities(), name) {
 			return Policy{}, fmt.Errorf("unknown capability %q; the capabilities are %s", name, strings.Join(Capabilities(), ", "))

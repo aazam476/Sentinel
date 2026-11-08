@@ -1,0 +1,1 @@
+{"type":"request","id":"01JBX3K5Q7Z8M4N6P8R0T2V4WJ","action":"docker.container.logs","payload":{"id":"web","tail":500,"since":1794135600000}}

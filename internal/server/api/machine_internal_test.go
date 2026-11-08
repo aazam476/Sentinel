@@ -29,6 +29,8 @@ func TestWriteAgentError(t *testing.T) {
 		{"a request the agent found invalid", &protocol.Error{Code: protocol.ErrorInvalidRequest}, http.StatusBadRequest, errorCodeInvalidInput},
 		{"a system the agent can't do it on", &protocol.Error{Code: protocol.ErrorUnsupportedPlatform}, http.StatusNotImplemented, errorCodeUnsupported},
 		{"an agent too old to know the action", &protocol.Error{Code: protocol.ErrorUnknownAction}, http.StatusNotImplemented, errorCodeUnsupported},
+		{"a state Docker refuses in", &protocol.Error{Code: protocol.ErrorConflict}, http.StatusConflict, errorCodeConflict},
+		{"a machine without Docker", &protocol.Error{Code: protocol.ErrorDockerUnavailable}, http.StatusServiceUnavailable, errorCodeNoDocker},
 		{"a failure on the machine", &protocol.Error{Code: protocol.ErrorInternal, Message: "systemctl: exit status 1"}, http.StatusBadGateway, errorCodeAgentFailed},
 		{"a failure on the server", errors.New("encode: broken"), http.StatusInternalServerError, errorCodeInternal},
 	}

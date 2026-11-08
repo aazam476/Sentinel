@@ -19,6 +19,8 @@ const (
 	errorCodeMachineTimeout = "machine_timeout"
 	errorCodeUnsupported    = "unsupported"
 	errorCodeAgentFailed    = "agent_failed"
+	errorCodeConflict       = "conflict"
+	errorCodeNoDocker       = "docker_unavailable"
 )
 
 // onlineMachine finds the machine in the path and checks it is online,
@@ -69,6 +71,10 @@ func agentErrorStatus(code protocol.ErrorCode) (int, string) {
 		return http.StatusBadRequest, errorCodeInvalidInput
 	case protocol.ErrorUnsupportedPlatform, protocol.ErrorUnknownAction:
 		return http.StatusNotImplemented, errorCodeUnsupported
+	case protocol.ErrorConflict:
+		return http.StatusConflict, errorCodeConflict
+	case protocol.ErrorDockerUnavailable:
+		return http.StatusServiceUnavailable, errorCodeNoDocker
 	default:
 		return http.StatusBadGateway, errorCodeAgentFailed
 	}

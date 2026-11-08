@@ -22,6 +22,12 @@ const (
 	ErrorUnknownAction ErrorCode = "unknown_action"
 	// ErrorInternal: something unexpected failed; details are in the log.
 	ErrorInternal ErrorCode = "internal"
+	// ErrorConflict: the thing is in a state that doesn't allow this, such
+	// as removing a running container.
+	ErrorConflict ErrorCode = "conflict"
+	// ErrorDockerUnavailable: the agent found no Docker (or Podman) socket,
+	// or couldn't talk to it.
+	ErrorDockerUnavailable ErrorCode = "docker_unavailable"
 )
 
 // Error is the error of a failed response.

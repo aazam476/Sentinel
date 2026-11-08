@@ -119,6 +119,17 @@ func TestSEC22_APolicyFileThatCantBeTrustedStopsTheAgent(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
+	t.Run("reads where Docker's socket and the stacks are", func(t *testing.T) {
+		parsed, err := policy.Parse("[docker]\nsocket = \"unix:///run/podman/podman.sock\"\nstacks_dir = \"/srv/stacks\"\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := policy.DockerSettings{Socket: "unix:///run/podman/podman.sock", StacksDir: "/srv/stacks"}
+		if parsed.Docker != want || !parsed.Allows(policy.Docker) {
+			t.Errorf("parsed = %+v", parsed)
+		}
+	})
+
 	t.Run("an empty file allows everything", func(t *testing.T) {
 		loaded, err := policy.Parse("# nothing switched off\n")
 		if err != nil || !loaded.Allows(policy.Power) {

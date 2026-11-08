@@ -5,6 +5,7 @@ package core
 import (
 	"context"
 	"errors"
+	"maps"
 
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/agent/power"
@@ -19,7 +20,7 @@ type handler func(ctx context.Context, request protocol.Message) (any, *protocol
 // handlers lists every action the agent answers. Each one that does
 // something on the machine checks the local policy first (SEC-22).
 func (c *connection) handlers() map[string]handler {
-	return map[string]handler{
+	handlers := map[string]handler{
 		protocol.ActionSystemInfo:     c.systemInfo,
 		protocol.ActionTerminalOpen:   c.openTerminal,
 		protocol.ActionTerminalResize: c.resizeTerminal,
@@ -36,6 +37,8 @@ func (c *connection) handlers() map[string]handler {
 		protocol.ActionSystemReboot:   c.power(power.Reboot),
 		protocol.ActionSystemShutdown: c.power(power.Shutdown),
 	}
+	maps.Copy(handlers, c.dockerHandlers())
+	return handlers
 }
 
 // answer handles one request from the server and sends the response.

@@ -1,0 +1,1 @@
+{"type":"request","id":"01JBX3K5Q7Z8M4N6P8R0T2V4WK","action":"docker.image.pull","payload":{"reference":"ghcr.io/acme/app:2.1","auth":{"serverAddress":"ghcr.io","username":"acme-bot","password":"example-not-a-real-token"}}}

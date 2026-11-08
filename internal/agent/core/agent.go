@@ -17,6 +17,7 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/aazam476/sentinel/internal/agent/command"
+	"github.com/aazam476/sentinel/internal/agent/docker"
 	"github.com/aazam476/sentinel/internal/agent/identity"
 	"github.com/aazam476/sentinel/internal/agent/logs"
 	"github.com/aazam476/sentinel/internal/agent/policy"
@@ -72,6 +73,9 @@ type Options struct {
 	Logs      logs.Reader
 	Processes Processes
 	Power     Power
+	// Docker manages containers (§9.4); nil uses the engine the local
+	// policy names, or the usual sockets.
+	Docker Docker
 	// Observe, if set, is told when the agent reaches each Event. Tests
 	// use it to know when to move their fake clock.
 	Observe func(Event)
@@ -81,6 +85,23 @@ type Options struct {
 type Processes interface {
 	List(ctx context.Context) (protocol.ProcessListPayload, error)
 	Kill(ctx context.Context, request protocol.ProcessKillPayload) error
+}
+
+// Docker manages containers, images, volumes and networks
+// (internal/agent/docker).
+type Docker interface {
+	Containers(ctx context.Context) (protocol.ContainerListPayload, error)
+	DoContainer(ctx context.Context, action docker.ContainerAction, request protocol.ContainerPayload) error
+	Inspect(ctx context.Context, id string) (protocol.ContainerInspectPayload, error)
+	Logs(ctx context.Context, request protocol.ContainerLogsPayload) (protocol.ContainerLogsResultPayload, error)
+	Images(ctx context.Context) (protocol.ImageListPayload, error)
+	Pull(ctx context.Context, request protocol.ImageRefPayload) (protocol.ImagePulledPayload, error)
+	RemoveImage(ctx context.Context, request protocol.ImageRefPayload) error
+	CheckImage(ctx context.Context, request protocol.ImageRefPayload) (protocol.ImageCheckPayload, error)
+	Volumes(ctx context.Context) (protocol.VolumeListPayload, error)
+	RemoveVolume(ctx context.Context, name string) error
+	Networks(ctx context.Context) (protocol.NetworkListPayload, error)
+	RemoveNetwork(ctx context.Context, name string) error
 }
 
 // Power reboots and shuts down the machine (internal/agent/power).
@@ -156,6 +177,9 @@ func withMachineDefaults(options *Options) {
 	}
 	if options.Power == nil {
 		options.Power = power.New(runtime.GOOS, runner, options.Clock)
+	}
+	if options.Docker == nil {
+		options.Docker = docker.New(options.Policy.Docker.Socket, runtime.GOOS)
 	}
 }
 

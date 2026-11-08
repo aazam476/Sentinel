@@ -1,0 +1,1 @@
+{"type":"response","id":"01JBX3K5Q7Z8M4N6P8R0T2V4WM","error":{"code":"docker_unavailable","message":"Docker wasn’t found on this machine: docker not detected (looked for unix:///var/run/docker.sock, unix:///run/podman/podman.sock)"}}

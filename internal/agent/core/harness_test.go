@@ -239,6 +239,7 @@ func (s *server) runAgentWith(state identity.State, key ed25519.PrivateKey, loca
 		Observe:  func(event core.Event) { running.events <- event },
 		Shells:   s.shells,
 		Services: s.machine.Services, Logs: s.machine.Logs, Processes: s.machine.Processes, Power: s.machine.Power,
+		Docker: s.machine.Docker,
 	})
 	ctx, cancel := context.WithCancel(s.t.Context())
 	done := make(chan struct{})
