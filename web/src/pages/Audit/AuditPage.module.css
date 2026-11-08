@@ -1,0 +1,148 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-title);
+}
+
+.text {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.exports {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.exportLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  color: var(--color-text);
+  font-weight: 550;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.verify {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.verifyResult {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.valid {
+  color: var(--color-success);
+}
+
+.invalid {
+  color: var(--color-danger);
+  font-weight: 550;
+}
+
+.list {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.rowMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.action {
+  font-family: var(--font-family-mono);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.outcome {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-muted);
+  font-size: var(--font-size-small);
+}
+
+.failure,
+.denied {
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.rowMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.details {
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .exportLink:hover {
+    background: var(--color-surface-muted);
+  }
+}
+
+/* The same press feedback as Button, for controls that aren't Buttons. */
+.exportLink {
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.exportLink:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exportLink {
+    transition: none;
+  }
+
+  .exportLink:active {
+    transform: none;
+  }
+}

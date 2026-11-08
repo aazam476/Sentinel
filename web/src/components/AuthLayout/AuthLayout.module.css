@@ -1,0 +1,53 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* A first screen: the small viewport height never ends up under the URL bar. */
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  padding-top: calc(var(--space-5) + env(safe-area-inset-top, 0px));
+  padding-right: calc(var(--space-4) + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(var(--space-4) + env(safe-area-inset-left, 0px));
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 26rem;
+  min-width: 0;
+  padding: var(--space-6) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.wordmark {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-title);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.description {
+  margin-top: calc(-1 * var(--space-2));
+  color: var(--color-text-muted);
+  /* Usernames have no spaces to wrap at. */
+  overflow-wrap: anywhere;
+}
+
+.description p {
+  margin: 0;
+}

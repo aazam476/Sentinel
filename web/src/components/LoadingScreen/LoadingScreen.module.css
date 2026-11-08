@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+}
+
+.text {
+  color: var(--color-text-muted);
+}

@@ -1,0 +1,13 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/*
+ * Toast colors with enough contrast for WCAG AA (4.5:1). Sonner's own rich
+ * colors are lighter than that in the light theme. Loaded after Sonner's
+ * stylesheet, so these win.
+ */
+[data-sonner-toaster][data-sonner-theme='light'] {
+  --success-text: #136c34;
+  --error-text: #b42318;
+  --warning-text: #8a4600;
+  --info-text: #1d4ed8;
+}

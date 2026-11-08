@@ -12,8 +12,10 @@ for terminals, Docker, ZFS-aware storage views and remote desktop.
   override.
 - **Readable code.** A student should be able to open any file and understand it.
 
-> **Status: early development.** Nothing is usable yet. The project is being built
-> milestone by milestone towards a single beta release, `v0.1.0-beta.1`.
+> **Status: early development.** The server, first-boot setup, sign-in with mandatory
+> two-factor authentication (TOTP or passkeys) and the audit log work; managing machines
+> doesn't yet. The project is being built milestone by milestone towards a single beta
+> release, `v0.1.0-beta.1`.
 
 ## Quick start (development)
 

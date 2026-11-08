@@ -103,7 +103,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/protocol/` | Message types shared by server and agent | Planned |
 | `internal/server/{hub,relay,metrics,alerts,scheduler}/` | The rest of the server | Planned |
 | `internal/agent/<feature>/` | One package per agent feature (terminal, docker, zfs, ...) | Planned |
-| `web/` | The React web UI | Placeholder page |
+| `web/` | The React web UI | Setup, sign-in, account, audit log |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |
 

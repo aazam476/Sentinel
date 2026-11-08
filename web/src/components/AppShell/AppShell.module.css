@@ -1,0 +1,128 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  padding-top: calc(var(--space-3) + env(safe-area-inset-top, 0px));
+  padding-right: calc(var(--space-4) + env(safe-area-inset-right, 0px));
+  padding-bottom: var(--space-3);
+  padding-left: calc(var(--space-4) + env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.wordmark {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* On a phone the links get their own row and scroll sideways if needed. */
+.nav {
+  display: flex;
+  gap: var(--space-1);
+  order: 3;
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-medium);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.active {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font-weight: 550;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  min-width: 0;
+}
+
+.username {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.signOut {
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding-top: var(--space-6);
+  padding-right: calc(var(--space-4) + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(var(--space-4) + env(safe-area-inset-left, 0px));
+  min-width: 0;
+}
+
+@media (min-width: 40rem) {
+  .nav {
+    order: 0;
+    width: auto;
+  }
+
+  .user {
+    margin-left: auto;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link:hover,
+  .signOut:hover {
+    background: var(--color-surface-muted);
+  }
+}
+
+/* The same press feedback as Button, for controls that aren't Buttons. */
+.signOut {
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.signOut:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signOut {
+    transition: none;
+  }
+
+  .signOut:active {
+    transform: none;
+  }
+}

@@ -185,11 +185,11 @@ func (h *harness) auditActions(t *testing.T) []string {
 }
 
 // queryString reads one string value from the database.
-func (h *harness) queryString(t *testing.T, query string, args ...any) string {
+func (h *harness) queryString(t *testing.T, query string) string {
 	t.Helper()
 	var value string
 	err := h.database.store.Read(context.Background(), func(tx *sql.Tx) error {
-		return tx.QueryRowContext(t.Context(), query, args...).Scan(&value)
+		return tx.QueryRowContext(t.Context(), query).Scan(&value)
 	})
 	if err != nil {
 		t.Fatalf("query %q: %v", query, err)

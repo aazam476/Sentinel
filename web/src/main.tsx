@@ -5,6 +5,8 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './styles/tokens.css';
 import './styles/global.css';
+import 'sonner/dist/styles.css';
+import './styles/toasts.css';
 
 const rootElement = document.getElementById('root');
 if (rootElement === null) {

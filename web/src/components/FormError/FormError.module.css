@@ -1,0 +1,10 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.error {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-medium);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+  overflow-wrap: anywhere;
+}

@@ -32,6 +32,12 @@ anything GPL-family.
 |---|---|---|---|---|
 | react | 19.3.1 | MIT | Component model for the web UI | The chosen UI framework; hand-written DOM code wouldn't stay readable |
 | react-dom | 19.3.1 | MIT | Renders React components into the page | Required by React in the browser |
+| react-router | 8.5.1 | MIT | Pages and URLs in the web UI | The browser has no router; hand-written history handling is easy to get wrong |
+| @tanstack/react-query | 5.107.1 | MIT | Fetching, caching and refreshing server data; loading and error states | Hand-written fetch-and-cache code in every component would be inconsistent and buggy |
+| @base-ui/react | 1.9.0 | MIT | Accessible dialogs and other primitives, unstyled | Focus trapping, keyboard handling and ARIA for dialogs are hard to get right by hand |
+| sonner | 2.0.8 | MIT | Toasts for action results ("Passkey added") | Stacking, swiping and timing toasts accessibly is a library's worth of work |
+| clsx | 2.1.1 | MIT | Joining conditional CSS Module class names | Tiny and clearer than string concatenation |
+| react-virtuoso | 4.18.20 | MIT | Rendering only the visible rows of long lists (the audit log) | Rendering thousands of rows at once makes the page slow |
 
 ## Web UI: build and test tools (never shipped)
 
@@ -58,6 +64,8 @@ anything GPL-family.
 | eslint-plugin-react-refresh | 0.5.7 | MIT | Keeps components compatible with hot reload | Prevents confusing hot-reload failures |
 | globals | 17.14.0 | MIT | Lists of browser and Node global names for ESLint | Needed by ESLint's flat config |
 | prettier | 3.9.10 | MIT | Code formatting | Ends formatting debates; CI checks it |
+| msw | 2.15.0 | MIT | Answers the UI's API calls in component tests, typed from the generated API types | Mocking `fetch` by hand per test drifts from the real API |
+| @testing-library/user-event | 14.6.8 | MIT | Typing and clicking in component tests the way a person does | `fireEvent` skips the events real input produces |
 
 ## Bundled data
 

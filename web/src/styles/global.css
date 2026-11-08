@@ -49,3 +49,23 @@ a,
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* One visible focus style for every control, keyboard users first. */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+a {
+  color: var(--color-accent);
+}
+
+/* Visually hidden but read by screen readers. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

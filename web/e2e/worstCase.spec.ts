@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: Apache-2.0
+import { expect, test, type Page } from '@playwright/test';
+
+import {
+  worstAuditEntries,
+  worstPasskeys,
+  worstSession,
+  worstSessions,
+} from '../src/test/fixtures/worst-case/fixtures';
+import { expectAccessible, expectNoHorizontalScroll } from './helpers';
+
+/**
+ * Renders every screen that shows server data with the worst-case fixtures
+ * (longest names, unbreakable strings, right-to-left text, 1,200 audit
+ * entries) by answering the API from the fixtures, and checks in a real
+ * browser that nothing sticks out of the viewport and nothing is cut short
+ * without a tooltip.
+ */
+async function serveWorstCase(page: Page) {
+  const responses: Record<string, unknown> = {
+    'setup/status': { setupRequired: false },
+    'auth/session': worstSession,
+    'auth/passkeys': { passkeys: worstPasskeys },
+    'auth/sessions': { sessions: worstSessions },
+    audit: { entries: worstAuditEntries(), nextBefore: null },
+  };
+  await page.route('**/api/**', (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api\//, '');
+    const body = responses[path];
+    return body === undefined
+      ? route.fulfill({
+          status: 404,
+          json: { error: { code: 'not_found', message: 'not mocked' } },
+        })
+      : route.fulfill({ json: body });
+  });
+}
+
+/** expectNothingCutWithoutTooltip finds ellipsis-truncated text without a title. */
+async function expectNothingCutWithoutTooltip(page: Page) {
+  const cut = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('body *')]
+      .filter(
+        (element) =>
+          getComputedStyle(element).textOverflow === 'ellipsis' &&
+          element.scrollWidth > element.clientWidth,
+      )
+      .filter((element) => element.title === '')
+      .map((element) => element.textContent),
+  );
+  expect(cut).toEqual([]);
+}
+
+const screens = [
+  { path: '/', ready: /Welcome/ },
+  { path: '/account', ready: 'Passkeys' },
+  { path: '/audit', ready: 'Audit log' },
+];
+
+for (const screen of screens) {
+  test(`worst-case data fits on ${screen.path}`, async ({ page }) => {
+    await serveWorstCase(page);
+    await page.goto(screen.path);
+    await expect(page.getByRole('heading', { name: screen.ready }).first()).toBeVisible();
+
+    await expectNoHorizontalScroll(page);
+    await expectNothingCutWithoutTooltip(page);
+    await expectAccessible(page);
+  });
+}
+
+test('worst-case username fits on the second-factor step', async ({ page }) => {
+  await serveWorstCase(page);
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({ json: { ...worstSession, state: 'second_factor', stepUpValidUntil: null } }),
+  );
+  await page.goto('/login/verify');
+  await expect(page.getByRole('heading', { name: 'Confirm it’s you' })).toBeVisible();
+
+  await expectNoHorizontalScroll(page);
+  await expectAccessible(page);
+});
