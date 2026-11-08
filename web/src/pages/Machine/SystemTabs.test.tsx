@@ -62,7 +62,15 @@ describe('machine tabs', () => {
     withMachine();
     renderApp(base);
     await screen.findByRole('heading', { name: nasDetails.name });
-    expect(tabs()).toEqual(['Overview', 'Terminal', 'Services', 'Processes', 'Logs', 'Docker']);
+    expect(tabs()).toEqual([
+      'Overview',
+      'Terminal',
+      'Services',
+      'Processes',
+      'Logs',
+      'Storage',
+      'Docker',
+    ]);
     expect(screen.getByRole('button', { name: 'Reboot' })).toBeEnabled();
   });
 
@@ -71,7 +79,7 @@ describe('machine tabs', () => {
     withMachine();
     renderApp(base);
     await screen.findByRole('heading', { name: nasDetails.name });
-    expect(tabs()).toEqual(['Overview', 'Services', 'Logs', 'Docker']);
+    expect(tabs()).toEqual(['Overview', 'Services', 'Logs', 'Storage', 'Docker']);
     expect(screen.queryByRole('button', { name: 'Reboot' })).not.toBeInTheDocument();
   });
 

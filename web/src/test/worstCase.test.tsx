@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http } from 'msw';
 
 import type { AuditEntriesResponse } from '../api/types.gen';
@@ -20,6 +21,7 @@ import {
   worstSession,
   worstSessions,
   worstStacks,
+  worstStorage,
 } from './fixtures/worst-case/fixtures';
 import { renderApp } from './renderApp';
 import { apiPath, json, server, signedInAs } from './server';
@@ -195,6 +197,32 @@ describe('worst-case data', () => {
     expect(await within(stacksView).findByText('120 of 124 containers running')).toBeVisible();
     expect(within(stacksView).getByText('Not running')).toBeVisible();
   });
+
+  it('storage: a FAULTED pool’s long status, petabytes, 1,503 datasets, a 24-wide dRAID', async () => {
+    signedInAs(worstSession);
+    server.use(
+      http.get(apiPath(`agents/${worstMachine.id}`), () =>
+        json({ ...worstMachine, capabilities: [] }),
+      ),
+      http.get(apiPath(`agents/${worstMachine.id}/storage`), () => json(worstStorage())),
+      http.get(apiPath(`agents/${worstMachine.id}/alerts`), () => json({ alerts: [] })),
+    );
+    const user = userEvent.setup();
+    const { container } = renderApp(`/machines/${worstMachine.id}/storage`);
+    const pool = await screen.findByRole('article', { name: /^Pool northwind-/ });
+    expect(within(pool).getByText('FAULTED')).toBeVisible();
+    expect(within(pool).getAllByText('5 PB')).toHaveLength(2);
+    expect(screen.getByText(/4,294,967,295 checksum$/)).toBeVisible();
+    expect(await findAccessibilityViolations(container)).toEqual([]);
+
+    // Docker's ZFS driver makes thousands of datasets; 200 show at first.
+    const datasets = screen.getByRole('region', { name: 'Datasets' });
+    const rows = () => datasets.querySelectorAll('li').length;
+    expect(rows()).toBe(200);
+    await user.click(within(datasets).getByRole('button', { name: 'Show all 1,503 datasets' }));
+    expect(rows()).toBe(1503);
+    // Rendering 1,503 rows takes jsdom a few seconds, more on a busy CI runner.
+  }, 30_000);
 
   it('add machine: a 100-character note and a 1,000-use token', async () => {
     signedInAs(worstSession);

@@ -162,6 +162,20 @@
   white-space: nowrap;
 }
 
+/* Firing alerts: the words say it; the color only draws the eye. */
+.alertCount {
+  flex-shrink: 0;
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .meta {
   overflow: hidden;
   color: var(--color-text-muted);

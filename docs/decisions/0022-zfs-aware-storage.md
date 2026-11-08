@@ -53,3 +53,13 @@ reads ZFS, never changes it, and that a test must prove the agent can't run a co
   interval.
 - macOS lists disks only with smartmontools installed; the tab says so.
 - ARC statistics are read on Linux only (`/proc/spl/kstat/zfs/arcstats`).
+
+## The Storage tab
+
+- One page, top to bottom as §9.5 orders it, after any firing storage alerts. Sizes are
+  rounded for reading, in powers of 1,024 as `zfs list -h` shows them, with the exact byte
+  count `zfs list -p` shows in each one's tooltip.
+- The dataset list shows the tree or the largest first. It shows 200 datasets until asked for
+  all: Docker's ZFS storage driver makes a dataset per image layer, which can be thousands.
+- System mounts are hidden behind a "Show system mounts" toggle. Nothing on the tab animates:
+  it refreshes every minute on a page people keep open.

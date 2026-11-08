@@ -11,7 +11,11 @@ import type {
   SessionResponse,
   SessionSummary,
 } from '../../../api/types.gen';
-import type { ContainerListPayload, StackListPayload } from '../../../api/protocol.gen';
+import type {
+  ContainerListPayload,
+  StackListPayload,
+  StorageOverviewPayload,
+} from '../../../api/protocol.gen';
 import { adminSession, fixtureNow } from '../normal/fixtures';
 
 /**
@@ -185,7 +189,7 @@ const base: Agent = {
   lastSeenAt: fixtureNow,
   enrolledAt: fixtureNow - 400 * 86_400_000,
   tags: maxTags,
-  firingAlerts: 0,
+  firingAlerts: 1284,
   current: {
     time: fixtureNow,
     uptimeSeconds: 3_650 * 86_400,
@@ -523,3 +527,190 @@ export const worstStacks: StackListPayload = {
     },
   ],
 };
+
+/** A disk's by-id path as udev names it, for SAS disks behind an expander. */
+const byId = (index: number) =>
+  `/dev/disk/by-id/scsi-SATA_HGST_HUH721212ALE604_8HJ${String(index).padStart(5, '0')}ABCDEFGH-part1`;
+
+const longPool = 'northwind-industries-holdings-archive-pool-for-long-term-retention-2026';
+
+/**
+ * worstStorage: a pool name at 72 characters, a FAULTED pool with zpool's
+ * longest status text, petabyte sizes, a 24-wide dRAID of by-id paths with
+ * million-count errors, 1,503 datasets (Docker's ZFS driver makes one per
+ * layer) nested 12 deep with spaces, 60 disks failing SMART, a mountpoint
+ * of 200 characters and 300 system mounts.
+ */
+export function worstStorage(): StorageOverviewPayload {
+  const members = Array.from({ length: 24 }, (_, index) => ({
+    name: byId(index),
+    kind: 'device',
+    section: 'data',
+    state: index === 3 ? 'UNAVAIL' : index === 7 ? 'FAULTED' : 'ONLINE',
+    readErrors: index === 7 ? 1_284_903 : 0,
+    writeErrors: index === 7 ? 88_201 : 0,
+    checksumErrors: index === 7 ? 4_294_967_295 : 0,
+    note: index === 3 ? `was ${byId(99)}` : undefined,
+  }));
+  const deep = Array.from({ length: 12 }, (_, depth) =>
+    [
+      longPool,
+      ...Array.from(
+        { length: depth + 1 },
+        (_, level) => `level ${String(level)} with spaces and a long name`,
+      ),
+    ].join('/'),
+  );
+  const layers = Array.from(
+    { length: 1_490 },
+    (_, index) => `${longPool}/docker/${index.toString(16).padStart(64, 'f')}`,
+  );
+  return {
+    zfs: { installed: true },
+    pools: [
+      {
+        name: longPool,
+        health: 'FAULTED',
+        sizeBytes: 5 * 1024 ** 5,
+        allocatedBytes: 5 * 1024 ** 5 - 1,
+        freeBytes: 1,
+        dedupRatio: 12.47,
+        compressRatio: 1,
+        scan: {
+          kind: 'resilver',
+          state: 'in_progress',
+          time: fixtureNow - 400 * 86_400_000,
+          errors: 0,
+          text: '',
+        },
+        status:
+          'One or more devices are faulted in response to persistent errors. There are insufficient replicas for the pool to continue functioning. The pool has been suspended because I/O to it failed; applications that use it may hang until it is resumed.',
+        action:
+          'Destroy and re-create the pool from a backup source. Manually marking the device repaired using ‘zpool clear’ may allow some data to be recovered. See https://openzfs.github.io/openzfs-docs/msg/ZFS-8000-JQ for details on the error.',
+        dataErrors:
+          'Permanent errors have been detected in the following files: <metadata>:<0x0> <metadata>:<0x1b>',
+        vdevs: [
+          {
+            name: 'draid2:16d:24c:2s-0',
+            kind: 'draid',
+            section: 'data',
+            state: 'FAULTED',
+            readErrors: 0,
+            writeErrors: 0,
+            checksumErrors: 0,
+            children: members,
+          },
+          {
+            name: byId(500),
+            kind: 'device',
+            section: 'log',
+            state: 'REMOVED',
+            readErrors: 0,
+            writeErrors: 0,
+            checksumErrors: 0,
+          },
+        ],
+      },
+    ],
+    datasets: [
+      {
+        name: longPool,
+        type: 'filesystem',
+        usedBytes: 5 * 1024 ** 5,
+        availableBytes: 0,
+        referencedBytes: 0,
+        snapshotBytes: 0,
+        childrenBytes: 5 * 1024 ** 5,
+        quotaBytes: 0,
+        reservationBytes: 0,
+        volumeSizeBytes: 0,
+        compressRatio: 1,
+        mountpoint: `/mnt/${'archive-of-everything-that-ever-mattered/'.repeat(4)}`.slice(0, 200),
+      },
+      ...deep.map((name, index) => ({
+        name,
+        type: 'filesystem',
+        usedBytes: 1024 ** 4 * (12 - index),
+        availableBytes: 0,
+        referencedBytes: 1024 ** 3,
+        snapshotBytes: 1024 ** 4,
+        childrenBytes: 1024 ** 4,
+        quotaBytes: index === 11 ? 1024 ** 4 : 0,
+        reservationBytes: index === 5 ? 1024 ** 3 : 0,
+        volumeSizeBytes: 0,
+        compressRatio: 3.99,
+        mountpoint: index % 2 === 0 ? '' : `/${name}`,
+      })),
+      ...layers.map((name, index) => ({
+        name,
+        type: index % 100 === 0 ? 'volume' : 'filesystem',
+        usedBytes: index * 4096,
+        availableBytes: 0,
+        referencedBytes: 4096,
+        snapshotBytes: 0,
+        childrenBytes: 0,
+        quotaBytes: 0,
+        reservationBytes: 0,
+        volumeSizeBytes: index % 100 === 0 ? 1024 ** 4 : 0,
+        compressRatio: 1,
+        mountpoint: '',
+      })),
+    ],
+    arc: { sizeBytes: 0, targetMaxBytes: 0, hits: 0, misses: 0 },
+    disks: Array.from({ length: 60 }, (_, index) => ({
+      name: `sd${String.fromCharCode(97 + (index % 26))}${index >= 26 ? String.fromCharCode(97 + Math.floor(index / 26) - 1) : ''}`,
+      path: byId(index).replace('-part1', ''),
+      model:
+        'HGST Ultrastar DC HC520 HUH721212ALE604 Enterprise Helium Platform 12TB SATA 6Gb/s 7200RPM',
+      serial: `8HJ${String(index).padStart(5, '0')}ABCDEFGH0123456789`,
+      sizeBytes: 12 * 1000 ** 4,
+      kind: index % 3 === 0 ? 'unknown' : 'hdd',
+      smart:
+        index % 4 === 0
+          ? undefined
+          : {
+              passed: index % 5 !== 0,
+              temperatureCelsius: 71.5,
+              failing:
+                index % 5 === 0
+                  ? [
+                      'Reallocated_Sector_Ct',
+                      'Current_Pending_Sector',
+                      'Offline_Uncorrectable',
+                      'UDMA_CRC_Error_Count',
+                    ]
+                  : [],
+              warnings: ['Spin_Retry_Count', 'NVMe critical warning 0x1f'],
+            },
+      pool: index < 24 ? longPool : undefined,
+      vdev: index < 24 ? 'draid2:16d:24c:2s-0' : undefined,
+    })),
+    smartAvailable: true,
+    filesystems: [
+      {
+        mount: `/mnt/remote/${'department-of-very-long-folder-names/'.repeat(5)}`.slice(0, 200),
+        device: '//fileserver.northwind-industries-holdings.example.com/Shared Documents (Archive)',
+        type: 'cifs',
+        usedBytes: 1023 * 1024 ** 4,
+        totalBytes: 1024 ** 5,
+        system: false,
+      },
+      {
+        mount: '/',
+        device: '/dev/mapper/ubuntu--vg-ubuntu--lv',
+        type: 'ext4',
+        usedBytes: 0,
+        totalBytes: 1,
+        system: false,
+      },
+      ...Array.from({ length: 300 }, (_, index) => ({
+        mount: `/var/lib/docker/overlay2/${index.toString(16).padStart(64, 'a')}/merged`,
+        device: 'overlay',
+        type: 'overlay',
+        usedBytes: 1,
+        totalBytes: 2,
+        system: true,
+      })),
+    ],
+  };
+}

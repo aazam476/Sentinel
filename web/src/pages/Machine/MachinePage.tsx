@@ -89,6 +89,7 @@ function MachineTabs({ session, machine }: MachineContext) {
     { to: 'services', label: 'Services', shown: true },
     { to: 'processes', label: 'Processes', shown: canOperate(session) },
     { to: 'logs', label: 'Logs', shown: true },
+    { to: 'storage', label: 'Storage', shown: allows(machine, 'storage') },
     { to: 'docker', label: 'Docker', shown: allows(machine, 'docker') },
   ];
   return (

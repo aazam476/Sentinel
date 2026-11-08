@@ -125,7 +125,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/stacks/` | Compose stacks: Sentinel's own folder of stacks, and projects started elsewhere | Built |
 | `internal/agent/storage/` | ZFS pools, datasets, vdevs and ARC; physical disks with SMART and pool membership; other filesystems. Read-only: zfs and zpool may only list, status and get | Built |
 | `internal/agent/<feature>/` | One package per agent feature (files, scripts, ...) | Planned |
-| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power and Docker |
+| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power, storage and Docker; firing alerts in the fleet |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |
 

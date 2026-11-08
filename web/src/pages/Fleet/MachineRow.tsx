@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { metricNames } from '../../api/metricNames';
 import type { Agent } from '../../api/types.gen';
 import { MachineStatus } from '../../components/MachineStatus/MachineStatus';
-import { formatRelative, formatUptime } from '../../formatting/formatting';
+import { countOf, formatRelative, formatUptime } from '../../formatting/formatting';
 import { MetricMeter } from './MetricMeter';
 import styles from './FleetPage.module.css';
 
@@ -25,6 +25,11 @@ export function MachineRow({ agent, now }: MachineRowProps) {
           <span className={styles.name} title={agent.name}>
             {agent.name}
           </span>
+          {agent.firingAlerts > 0 && (
+            <span className={styles.alertCount}>
+              {countOf(agent.firingAlerts, 'alert', 'alerts')}
+            </span>
+          )}
         </span>
         <span className={styles.meta} title={`${agent.hostname} · ${platform}`}>
           {agent.displayName !== '' && <>{agent.hostname} · </>}

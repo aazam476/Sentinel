@@ -75,6 +75,12 @@ export const routes: RouteObject[] = [
             lazy: async () => ({ Component: (await import('../pages/Machine/LogsTab')).LogsTab }),
           },
           {
+            path: 'storage',
+            lazy: async () => ({
+              Component: (await import('../pages/Machine/storage/StorageTab')).StorageTab,
+            }),
+          },
+          {
             path: 'docker',
             lazy: async () => ({
               Component: (await import('../pages/Machine/docker/DockerTab')).DockerTab,
