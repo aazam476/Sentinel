@@ -48,6 +48,7 @@ func goldenPayloads() map[string]func() any {
 		"request-docker-image-pull.json":      func() any { return &protocol.ImageRefPayload{} },
 		"response-docker-stack-list.json":     func() any { return &protocol.StackListPayload{} },
 		"request-docker-stack-save.json":      func() any { return &protocol.StackSavePayload{} },
+		"request-docker-container-exec.json":  func() any { return &protocol.ContainerExecPayload{} },
 		"response-docker-unavailable.json":    nil,
 	}
 }

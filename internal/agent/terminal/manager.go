@@ -64,6 +64,13 @@ func NewManager(start Starter, clock Clock, logger *slog.Logger) *Manager {
 // Open starts a shell for the stream, or reattaches the stream to a
 // session waiting to be resumed.
 func (m *Manager) Open(request protocol.TerminalOpenPayload, out Output) (protocol.TerminalOpenedPayload, error) {
+	return m.OpenWith(request, out, m.start)
+}
+
+// OpenWith is Open with another way to start the shell, such as a shell in
+// a container. The session is then like any other: input, resizes, closes
+// and resuming go through the same stream.
+func (m *Manager) OpenWith(request protocol.TerminalOpenPayload, out Output, start Starter) (protocol.TerminalOpenedPayload, error) {
 	if request.ResumeSessionID != "" {
 		return m.resume(request, out)
 	}
@@ -73,7 +80,7 @@ func (m *Manager) Open(request protocol.TerminalOpenPayload, out Output) (protoc
 	if full {
 		return protocol.TerminalOpenedPayload{}, ErrTooManySessions
 	}
-	shell, err := m.start(max(request.Cols, 1), max(request.Rows, 1))
+	shell, err := start(max(request.Cols, 1), max(request.Rows, 1))
 	if err != nil {
 		return protocol.TerminalOpenedPayload{}, fmt.Errorf("start a shell: %w", err)
 	}

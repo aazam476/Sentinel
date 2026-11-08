@@ -128,6 +128,9 @@ type ContainerExecPayload struct {
 	Rows     uint16   `json:"rows"`
 	// Command is the program to run, default a shell found in the image.
 	Command []string `json:"command,omitempty"`
+	// ResumeSessionID reattaches to a session whose viewer dropped, as for
+	// terminal.open; the answer is a TerminalOpenedPayload.
+	ResumeSessionID string `json:"resumeSessionId,omitempty"`
 }
 
 // Image is one image on the machine.

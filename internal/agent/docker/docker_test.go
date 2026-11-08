@@ -146,6 +146,34 @@ func TestLogs(t *testing.T) {
 		}
 	})
 
+	t.Run("follows until the log ends", func(t *testing.T) {
+		var lines []string
+		err := newFakeEngine(t).engine().Follow(t.Context(), "web", 1794139200000, func(line protocol.ContainerLogLine) {
+			lines = append(lines, line.Text)
+		})
+		if err != nil || len(lines) != 4 {
+			t.Errorf("lines = %q (%v)", lines, err)
+		}
+		if err := newFakeEngine(t).engine().Follow(t.Context(), "-x", 0, nil); !errors.Is(err, docker.ErrInvalid) {
+			t.Errorf("-x: %v", err)
+		}
+	})
+
+	t.Run("refuses to exec in a container that can't be named", func(t *testing.T) {
+		if _, err := newFakeEngine(t).engine().ExecStarter("../x", nil); !errors.Is(err, docker.ErrInvalid) {
+			t.Errorf("err = %v", err)
+		}
+		fake := newFakeEngine(t)
+		fake.fail("POST /containers/gone/exec", http.StatusNotFound, "No such container: gone")
+		start, err := fake.engine().ExecStarter("gone", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := start(80, 24); !errors.Is(err, docker.ErrNotFound) {
+			t.Errorf("start = %v", err)
+		}
+	})
+
 	t.Run("asks for the tail and start requested", func(t *testing.T) {
 		fake := newFakeEngine(t)
 		if _, err := fake.engine().Logs(t.Context(), protocol.ContainerLogsPayload{ID: "web", Tail: 50, Since: 1794139200500}); err != nil {

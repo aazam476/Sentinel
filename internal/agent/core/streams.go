@@ -46,5 +46,25 @@ func (c *connection) handleStreamClose(message protocol.Message) {
 		c.agent.options.Logger.Debug("the server sent a malformed stream.close", "error", err)
 		return
 	}
+	if stop, following := c.followers.LoadAndDelete(payload.StreamID); following {
+		stop.(context.CancelFunc)() //nolint:forcetypeassert // only follow stores into followers
+		return
+	}
 	c.agent.terminals.StreamClosed(payload)
+}
+
+// follow runs run for a stream until it returns, the server closes the
+// stream, or the connection ends. run's reason, if it ends by itself, is
+// sent to the server as the stream's close reason.
+func (c *connection) follow(connected context.Context, stream protocol.StreamID, run func(ctx context.Context) (reason string)) {
+	ctx, stop := context.WithCancel(connected)
+	c.followers.Store(stream, stop)
+	go func() {
+		defer stop()
+		reason := run(ctx)
+		if _, following := c.followers.LoadAndDelete(stream); following {
+			// The connection's context: if it has ended, there's no one to tell.
+			streamOutput{conn: c}.CloseStream(connected, stream, reason)
+		}
+	}()
 }

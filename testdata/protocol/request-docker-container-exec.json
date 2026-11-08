@@ -1,0 +1,1 @@
+{"type":"request","id":"01JBX3K5Q7Z8M4N6P8R0T2V4WQ","action":"docker.container.exec","payload":{"id":"web","streamId":3,"cols":120,"rows":32}}

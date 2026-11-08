@@ -174,3 +174,18 @@ func parseLine(stream string, raw []byte) protocol.ContainerLogLine {
 	line.Text = strings.ToValidUTF8(line.Text, string(utf8.RuneError))
 	return line
 }
+
+// Follow sends a container's log lines written after since (UTC Unix
+// milliseconds) to emit as they come, until ctx ends or the container
+// stops. It returns nil in both cases.
+func (e *Engine) Follow(ctx context.Context, id string, since int64, emit func(protocol.ContainerLogLine)) error {
+	if err := checkContainer(id); err != nil {
+		return err
+	}
+	options := logsOptions(0, since, true)
+	options.Tail = "0"
+	if err := e.readLogs(ctx, id, options, emit); err != nil {
+		return fmt.Errorf("follow the logs of container %s: %w", id, err)
+	}
+	return nil
+}

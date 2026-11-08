@@ -5,11 +5,13 @@ package core_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/aazam476/sentinel/internal/agent/docker"
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/agent/stacks"
+	"github.com/aazam476/sentinel/internal/agent/terminal"
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/hub"
 )
@@ -19,6 +21,10 @@ import (
 type fakeDocker struct {
 	err  error
 	done chan string
+	// followEnds makes a followed log end by itself, as when the
+	// container stops; otherwise it runs until the stream is closed.
+	followEnds bool
+	followed   chan struct{}
 }
 
 func (d *fakeDocker) record(what string) error {
@@ -72,6 +78,22 @@ func (d *fakeDocker) Networks(context.Context) (protocol.NetworkListPayload, err
 
 func (d *fakeDocker) RemoveNetwork(_ context.Context, name string) error {
 	return d.record("remove network " + name)
+}
+
+func (d *fakeDocker) Follow(ctx context.Context, id string, _ int64, emit func(protocol.ContainerLogLine)) error {
+	emit(protocol.ContainerLogLine{Time: 1, Stream: "stdout", Text: "followed " + id})
+	if !d.followEnds {
+		<-ctx.Done()
+	}
+	close(d.followed)
+	return nil
+}
+
+func (d *fakeDocker) ExecStarter(id string, command []string) (terminal.Starter, error) {
+	if err := d.record("exec " + id + " " + strings.Join(command, " ")); err != nil {
+		return nil, err
+	}
+	return func(uint16, uint16) (terminal.Shell, error) { return newEchoShell(), nil }, nil
 }
 
 // fakeStacks is the stacks side of a fakeDocker, recording into it.
@@ -165,6 +187,69 @@ func TestDockerRequests(t *testing.T) {
 		}
 	})
 
+	t.Run("follows a container's log on a stream until the server closes it", func(t *testing.T) {
+		for _, ends := range []bool{false, true} {
+			fake := &fakeDocker{done: make(chan string, 1), followEnds: ends, followed: make(chan struct{})}
+			s, agentID := startWithDocker(t, fake, policy.Policy{})
+			stored, err := s.fleet.AgentForHandshake(t.Context(), agentID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stream, err := s.hub.OpenStream(t.Context(), stored.ID, protocol.ActionDockerContainerLogs, func(id protocol.StreamID) any {
+				return protocol.ContainerLogsPayload{ID: "web", StreamID: id}
+			}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			<-fake.done
+			if got := string(<-stream.Frames()); got != `{"time":1,"stream":"stdout","text":"followed web"}`+"\n" {
+				t.Errorf("frame = %q", got)
+			}
+			if ends {
+				if reason := stream.Reason(); reason != "the container stopped" {
+					t.Errorf("reason = %q", reason)
+				}
+			} else {
+				stream.Close(t.Context(), "closed by the user")
+			}
+			<-fake.followed
+		}
+	})
+
+	t.Run("runs a shell in a container as a terminal session", func(t *testing.T) {
+		fake := &fakeDocker{done: make(chan string, 1)}
+		s, agentID := startWithDocker(t, fake, policy.Policy{})
+		stored, err := s.fleet.AgentForHandshake(t.Context(), agentID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var opened protocol.TerminalOpenedPayload
+		stream, err := s.hub.OpenStream(t.Context(), stored.ID, protocol.ActionDockerContainerExec, func(id protocol.StreamID) any {
+			return protocol.ContainerExecPayload{ID: "web", StreamID: id, Cols: 80, Rows: 24}
+		}, &opened)
+		if err != nil || opened.SessionID == "" {
+			t.Fatalf("exec = %+v (%v)", opened, err)
+		}
+		if did := <-fake.done; did != "exec web " {
+			t.Errorf("did %q", did)
+		}
+		if err := stream.Write(t.Context(), []byte("ls\r")); err != nil {
+			t.Fatal(err)
+		}
+		if got := string(<-stream.Frames()); got != "you typed: ls\r" {
+			t.Errorf("output = %q", got)
+		}
+		// A session that doesn't exist can't be resumed.
+		_, err = s.hub.OpenStream(t.Context(), stored.ID, protocol.ActionDockerContainerExec, func(id protocol.StreamID) any {
+			return protocol.ContainerExecPayload{ID: "web", StreamID: id, ResumeSessionID: "01JBX3K5Q7Z8M4N6P8R0T2V4W6"}
+		}, nil)
+		<-fake.done
+		var agentErr *protocol.Error
+		if !errors.As(err, &agentErr) || agentErr.Code != protocol.ErrorNotFound {
+			t.Errorf("resume unknown: %v", err)
+		}
+	})
+
 	cases := []struct {
 		name    string
 		action  string
@@ -172,6 +257,7 @@ func TestDockerRequests(t *testing.T) {
 		err     error
 		code    protocol.ErrorCode
 	}{
+		{"a shell that can't start in a container", protocol.ActionDockerContainerExec, protocol.ContainerExecPayload{ID: "web"}, docker.ErrNotFound, protocol.ErrorNotFound},
 		{"no Docker on the machine", protocol.ActionDockerContainerList, nil, docker.ErrUnavailable, protocol.ErrorDockerUnavailable},
 		{"a container that doesn't exist", protocol.ActionDockerContainerStop, protocol.ContainerPayload{ID: "x"}, docker.ErrNotFound, protocol.ErrorNotFound},
 		{"an invalid name", protocol.ActionDockerVolumeRemove, protocol.NamePayload{Name: "x"}, docker.ErrInvalid, protocol.ErrorInvalidRequest},

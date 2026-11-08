@@ -34,6 +34,9 @@ type connection struct {
 	conn  *websocket.Conn
 	// lastActivity is when the server last sent anything, in Unix ms.
 	lastActivity atomic.Int64
+	// followers maps the streams of followed container logs to the
+	// function that stops following.
+	followers sync.Map
 }
 
 // session connects, runs the handshake and serves the connection until it

@@ -4,11 +4,14 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/aazam476/sentinel/internal/agent/docker"
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/agent/stacks"
+	"github.com/aazam476/sentinel/internal/agent/terminal"
 	"github.com/aazam476/sentinel/internal/protocol"
 )
 
@@ -31,8 +34,9 @@ func (c *connection) dockerHandlers() map[string]handler {
 		protocol.ActionDockerContainerInspect: dockerCall(c, func(ctx context.Context, r protocol.ContainerPayload) (any, error) {
 			return engine().Inspect(ctx, r.ID)
 		}),
-		protocol.ActionDockerContainerLogs: dockerCall(c, func(ctx context.Context, r protocol.ContainerLogsPayload) (any, error) {
-			return engine().Logs(ctx, r)
+		protocol.ActionDockerContainerLogs: dockerCall(c, c.containerLogs),
+		protocol.ActionDockerContainerExec: dockerCall(c, func(_ context.Context, r protocol.ContainerExecPayload) (any, error) {
+			return c.execInContainer(r)
 		}),
 		protocol.ActionDockerImageList: dockerList(c, func(ctx context.Context) (any, error) { return engine().Images(ctx) }),
 		protocol.ActionDockerImagePull: dockerCall(c, func(ctx context.Context, r protocol.ImageRefPayload) (any, error) {
@@ -124,4 +128,47 @@ func (c *connection) dockerError(err error) *protocol.Error {
 		c.agent.options.Logger.Warn("a Docker request failed", "error", err)
 		return &protocol.Error{Code: protocol.ErrorInternal, Message: "Docker failed: " + err.Error()}
 	}
+}
+
+// execInContainer opens a terminal on a shell in a container. It is a
+// terminal session like any other, so input, resizes, closing and resuming
+// use the terminal's stream handling.
+func (c *connection) execInContainer(request protocol.ContainerExecPayload) (any, error) {
+	start, err := c.agent.options.Docker.ExecStarter(request.ID, request.Command)
+	if err != nil {
+		return nil, err
+	}
+	open := protocol.TerminalOpenPayload{StreamID: request.StreamID, Cols: request.Cols, Rows: request.Rows,
+		ResumeSessionID: request.ResumeSessionID}
+	opened, err := c.agent.terminals.OpenWith(open, streamOutput{conn: c}, start)
+	if errors.Is(err, terminal.ErrSessionEnded) {
+		return nil, fmt.Errorf("%w: that terminal session has ended", docker.ErrNotFound)
+	}
+	return opened, err
+}
+
+// containerLogs returns a container's recent lines and, if the request
+// names a stream, then follows the log on it, one JSON line per frame.
+func (c *connection) containerLogs(ctx context.Context, request protocol.ContainerLogsPayload) (any, error) {
+	recent, err := c.agent.options.Docker.Logs(ctx, request)
+	if err != nil || request.StreamID == 0 {
+		return recent, err
+	}
+	// Following starts just after the last line sent, or now.
+	since := c.agent.options.Clock.Now().UnixMilli()
+	if count := len(recent.Lines); count > 0 && recent.Lines[count-1].Time > 0 {
+		since = recent.Lines[count-1].Time + 1
+	}
+	out := streamOutput{conn: c}
+	c.follow(ctx, request.StreamID, func(ctx context.Context) string {
+		err := c.agent.options.Docker.Follow(ctx, request.ID, since, func(line protocol.ContainerLogLine) {
+			data, _ := json.Marshal(line)                                //nolint:errchkjson // a struct of strings and numbers always encodes
+			_ = out.SendFrame(ctx, request.StreamID, append(data, '\n')) // a gone viewer ends the follow through ctx
+		})
+		if err != nil {
+			return err.Error()
+		}
+		return "the container stopped"
+	})
+	return recent, nil
 }

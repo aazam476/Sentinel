@@ -6,9 +6,11 @@ package docker_test
 
 import (
 	"errors"
+	"io"
 	"os/exec"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/aazam476/sentinel/internal/agent/docker"
@@ -45,6 +47,26 @@ func TestRealDocker(t *testing.T) {
 	if err != nil || len(logs.Lines) == 0 || logs.Lines[0].Text != "started" {
 		t.Errorf("logs = %+v (%v)", logs, err)
 	}
+	start, err := engine.ExecStarter(name, []string{"sh", "-c", "read line; echo got $line"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shell, err := start(80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := shell.Resize(100, 30); err != nil {
+		t.Errorf("resize: %v", err)
+	}
+	if _, err := shell.Write([]byte("hello\r")); err != nil {
+		t.Fatal(err)
+	}
+	output, _ := io.ReadAll(shell) // the shell exits after one line
+	if !strings.Contains(string(output), "got hello") {
+		t.Errorf("exec output = %q", output)
+	}
+	_ = shell.Close()
+
 	for _, action := range []docker.ContainerAction{docker.Restart, docker.Stop, docker.Start} {
 		if err := engine.DoContainer(t.Context(), action, protocol.ContainerPayload{ID: name}); err != nil {
 			t.Errorf("%s: %v", action, err)

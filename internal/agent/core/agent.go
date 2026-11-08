@@ -98,6 +98,7 @@ type Docker interface {
 	DoContainer(ctx context.Context, action docker.ContainerAction, request protocol.ContainerPayload) error
 	Inspect(ctx context.Context, id string) (protocol.ContainerInspectPayload, error)
 	Logs(ctx context.Context, request protocol.ContainerLogsPayload) (protocol.ContainerLogsResultPayload, error)
+	Follow(ctx context.Context, id string, since int64, emit func(protocol.ContainerLogLine)) error
 	Images(ctx context.Context) (protocol.ImageListPayload, error)
 	Pull(ctx context.Context, request protocol.ImageRefPayload) (protocol.ImagePulledPayload, error)
 	RemoveImage(ctx context.Context, request protocol.ImageRefPayload) error
@@ -106,6 +107,7 @@ type Docker interface {
 	RemoveVolume(ctx context.Context, name string) error
 	Networks(ctx context.Context) (protocol.NetworkListPayload, error)
 	RemoveNetwork(ctx context.Context, name string) error
+	ExecStarter(id string, command []string) (terminal.Starter, error)
 }
 
 // Stacks runs compose stacks (internal/agent/stacks).
