@@ -3,6 +3,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/aazam476/sentinel/internal/protocol"
@@ -59,6 +60,8 @@ type AgentDetails struct {
 	// empty while the machine is offline.
 	Filesystems  []Filesystem  `json:"filesystems"`
 	Temperatures []Temperature `json:"temperatures"`
+	// Update is the last update the machine was asked to make, or null.
+	Update *AgentUpdateStatus `json:"update" tstype:"AgentUpdateStatus | null,required"`
 }
 
 // Capability is a feature and whether the machine's local policy allows it.
@@ -155,7 +158,12 @@ func (h *handlers) writeAgentDetails(w http.ResponseWriter, r *http.Request, age
 		h.writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, h.agentDetails(agent, counts))
+	details, err := h.withUpdateStatus(r.Context(), h.agentDetails(agent, counts), agent.ID)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, details)
 }
 
 func (h *handlers) agentSummary(agent fleet.Agent, firingAlerts map[int64]int) Agent {
@@ -203,4 +211,18 @@ func capabilities(reported []protocol.Capability) []Capability {
 		result = append(result, Capability(capability))
 	}
 	return result
+}
+
+// withUpdateStatus adds the machine's last update to its details.
+func (h *handlers) withUpdateStatus(ctx context.Context, details AgentDetails, agentID int64) (AgentDetails, error) {
+	statuses, err := h.updates.Statuses(ctx)
+	if err != nil {
+		return details, err
+	}
+	if status, found := statuses[agentID]; found {
+		details.Update = &AgentUpdateStatus{
+			Version: status.Version, State: status.State, Error: status.Error, StartedAt: status.StartedAt, FinishedAt: status.FinishedAt,
+		}
+	}
+	return details, nil
 }

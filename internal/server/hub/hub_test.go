@@ -663,6 +663,40 @@ func TestShutdown(t *testing.T) {
 	})
 }
 
+func TestUpdateResults(t *testing.T) {
+	t.Run("records an agent's update result and announces it", func(t *testing.T) {
+		h := newHarness(t)
+		events := h.subscribe(t)
+		agent := h.online(t)
+		agent.answerSystemInfo(protocol.SystemInfo{Hostname: "nas-01"})
+		result := protocol.AgentUpdateResultPayload{Version: "v1.1.0", RolledBack: true, Error: "didn't connect"}
+		agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionAgentUpdateResult}, result)
+		if got := <-h.updates.results; got != result {
+			t.Errorf("recorded %+v", got)
+		}
+		waitForEvent(t, events, hub.Event{AgentID: h.agentID(t, agent), PublicID: agent.id, Kind: hub.EventInfoUpdated})
+	})
+
+	t.Run("drops a malformed result, and one it can't record", func(t *testing.T) {
+		h := newHarness(t)
+		events := h.subscribe(t)
+		agent := h.online(t)
+		agent.answerSystemInfo(protocol.SystemInfo{Hostname: "nas-01"})
+		agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionAgentUpdateResult}, "not a result")
+		h.updates.fail = true
+		agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionAgentUpdateResult}, protocol.AgentUpdateResultPayload{Version: "v1"})
+		// The connection carries on: a later event is still handled.
+		agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionMetricsSample},
+			protocol.MetricsSample{Time: h.clock.Now().UnixMilli(), CPUPercent: 1})
+		waitForEvent(t, events, hub.Event{AgentID: h.agentID(t, agent), PublicID: agent.id, Kind: hub.EventMetrics})
+		select {
+		case got := <-h.updates.results:
+			t.Errorf("recorded %+v", got)
+		default:
+		}
+	})
+}
+
 func TestEvents(t *testing.T) {
 	t.Run("announces alerts raised away from the agent's connection", func(t *testing.T) {
 		h := newHarness(t)

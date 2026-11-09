@@ -97,6 +97,8 @@ func (c *connection) handleEvent(ctx context.Context, message protocol.Message) 
 		c.hub.publish(eventFor(c, EventMetrics))
 	case protocol.ActionStorageHealth:
 		c.handleStorageHealth(ctx, message)
+	case protocol.ActionAgentUpdateResult:
+		c.handleUpdateResult(ctx, message)
 	default:
 		c.hub.logger.Debug("agent sent an event this server doesn't handle", "agent", c.agent.PublicID, "action", message.Action)
 	}
@@ -116,6 +118,19 @@ func (c *connection) handleStorageHealth(ctx context.Context, message protocol.M
 	if changed {
 		c.hub.publish(eventFor(c, EventAlerts))
 	}
+}
+
+func (c *connection) handleUpdateResult(ctx context.Context, message protocol.Message) {
+	var result protocol.AgentUpdateResultPayload
+	if err := protocol.DecodePayload(message, &result); err != nil || c.hub.updates == nil {
+		c.hub.logger.Warn("dropped an agent's update result", "agent", c.agent.PublicID, "error", err)
+		return
+	}
+	if err := c.hub.updates.RecordResult(ctx, c.agent.ID, result); err != nil {
+		c.hub.logger.Error("could not record an update result", "agent", c.agent.PublicID, "error", err)
+		return
+	}
+	c.hub.publish(eventFor(c, EventInfoUpdated))
 }
 
 // watchHeartbeat closes the connection when nothing has arrived for

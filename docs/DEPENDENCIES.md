@@ -11,6 +11,7 @@ anything GPL-family.
 |---|---|---|---|---|
 | github.com/BurntSushi/toml | v1.6.0 | MIT | Reading `server.toml` | The standard library has no TOML parser; TOML is easier for people to edit than JSON |
 | golang.org/x/crypto | v0.58.0 | BSD-3-Clause | ACME certificates (`acme/autocert`) and Argon2id password hashing | Maintained by the Go team but kept outside the standard library |
+| golang.org/x/mod | v0.42.0 | BSD-3-Clause | Ordering agent build versions (`semver`) for updates | The standard library has no semantic version comparison; this is the Go team's own |
 | golang.org/x/net, golang.org/x/text | (indirect) | BSD-3-Clause | Required by `golang.org/x/crypto/acme` | Pulled in by the module above |
 | github.com/pquerna/otp | v1.5.0 | Apache-2.0 | TOTP secrets, codes, otpauth URLs and QR codes for authenticator apps | TOTP and QR encoding aren't in the standard library |
 | github.com/boombuler/barcode | (indirect) | MIT | Draws the QR code for `pquerna/otp` | Pulled in by the module above |

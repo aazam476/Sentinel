@@ -1,0 +1,14 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* A build's file name has no spaces; it breaks anywhere rather than
+   pushing the page wider than a phone. */
+.fileName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The browser's file pickers have a wide built-in size. */
+.picker {
+  max-width: 100%;
+  min-width: 0;
+}

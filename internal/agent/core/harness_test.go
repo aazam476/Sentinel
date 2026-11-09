@@ -57,6 +57,14 @@ type server struct {
 	// machine holds fakes for the parts that act on the machine (Services,
 	// Logs, Processes, Power); only those fields are used.
 	machine core.Options
+	// updateResults receives the update results agents report.
+	updateResults chan protocol.AgentUpdateResultPayload
+}
+
+// RecordResult is the server's half of reporting an update.
+func (s *server) RecordResult(_ context.Context, _ int64, result protocol.AgentUpdateResultPayload) error {
+	s.updateResults <- result
+	return nil
 }
 
 func newServer(t *testing.T) *server {
@@ -67,7 +75,8 @@ func newServer(t *testing.T) *server {
 	}
 	s := &server{
 		t: t, dbPath: filepath.Join(t.TempDir(), "sentinel.db"), key: serverkey.FromPrivateKey(private),
-		clock: fakeclock.New(time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)),
+		clock:         fakeclock.New(time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)),
+		updateResults: make(chan protocol.AgentUpdateResultPayload, 10),
 	}
 	s.start()
 	s.proxy = faultnet.New(t, s.http.Listener.Addr().String())
@@ -88,7 +97,7 @@ func (s *server) start() {
 	s.metrics = metrics.NewService(database, s.clock)
 	s.alerts = alerts.NewService(alerts.Options{Database: database, AuditLog: audit.New(database), Clock: s.clock})
 	s.hub = hub.New(hub.Options{
-		Fleet: s.fleet, Metrics: s.metrics, Alerts: s.alerts, Key: s.key, Clock: s.clock, Logger: slog.New(slog.DiscardHandler),
+		Fleet: s.fleet, Metrics: s.metrics, Alerts: s.alerts, Updates: s, Key: s.key, Clock: s.clock, Logger: slog.New(slog.DiscardHandler),
 	})
 	mux := http.NewServeMux()
 	mux.Handle(core.AgentPath, s.hub)
@@ -249,6 +258,7 @@ func (s *server) runAgentWith(state identity.State, key ed25519.PrivateKey, loca
 		Shells:   s.shells,
 		Services: s.machine.Services, Logs: s.machine.Logs, Processes: s.machine.Processes, Power: s.machine.Power,
 		Docker: s.machine.Docker, Stacks: s.machine.Stacks, Storage: s.machine.Storage, Files: s.machine.Files, Scripts: s.machine.Scripts,
+		Updater: s.machine.Updater, Restart: s.machine.Restart,
 	})
 	ctx, cancel := context.WithCancel(s.t.Context())
 	done := make(chan struct{})

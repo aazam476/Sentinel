@@ -19,6 +19,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/identity"
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/agent/setup"
+	"github.com/aazam476/sentinel/internal/agent/update"
 	"github.com/aazam476/sentinel/internal/shared/buildinfo"
 	"github.com/aazam476/sentinel/internal/shared/clock"
 )
@@ -63,11 +64,15 @@ func runAgent(args []string, stderr io.Writer) int {
 	flags := flag.NewFlagSet("run", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	paths := pathFlags(flags)
+	trialMarker := flags.String(update.TrialFlag, "", "run as an update's trial: write to this file once connected, then exit")
 	if err := flags.Parse(args); err != nil {
 		return exitUsageError
 	}
 	logger := slog.New(slog.NewTextHandler(stderr, nil))
-	agent, err := buildAgent(*paths, logger)
+	if *trialMarker != "" {
+		return runTrial(*paths, *trialMarker, logger, stderr)
+	}
+	agent, err := buildAgent(*paths, logger, stderr)
 	if err != nil {
 		return report("run", err, stderr)
 	}
@@ -86,28 +91,44 @@ func runAgent(args []string, stderr io.Writer) int {
 
 // buildAgent loads everything the agent needs. A missing identity, or a
 // policy file that can't be trusted, stops it here (SEC-22).
-func buildAgent(paths identity.Paths, logger *slog.Logger) (*core.Agent, error) {
-	store, err := identity.Open(paths.StateDir)
+func buildAgent(paths identity.Paths, logger *slog.Logger, stderr io.Writer) (*core.Agent, error) {
+	options, err := agentOptions(paths, logger)
 	if err != nil {
 		return nil, err
+	}
+	updater, err := newUpdater(paths, options.State, logger, stderr)
+	if err != nil {
+		logger.Warn("this agent can't update itself", "error", err)
+		return core.New(options), nil
+	}
+	options.Updater, options.Restart = updater, restartForUpdate
+	options.Observe = watchNewVersion(updater, logger)
+	return core.New(options), nil
+}
+
+// agentOptions loads the agent's identity, key and policy.
+func agentOptions(paths identity.Paths, logger *slog.Logger) (core.Options, error) {
+	store, err := identity.Open(paths.StateDir)
+	if err != nil {
+		return core.Options{}, err
 	}
 	state, err := store.Load()
 	if err != nil {
-		return nil, err
+		return core.Options{}, err
 	}
 	key, err := store.Key()
 	if err != nil {
-		return nil, err
+		return core.Options{}, err
 	}
 	localPolicy, err := policy.Load(paths.PolicyFile())
 	if err != nil {
-		return nil, err
+		return core.Options{}, err
 	}
 	logger.Info("starting", "version", buildinfo.Version(), "server", state.ServerURL, "agent", state.AgentID)
-	return core.New(core.Options{
+	return core.Options{
 		State: state, Key: key, Policy: localPolicy, Collector: collectors.New(collectors.NewHostSource(), logger),
 		Clock: clock.System{}, Logger: logger, Version: buildinfo.Version(),
-	}), nil
+	}, nil
 }
 
 func signalContext() (context.Context, context.CancelFunc) {

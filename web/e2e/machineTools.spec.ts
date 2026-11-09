@@ -77,9 +77,14 @@ test('M3: a shell, processes, services and logs on a real machine', async ({ pag
     const servicesError = page.getByRole('alert');
     await expect(services.or(servicesError).first()).toBeVisible({ timeout: 15_000 });
     await expectNoHorizontalScroll(page);
-    await page.getByRole('link', { name: 'Logs' }).click();
+    // Each tab's code loads on first use; on a slow runner a click can land
+    // while the last tab is still loading, so it is repeated until it takes.
+    await expect(async () => {
+      await page.getByRole('link', { name: 'Logs' }).click();
+      await expect(page).toHaveURL(/\/logs$/, { timeout: 3_000 });
+    }).toPass({ timeout: 30_000 });
     const logs = page.getByRole('region', { name: 'Logs' });
-    await expect(logs).toBeVisible();
+    await expect(logs).toBeVisible({ timeout: 15_000 });
     await expect(logs.getByText('Reading the log…')).toHaveCount(0, { timeout: 15_000 });
     await expectNoHorizontalScroll(page);
     await expectAccessible(page);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type {
   Agent,
+  AgentBuilds,
   AgentDetails,
   AlertRules,
   FleetAlerts,
@@ -283,6 +284,13 @@ export function worstAgents(): Agent[] {
 /** worstMachine is the hardest machine view: every list at its limit. */
 export const worstMachine: AgentDetails = {
   ...base,
+  update: {
+    version: 'v0.1.0-beta.1+build.2026.11.08.abcdef1234567890',
+    state: 'rolled_back',
+    error: `v0.1.0-beta.1+build.2026.11.08.abcdef1234567890 didn't connect within 5m0s after it was installed, so v0.0.9 was put back. ${'The new version failed before connecting: exit status 2. '.repeat(6)}`,
+    startedAt: fixtureNow - 3_600_000,
+    finishedAt: fixtureNow,
+  },
   kernelVersion:
     '6.12.9-200.fc41.aarch64+debug #1 SMP PREEMPT_DYNAMIC Fri Nov  1 00:00:00 UTC 2026',
   cpuModel:
@@ -1020,5 +1028,27 @@ export function worstUsers(): UsersResponse {
       createdAt: fixtureNow - index * 86_400_000,
       disabled: index % 7 === 3,
     })),
+  };
+}
+
+/** worstBuilds: 120 builds with the longest versions, every platform, the development-key warning. */
+export function worstBuilds(): AgentBuilds {
+  const platforms = ['linux/amd64', 'linux/arm64', 'darwin/arm64', 'windows/arm64'];
+  return {
+    builds: Array.from({ length: 120 }, (_, index) => {
+      const [os = 'linux', arch = 'amd64'] = (platforms[index % platforms.length] ?? '').split('/');
+      const version = `v0.${String(index)}.0-beta.1+build.2026.11.08.abcdef1234567890`;
+      return {
+        version,
+        os,
+        arch,
+        file: `sentinel-agent_${version}_${os}_${arch}${os === 'windows' ? '.exe' : ''}`,
+        size: 512 * 1024 * 1024,
+        addedAt: fixtureNow,
+      };
+    }),
+    autoUpdate: true,
+    canFetch: true,
+    developmentKey: true,
   };
 }

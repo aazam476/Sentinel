@@ -37,6 +37,7 @@ func (c *connection) handlers() map[string]handler {
 		protocol.ActionSystemReboot:   c.power(power.Reboot),
 		protocol.ActionSystemShutdown: c.power(power.Shutdown),
 		protocol.ActionScriptRun:      c.runScript,
+		protocol.ActionAgentUpdate:    c.startUpdate,
 	}
 	maps.Copy(handlers, c.dockerHandlers())
 	maps.Copy(handlers, c.stackHandlers())
@@ -60,10 +61,21 @@ func (c *connection) answer(ctx context.Context, request protocol.Message) {
 	if response.Error != nil {
 		payload = nil
 	}
+	then, hasNext := payload.(afterAnswer)
+	if hasNext {
+		payload = struct{}{}
+	}
 	if err := c.send(ctx, response, payload); err != nil {
 		c.agent.options.Logger.Debug("could not answer a request", "action", request.Action, "error", err)
 	}
+	if hasNext {
+		then()
+	}
 }
+
+// afterAnswer is a handler's empty answer that has more to do once the
+// answer has been sent, such as an update leaving the connection.
+type afterAnswer func()
 
 func (c *connection) systemInfo(ctx context.Context, _ protocol.Message) (any, *protocol.Error) {
 	options := c.agent.options

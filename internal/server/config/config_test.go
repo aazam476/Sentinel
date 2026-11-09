@@ -369,3 +369,28 @@ func TestResolveMaxFileSize(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveReleaseURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		want    string
+		wantErr bool
+	}{
+		{name: "defaults to the project's releases", value: "", want: config.DefaultReleaseURL},
+		{name: "can be turned off for air-gapped servers", value: "off", want: ""},
+		{name: "takes a mirror", value: "https://mirror.example.com/sentinel/", want: "https://mirror.example.com/sentinel/"},
+		{name: "rejects something that isn't a web address", value: "ftp://example.com", wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resolved, err := config.File{Updates: config.UpdatesFile{ReleaseURL: test.value}}.Resolve()
+			if (err != nil) != test.wantErr {
+				t.Fatalf("error = %v, want error %v", err, test.wantErr)
+			}
+			if err == nil && resolved.ReleaseURL != test.want {
+				t.Errorf("ReleaseURL = %q, want %q", resolved.ReleaseURL, test.want)
+			}
+		})
+	}
+}

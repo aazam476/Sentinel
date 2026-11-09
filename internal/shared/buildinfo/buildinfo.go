@@ -9,6 +9,12 @@ import "runtime/debug"
 // older toolchains, for every local build).
 const develVersion = "(devel)"
 
+// stamped, when set at build time with
+// -ldflags "-X github.com/aazam476/sentinel/internal/shared/buildinfo.stamped=v1.2.3",
+// is the version, whatever the Go toolchain recorded. Tests build agents of
+// chosen versions with it.
+var stamped string //nolint:gochecknoglobals // -ldflags -X can only set a package variable
+
 // shortRevisionLength is how many characters of the commit hash to show.
 // Twelve is enough to be unique in this repository for a very long time.
 const shortRevisionLength = 12
@@ -20,6 +26,9 @@ const shortRevisionLength = 12
 // the working tree had uncommitted changes. If the binary carries no build
 // information at all it returns "dev".
 func Version() string {
+	if stamped != "" {
+		return stamped
+	}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return describe(nil)

@@ -89,7 +89,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/servertls/` | Self-signed and ACME certificates | Built |
 | `internal/server/middleware/` | Security headers, trusted proxies, Origin check, base path | Built |
 | `internal/server/app/` | Assembles the database, services, routes and middleware | Built |
-| `internal/server/api/` | HTTP handlers and the router | Setup, sign-in, sessions, users, audit log, enrollment, machines, metrics, live events, system tools, Docker, storage, alerts, files and scripts |
+| `internal/server/api/` | HTTP handlers and the router | Setup, sign-in, sessions, users, agent updates, audit log, enrollment, machines, metrics, live events, system tools, Docker, storage, alerts, files and scripts |
 | `internal/server/httpserver/` | Opens the listening socket and serves HTTP | Built |
 | `internal/server/store/` | SQLite connection, transactions, single writer, migrations | Built |
 | `internal/server/auth/` | Setup token, passwords, TOTP, recovery codes, sessions, rate limiting, roles | Built |
@@ -98,6 +98,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/secrets/` | Encrypts stored secrets with the key in `secret.key` | Built |
 | `cmd/sentinel-release/` | Maintainer's release tool: key pairs, signatures, checksums, SBOMs (not shipped) | Built |
 | `internal/shared/release/` | Release signatures and the compiled-in release keys (SEC-30, SEC-31); SBOMs (SEC-33) | Built |
+| `internal/server/updates/` | Hosts signed agent builds, updates machines, records how each update went; automatic updates | Built |
 | `internal/server/backup/` | Encrypted backups: database copy, keys, certificates and config, sealed with a passphrase | Built |
 | `internal/server/serverkey/` | The server's Ed25519 identity key and its fingerprint | Built |
 | `internal/server/fleet/` | Enrollment tokens and the list of managed machines | Built |
@@ -114,6 +115,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/protocol/` | Message types, frames and handshake signatures shared by server and agent | Built |
 | `internal/server/scripts/` | The script library, runs on one machine, a tag or a set, their output, and cron schedules | Built |
 | `internal/server/alerts/` | Alert rules (metric, offline, storage, failed scheduled script), alerts firing and resolved, acknowledgement, and notifications by email, webhook, ntfy and Discord | Rules, channels, alerts, maintenance |
+| `internal/agent/update/` | Self-update: fetch, verify (SEC-31), trial run, install, roll back (SEC-32) | Built |
 | `internal/agent/identity/` | The agent's key, ID and saved server key, in a root-only directory | Built |
 | `internal/agent/policy/` | Reads the local policy file that switches capabilities off | Built |
 | `internal/agent/core/` | Enrollment, the connection to the server, heartbeat, reconnects, requests, streams | Built |

@@ -36,6 +36,8 @@ interface RequestOptions {
   body?: unknown;
   /** raw is sent as it is, as a file's piece is uploaded. */
   raw?: Blob;
+  /** form is sent as multipart form data; the browser sets its type. */
+  form?: FormData;
   signal?: AbortSignal;
 }
 
@@ -55,6 +57,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json';
     init.body = JSON.stringify(options.body);
+  }
+  if (options.form !== undefined) {
+    init.body = options.form;
   }
   if (options.raw !== undefined) {
     headers['Content-Type'] = 'application/octet-stream';

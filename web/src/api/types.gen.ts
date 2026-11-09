@@ -72,6 +72,10 @@ export interface AgentDetails extends Agent {
    */
   filesystems: Filesystem[];
   temperatures: Temperature[];
+  /**
+   * Update is the last update the machine was asked to make, or null.
+   */
+  update: AgentUpdateStatus | null;
 }
 /**
  * Capability is a feature and whether the machine's local policy allows it.
@@ -999,6 +1003,78 @@ export interface PowerRequest {
 //////////
 // source: terminal.go
 
+
+//////////
+// source: updates.go
+
+/**
+ * AgentBuild is one hosted agent build.
+ */
+export interface AgentBuild {
+  version: string;
+  os: string;
+  arch: string;
+  file: string;
+  size: number /* int64 */;
+  addedAt: number /* int64 */;
+}
+/**
+ * AgentBuilds lists the hosted builds, newest first, and the update settings.
+ */
+export interface AgentBuilds {
+  builds: AgentBuild[];
+  autoUpdate: boolean;
+  /**
+   * CanFetch says a release channel is set, so builds can be fetched.
+   */
+  canFetch: boolean;
+  /**
+   * DevelopmentKey says this server trusts only the development release
+   * key: fine for testing, never for real machines.
+   */
+  developmentKey: boolean;
+}
+/**
+ * FetchedBuilds lists the builds a fetch added.
+ */
+export interface FetchedBuilds {
+  builds: AgentBuild[];
+}
+/**
+ * SetAutoUpdateRequest turns automatic updates on or off.
+ */
+export interface SetAutoUpdateRequest {
+  enabled: boolean;
+}
+/**
+ * UpdateAgentsRequest updates machines: target kind "all", "tag" or
+ * "agent"; version "" means the newest build.
+ */
+export interface UpdateAgentsRequest {
+  target: ScriptTarget;
+  version: string;
+}
+/**
+ * UpdateAgentsResponse says which machines started updating, and why the
+ * others didn't.
+ */
+export interface UpdateAgentsResponse {
+  started: string[];
+  skipped: { [key: string]: string};
+}
+/**
+ * AgentUpdateStatus is the last update a machine was asked to make.
+ */
+export interface AgentUpdateStatus {
+  version: string;
+  /**
+   * State is updating, updated, failed or rolled_back.
+   */
+  state: string;
+  error: string;
+  startedAt: number /* int64 */;
+  finishedAt: number | null;
+}
 
 //////////
 // source: users.go

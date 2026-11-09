@@ -11,6 +11,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -94,6 +95,18 @@ type Options struct {
 	// Observe, if set, is told when the agent reaches each Event. Tests
 	// use it to know when to move their fake clock.
 	Observe func(Event)
+	// Updater updates the agent (internal/agent/update); nil refuses
+	// updates. Restart is called once an update is installed, to restart
+	// the agent as the new version.
+	Updater Updater
+	Restart func()
+}
+
+// Updater updates the agent in place (internal/agent/update).
+type Updater interface {
+	Update(ctx context.Context, request protocol.AgentUpdatePayload, pause func() (resume func())) error
+	Failed(version string, cause error)
+	Connected() *protocol.AgentUpdateResultPayload
 }
 
 // Storage reads the machine's storage, never changing it
@@ -177,6 +190,16 @@ type Agent struct {
 	terminals *terminal.Manager
 	// metricsInterval is how often to sample, as the server last said.
 	metricsInterval atomic.Int64
+
+	// updating is set while an update runs, so only one does.
+	updating atomic.Bool
+	// updateReports wakes the connection to send an update's result.
+	updateReports chan struct{}
+	// sessions guards the current session's cancel and the pause, which
+	// holds the agent off the server while a new version is on trial.
+	sessions      sync.Mutex
+	cancelSession context.CancelFunc
+	paused        chan struct{}
 }
 
 // New returns an Agent; call Run to connect.
@@ -194,8 +217,9 @@ func New(options Options) *Agent {
 	}
 	agent := &Agent{
 		options: options, tlsConfig: tlsConfig,
-		buffer:    newSampleBuffer(int(bufferedTime / defaultMetricsInterval)),
-		terminals: terminal.NewManager(options.Shells, options.Clock, options.Logger),
+		buffer:        newSampleBuffer(int(bufferedTime / defaultMetricsInterval)),
+		terminals:     terminal.NewManager(options.Shells, options.Clock, options.Logger),
+		updateReports: make(chan struct{}, 1),
 	}
 	agent.metricsInterval.Store(int64(defaultMetricsInterval))
 	return agent
@@ -245,7 +269,12 @@ func (a *Agent) Run(ctx context.Context) {
 
 	retry := newBackoff(a.options.Random)
 	for {
-		welcomed, err := a.session(ctx)
+		if !a.waitWhilePaused(ctx) {
+			return
+		}
+		sessionCtx, cancel := a.startSession(ctx)
+		welcomed, err := a.session(sessionCtx)
+		cancel()
 		if ctx.Err() != nil {
 			return
 		}

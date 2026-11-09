@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { request as playwrightRequest } from '@playwright/test';
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const binaries = resolve('..', 'bin');
@@ -85,9 +85,14 @@ export class Agent {
   /** root is the agent's own folder, for files a test needs it to use. */
   readonly root: string;
   private readonly configDir: string;
+  /** binary is the agent's own copy, which updates replace. */
+  readonly binary: string;
   private process: ChildProcess | undefined;
+  private stopped = false;
   /** log is everything the running agent has written to stderr. */
   log = '';
+  /** restarts counts the times it exited to restart, as after an update. */
+  restarts = 0;
 
   constructor(name: string) {
     const root = resolve('test-results', 'e2e-agents', name);
@@ -96,6 +101,15 @@ export class Agent {
     this.root = root;
     this.configDir = join(root, 'etc');
     this.flags = ['--state-dir', join(root, 'state'), '--config-dir', this.configDir];
+    // Its own copy, as an installed agent has: an update replaces it.
+    mkdirSync(join(root, 'bin'), { recursive: true });
+    this.binary = join(
+      root,
+      'bin',
+      process.platform === 'win32' ? 'sentinel-agent.exe' : 'sentinel-agent',
+    );
+    copyFileSync(executable('sentinel-agent'), this.binary);
+    chmodSync(this.binary, 0o755);
   }
 
   /**
@@ -103,13 +117,9 @@ export class Agent {
    * install, without the operating system service).
    */
   enroll(commandFlags: string[]): string {
-    const result = spawnSync(
-      executable('sentinel-agent'),
-      ['enroll', ...commandFlags, ...this.flags],
-      {
-        encoding: 'utf8',
-      },
-    );
+    const result = spawnSync(this.binary, ['enroll', ...commandFlags, ...this.flags], {
+      encoding: 'utf8',
+    });
     if (result.status !== 0) {
       throw new Error(`enroll failed: ${result.stderr}`);
     }
@@ -122,17 +132,27 @@ export class Agent {
     writeFileSync(join(this.configDir, 'policy.toml'), text, { mode: 0o600 });
   }
 
-  /** run starts the agent in the background, as its service would. */
+  /**
+   * run starts the agent in the background, as its service would, and
+   * starts it again when it exits to restart (exit code 3, after an update).
+   */
   run() {
-    this.process = spawn(executable('sentinel-agent'), ['run', ...this.flags], {
+    this.process = spawn(this.binary, ['run', ...this.flags], {
       stdio: ['ignore', 'ignore', 'pipe'],
     });
     this.process.stderr?.on('data', (chunk: Buffer) => {
       this.log += chunk.toString();
     });
+    this.process.on('exit', (code) => {
+      if (code === 3 && !this.stopped) {
+        this.restarts++;
+        this.run();
+      }
+    });
   }
 
   stop() {
+    this.stopped = true;
     this.process?.kill('SIGTERM');
   }
 }
@@ -145,4 +165,58 @@ export function agentFlags(command: string): string[] {
   const words = command.split(/\s+/);
   const install = words.indexOf('install');
   return words.slice(install + 1).map((word) => word.replace(/^'(.*)'$/, '$1'));
+}
+
+/**
+ * signedAgentBuild builds an agent of a chosen version for this machine (or,
+ * with broken, a program that fails at once) and signs it as a release with
+ * the development key, which test builds trust. It returns the build's and
+ * its signature's paths.
+ */
+export function signedAgentBuild(folder: string, version: string, broken = false) {
+  const repository = resolve('..');
+  const goos = process.platform === 'win32' ? 'windows' : process.platform;
+  const goarch = process.arch === 'x64' ? 'amd64' : process.arch;
+  const name = `sentinel-agent_${version}_${goos}_${goarch}${goos === 'windows' ? '.exe' : ''}`;
+  mkdirSync(folder, { recursive: true });
+  const output = join(folder, name);
+  const source = broken ? './internal/testutil/brokenagent' : './cmd/sentinel-agent';
+  const run = (command: string, args: string[], env: Record<string, string> = {}) => {
+    const result = spawnSync(command, args, {
+      cwd: repository,
+      encoding: 'utf8',
+      env: { ...process.env, CGO_ENABLED: '0', ...env },
+    });
+    if (result.status !== 0) {
+      throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr}`);
+    }
+  };
+  run('go', [
+    'build',
+    '-ldflags',
+    `-X github.com/aazam476/sentinel/internal/shared/buildinfo.stamped=${version}`,
+    '-o',
+    output,
+    source,
+  ]);
+  const key = readFileSync(join(repository, 'testdata', 'release', 'development.key'), 'utf8');
+  run(
+    'go',
+    [
+      'run',
+      './cmd/sentinel-release',
+      'sign',
+      '--name',
+      'sentinel-agent',
+      '--version',
+      version,
+      '--os',
+      goos,
+      '--arch',
+      goarch,
+      output,
+    ],
+    { SENTINEL_RELEASE_KEY: key },
+  );
+  return { build: output, signature: `${output}.sig` };
 }

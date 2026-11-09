@@ -13,6 +13,7 @@ import (
 	"github.com/aazam476/sentinel/internal/server/alerts"
 	"github.com/aazam476/sentinel/internal/server/auth"
 	"github.com/aazam476/sentinel/internal/server/scripts"
+	"github.com/aazam476/sentinel/internal/server/updates"
 )
 
 // Error codes the API returns in {"error": {"code": ...}}. The web UI
@@ -104,6 +105,7 @@ func knownErrors() []knownError {
 		{scripts.ErrExists, http.StatusConflict, errorCodeConflict},
 		{alerts.ErrNotFound, http.StatusNotFound, errorCodeNotFound},
 		{alerts.ErrExists, http.StatusConflict, errorCodeConflict},
+		{updates.ErrNotFound, http.StatusNotFound, errorCodeNotFound},
 	}
 }
 
@@ -128,6 +130,12 @@ func writeServiceError(w http.ResponseWriter, logger *slog.Logger, err error) {
 	var invalidAlert *alerts.InvalidError
 	if errors.As(err, &invalidAlert) {
 		writeInvalidInput(w, invalidAlert.Field, invalidAlert.Reason)
+		return
+	}
+
+	var invalidUpdate *updates.InvalidError
+	if errors.As(err, &invalidUpdate) {
+		writeInvalidInput(w, invalidUpdate.Field, invalidUpdate.Reason)
 		return
 	}
 

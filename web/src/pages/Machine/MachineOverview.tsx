@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { metricNames } from '../../api/metricNames';
 import { formatPercent } from '../../formatting/formatting';
+import { AgentUpdate } from './AgentUpdate';
 import { Capabilities } from './Capabilities';
 import { Filesystems } from './Filesystems';
 import { HistoryChart } from './HistoryChart';
@@ -40,6 +41,7 @@ export function MachineOverview() {
         <Capabilities capabilities={machine.capabilities} />
       </div>
       <Filesystems filesystems={machine.filesystems} isOnline={machine.online} />
+      {session.user.role === 'admin' && <AgentUpdate agent={machine} />}
       {session.user.role === 'admin' && <Maintenance agent={machine} />}
       {session.user.role === 'admin' && <MachineSettings key={machine.id} agent={machine} />}
     </>

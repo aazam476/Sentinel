@@ -48,6 +48,9 @@ type Config struct {
 	TLS TLS
 	// MaxFileBytes is the largest file the file manager moves (§9.7).
 	MaxFileBytes int64
+	// ReleaseURL is where agent builds are fetched from; "" when fetching
+	// is off.
+	ReleaseURL string
 }
 
 // DefaultMaxFileGB is the file manager's size limit when none is set.
@@ -93,6 +96,9 @@ func (file File) Resolve() (Config, error) {
 	if config.MaxFileBytes, err = maxFileBytes(file.Files.MaxSizeGB); err != nil {
 		return Config{}, err
 	}
+	if config.ReleaseURL, err = releaseURL(file.Updates.ReleaseURL); err != nil {
+		return Config{}, err
+	}
 
 	return config, nil
 }
@@ -113,4 +119,23 @@ func maxFileBytes(gigabytes int64) (int64, error) {
 		return 0, fmt.Errorf("files.max_size_gb: %d isn't between 1 and 1024", gigabytes)
 	}
 	return gigabytes << 30, nil
+}
+
+// DefaultReleaseURL is where agent builds come from unless the config says
+// otherwise.
+const DefaultReleaseURL = "https://github.com/aazam476/sentinel/releases/latest/download/"
+
+// releaseURL checks updates.release_url.
+func releaseURL(value string) (string, error) {
+	switch value {
+	case "":
+		return DefaultReleaseURL, nil
+	case "off":
+		return "", nil
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" {
+		return "", fmt.Errorf("updates.release_url: %q isn't an http or https address", value)
+	}
+	return value, nil
 }

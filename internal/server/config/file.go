@@ -35,6 +35,16 @@ type File struct {
 	TLS TLSFile `toml:"tls"`
 	// Files configures the file manager.
 	Files FilesFile `toml:"files"`
+	// Updates configures where agent builds come from.
+	Updates UpdatesFile `toml:"updates"`
+}
+
+// UpdatesFile is the [updates] table of server.toml.
+type UpdatesFile struct {
+	// ReleaseURL is where the latest release's files are downloaded from;
+	// "off" turns fetching off (for air-gapped servers, which upload builds
+	// instead). The default is the project's GitHub releases.
+	ReleaseURL string `toml:"release_url"`
 }
 
 // FilesFile is the [files] table of server.toml.

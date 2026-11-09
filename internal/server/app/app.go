@@ -28,6 +28,7 @@ import (
 	"github.com/aazam476/sentinel/internal/server/secrets"
 	"github.com/aazam476/sentinel/internal/server/serverkey"
 	"github.com/aazam476/sentinel/internal/server/store"
+	"github.com/aazam476/sentinel/internal/server/updates"
 	"github.com/aazam476/sentinel/internal/server/web"
 	"github.com/aazam476/sentinel/internal/shared/clock"
 )
@@ -63,6 +64,7 @@ type App struct {
 	Registry  *registry.Service
 	Alerts    *alerts.Service
 	Scripts   *scripts.Service
+	Updates   *updates.Service
 	ServerKey serverkey.Key
 	database  *store.Store
 	clock     Clock
@@ -81,6 +83,7 @@ type services struct {
 	registry  *registry.Service
 	alerts    *alerts.Service
 	scripts   *scripts.Service
+	updates   *updates.Service
 	serverKey serverkey.Key
 }
 
@@ -105,7 +108,7 @@ func New(ctx context.Context, options Options) (*App, error) {
 	}
 	return &App{
 		Handler: handler, Auth: built.auth, AuditLog: built.auditLog, Fleet: built.fleet, Hub: built.hub,
-		Metrics: built.metrics, Registry: built.registry, Alerts: built.alerts, Scripts: built.scripts, ServerKey: built.serverKey, database: database, clock: options.Clock, logger: options.Logger,
+		Metrics: built.metrics, Registry: built.registry, Alerts: built.alerts, Scripts: built.scripts, Updates: built.updates, ServerKey: built.serverKey, database: database, clock: options.Clock, logger: options.Logger,
 	}, nil
 }
 
@@ -136,8 +139,14 @@ func buildServices(database *store.Store, options Options) (services, error) {
 		Online:  func(agentID int64) bool { return built.hub.IsOnline(agentID) },
 		Changed: func(agentID int64, publicID string) { built.hub.AlertsChanged(agentID, publicID) },
 	})
+	// The hub, built below, is how updates reach the agents.
+	built.updates = updates.New(updates.Options{
+		DataDir: dataDir, Database: database, AuditLog: auditLog, Hub: lazyHub{func() *hub.Hub { return built.hub }},
+		Fleet: built.fleet, Clock: options.Clock, Logger: options.Logger, ReleaseURL: options.Settings.ReleaseURL,
+	})
 	built.hub = hub.New(hub.Options{
-		Fleet: built.fleet, Metrics: built.metrics, Alerts: built.alerts, Key: serverKey, Clock: options.Clock, Logger: options.Logger,
+		Fleet: built.fleet, Metrics: built.metrics, Alerts: built.alerts, Updates: built.updates, Key: serverKey,
+		Clock: options.Clock, Logger: options.Logger,
 	})
 	built.scripts = scripts.New(scripts.Options{
 		Database: database, AuditLog: auditLog, Hub: scripts.HubOf(built.hub), Fleet: built.fleet, Clock: options.Clock, Logger: options.Logger,
@@ -158,6 +167,7 @@ func (a *App) Start(ctx context.Context) {
 			scheduler.Job{Name: "image update check", Interval: 24 * time.Hour, Run: a.checkImages},
 			scheduler.Job{Name: "scheduled scripts", Interval: time.Minute, Run: a.Scripts.RunDue},
 			scheduler.Job{Name: "alert rules", Interval: time.Minute, Run: a.Alerts.Evaluate},
+			scheduler.Job{Name: "agent auto-update", Interval: time.Hour, Run: a.Updates.RunAuto},
 		)
 		a.Hub.Shutdown()
 		// Closing the agents' connections ends the scripts running on them.
@@ -223,6 +233,7 @@ func buildHandler(options Options, built services) (http.Handler, error) {
 		Registry:       built.registry,
 		Alerts:         built.alerts,
 		Scripts:        built.scripts,
+		Updates:        built.updates,
 		ServerKey:      built.serverKey,
 		TLSFingerprint: options.TLSFingerprint,
 		Logger:         options.Logger,
@@ -240,4 +251,15 @@ func buildHandler(options Options, built services) (http.Handler, error) {
 		StrictTransportSecurity: settings.TLS.Mode == config.TLSACME,
 	})
 	return handler, nil
+}
+
+// lazyHub reaches the hub, which is built after the services that use it.
+type lazyHub struct {
+	get func() *hub.Hub
+}
+
+func (l lazyHub) IsOnline(agentID int64) bool { return l.get().IsOnline(agentID) }
+
+func (l lazyHub) Request(ctx context.Context, agentID int64, action string, payload, result any) error {
+	return l.get().Request(ctx, agentID, action, payload, result)
 }

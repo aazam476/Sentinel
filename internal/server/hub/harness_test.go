@@ -34,6 +34,7 @@ import (
 // harness is a Hub on a real database, served over a real WebSocket, with
 // a fake clock for its timeouts.
 type harness struct {
+	updates *fakeUpdates
 	hub     *hub.Hub
 	fleet   *fleet.Service
 	faults  *faultyFleet
@@ -67,7 +68,8 @@ func newHarness(t testing.TB) *harness {
 		admin:   addAdmin(t, database),
 	}
 	h.faults = &faultyFleet{Fleet: h.fleet}
-	h.hub = hub.New(hub.Options{Fleet: h.faults, Metrics: h.metrics, Alerts: h.alerts, Key: h.key, Clock: clock, Logger: slog.New(slog.DiscardHandler)})
+	h.updates = &fakeUpdates{results: make(chan protocol.AgentUpdateResultPayload, 10)}
+	h.hub = hub.New(hub.Options{Fleet: h.faults, Metrics: h.metrics, Alerts: h.alerts, Updates: h.updates, Key: h.key, Clock: clock, Logger: slog.New(slog.DiscardHandler)})
 	server := httptest.NewServer(middleware.WithClientInfo(h.hub, nil))
 	t.Cleanup(server.Close)
 	h.url = "ws" + strings.TrimPrefix(server.URL, "http")
@@ -359,4 +361,18 @@ func rejectedStatus(t *testing.T, url string, header http.Header) int {
 	}
 	defer func() { _ = response.Body.Close() }() // nothing left to read
 	return response.StatusCode
+}
+
+// fakeUpdates records update results; fail makes recording fail.
+type fakeUpdates struct {
+	results chan protocol.AgentUpdateResultPayload
+	fail    bool
+}
+
+func (f *fakeUpdates) RecordResult(_ context.Context, _ int64, result protocol.AgentUpdateResultPayload) error {
+	if f.fail {
+		return errors.New("disk I/O error")
+	}
+	f.results <- result
+	return nil
 }

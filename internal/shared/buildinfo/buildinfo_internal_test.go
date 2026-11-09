@@ -72,3 +72,11 @@ func TestDescribe(t *testing.T) {
 		})
 	}
 }
+
+func TestStampedVersion(t *testing.T) {
+	stamped = "v9.9.9"
+	t.Cleanup(func() { stamped = "" })
+	if got := Version(); got != "v9.9.9" {
+		t.Errorf("Version() = %q, want the stamped version", got)
+	}
+}

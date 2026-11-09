@@ -169,6 +169,7 @@ export const agents: Agent[] = [
 
 export const nasDetails: AgentDetails = {
   ...(agents[0] as Agent),
+  update: null,
   kernelVersion: '6.12.9',
   cpuModel: 'Intel(R) N100',
   cpuCores: 4,

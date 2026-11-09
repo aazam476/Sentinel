@@ -56,6 +56,11 @@ type Alerts interface {
 	RecordStorageHealth(ctx context.Context, agentID int64, health protocol.StorageHealthPayload) (bool, error)
 }
 
+// Updates records how an agent's self-update went (internal/server/updates).
+type Updates interface {
+	RecordResult(ctx context.Context, agentID int64, result protocol.AgentUpdateResultPayload) error
+}
+
 // Clock tells the time and makes timers.
 type Clock interface {
 	Now() time.Time
@@ -68,9 +73,11 @@ type Options struct {
 	Metrics Metrics
 	// Alerts receives storage health.
 	Alerts Alerts
-	Key    serverkey.Key
-	Clock  Clock
-	Logger *slog.Logger
+	// Updates receives update results; nil drops them.
+	Updates Updates
+	Key     serverkey.Key
+	Clock   Clock
+	Logger  *slog.Logger
 }
 
 // Hub accepts agent connections and tracks the live ones.
@@ -78,6 +85,7 @@ type Hub struct {
 	fleet   Fleet
 	metrics Metrics
 	alerts  Alerts
+	updates Updates
 	key     serverkey.Key
 	clock   Clock
 	logger  *slog.Logger
@@ -97,7 +105,7 @@ type Hub struct {
 // New returns a Hub with no agents connected.
 func New(options Options) *Hub {
 	return &Hub{
-		fleet: options.Fleet, metrics: options.Metrics, alerts: options.Alerts, key: options.Key, clock: options.Clock, logger: options.Logger,
+		fleet: options.Fleet, metrics: options.Metrics, alerts: options.Alerts, updates: options.Updates, key: options.Key, clock: options.Clock, logger: options.Logger,
 		connections: map[int64]*connection{},
 		subscribers: map[int]chan Event{},
 	}

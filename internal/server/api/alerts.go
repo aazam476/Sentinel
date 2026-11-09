@@ -331,5 +331,10 @@ func (h *handlers) handleSetMaintenance(w http.ResponseWriter, r *http.Request, 
 		h.writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, h.agentDetails(agent, counts))
+	details, err := h.withUpdateStatus(r.Context(), h.agentDetails(agent, counts), agent.ID)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, details)
 }
