@@ -3,7 +3,12 @@ import { expect, test } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
-import { expectNoHorizontalScroll, signInAsNewAdmin, watchForCSPViolations } from './helpers';
+import {
+  expectNoHorizontalScroll,
+  signInAsNewAdmin,
+  watchForCSPViolations,
+  openOnlineMachine,
+} from './helpers';
 import { Agent, agentFlags, OwnServer } from './processes';
 
 /**
@@ -53,7 +58,7 @@ test('M4: a stack from a pasted compose file, its logs, a shell, and an update',
     agent.enroll(agentFlags(await page.locator('code').first().innerText()));
     agent.run();
     await page.goto(`${server.origin}/`);
-    await page.getByRole('link', { name: /Online/ }).click({ timeout: 15_000 });
+    await openOnlineMachine(page);
 
     // A new stack, pasted into the compose editor, deployed.
     await page.getByRole('link', { name: 'Docker' }).click();

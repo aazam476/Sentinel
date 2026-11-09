@@ -22,6 +22,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/identity"
 	"github.com/aazam476/sentinel/internal/agent/setup"
 	"github.com/aazam476/sentinel/internal/shared/buildinfo"
+	"github.com/aazam476/sentinel/internal/shared/release"
 )
 
 // Exit codes. 2 is the conventional code for a usage error.
@@ -44,7 +45,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	switch args[0] {
 	case "version":
-		_, _ = fmt.Fprintln(stdout, "sentinel-agent", buildinfo.Version())
+		_, _ = fmt.Fprintln(stdout, "sentinel-agent", buildinfo.Version()+release.BuildNote())
 		return exitOK
 	case "help", "-h", "-help", "--help":
 		printUsage(stdout)

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# The production release keys, one per line (base64 Ed25519 public keys).
+# Generate one offline with `sentinel-release keygen`, add the public key
+# here, and keep the private key offline (the release workflow reads it
+# from the SENTINEL_RELEASE_KEY secret). Until a key is added, builds trust
+# the development key instead, and the release workflow refuses to publish.

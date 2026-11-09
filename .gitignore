@@ -1,5 +1,6 @@
 # Build output
 /bin/
+/dist/
 /coverage.out
 /internal/server/web/dist/*
 !/internal/server/web/dist/.gitkeep

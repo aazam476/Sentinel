@@ -29,3 +29,6 @@ SEC-41  Audit log view, CSV/JSON export, and verify command
 SEC-15  Server-side input validation, parameterized SQL, no shell string building
 SEC-42  Stored secrets encrypted with AES-256-GCM using <data dir>/secret.key
 SEC-25  File access restricted to the local policy's allowed folders
+SEC-30  Release artifacts signed with the offline Ed25519 release key, compiled into both binaries
+SEC-31  Signatures verified before installing any update; bad ones rejected and reported
+SEC-33  Reproducible builds, SHA-256 checksums and an SBOM per release

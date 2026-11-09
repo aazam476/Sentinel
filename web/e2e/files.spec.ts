@@ -8,6 +8,7 @@ import {
   expectNoHorizontalScroll,
   signInAsNewAdmin,
   watchForCSPViolations,
+  openOnlineMachine,
 } from './helpers';
 import { Agent, agentFlags, OwnServer } from './processes';
 
@@ -44,7 +45,7 @@ test('M6: files on a real machine, within the allowed folder', async ({ page }, 
     agent.enroll(agentFlags(await page.locator('code').first().innerText()));
     agent.run();
     await page.goto(`${server.origin}/`);
-    await page.getByRole('link', { name: /Online/ }).click({ timeout: 15_000 });
+    await openOnlineMachine(page);
 
     // The start is the allowed folder alone.
     await page.getByRole('link', { name: 'Files' }).click();

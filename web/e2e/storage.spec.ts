@@ -6,6 +6,7 @@ import {
   expectNoHorizontalScroll,
   signInAsNewAdmin,
   watchForCSPViolations,
+  openOnlineMachine,
 } from './helpers';
 import { Agent, agentFlags, OwnServer } from './processes';
 
@@ -38,7 +39,7 @@ test('M5: the storage of a real machine', async ({ page }, testInfo) => {
     agent.enroll(agentFlags(await page.locator('code').first().innerText()));
     agent.run();
     await page.goto(`${server.origin}/`);
-    await page.getByRole('link', { name: /Online/ }).click({ timeout: 15_000 });
+    await openOnlineMachine(page);
 
     await page.getByRole('link', { name: 'Storage' }).click();
     await expect(page.getByRole('region', { name: 'Physical disks' })).toBeVisible({

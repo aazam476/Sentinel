@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# The development release key. Its private half is in
+# testdata/release/development.key, published on purpose: builds made
+# without a production key trust only this, and are for tests and local use.
+/FNDensSfR0Y4NeKwZ+RaJjvTeE8rA7ntLiZkVOy+H8=

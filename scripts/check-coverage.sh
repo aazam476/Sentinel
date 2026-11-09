@@ -27,6 +27,7 @@ security_critical=(
   "$module/internal/server/hub"
   "$module/internal/server/serverkey"
   "$module/internal/shared/keyfile"
+  "$module/internal/shared/release"
   "$module/internal/protocol"
   "$module/internal/agent/core"
   "$module/internal/agent/identity"

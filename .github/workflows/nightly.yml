@@ -34,3 +34,14 @@ jobs:
           go test -c -tags zfs -o storage.test ./internal/agent/storage
           cd internal/agent/storage
           sudo ../../../storage.test -test.run TestRealZFS -test.v
+
+  reproducible:
+    name: Reproducible builds (SEC-33)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Build twice from two copies and compare
+        run: scripts/check-reproducible.sh

@@ -6,6 +6,7 @@ import {
   expectNoHorizontalScroll,
   signInAsNewAdmin,
   watchForCSPViolations,
+  openOnlineMachine,
 } from './helpers';
 import { Agent, agentFlags, OwnServer } from './processes';
 
@@ -40,7 +41,7 @@ test('M6: a scheduled script runs on a tag of machines and its output is viewabl
     agent.enroll(agentFlags(await page.locator('code').first().innerText()));
     agent.run();
     await page.goto(`${server.origin}/`);
-    await page.getByRole('link', { name: /Online/ }).click({ timeout: 15_000 });
+    await openOnlineMachine(page);
     await page.waitForURL(/\/machines\/[0-9A-Z]{26}$/);
     const machineId = new URL(page.url()).pathname.split('/').pop() ?? '';
     const tagged = await page.request.patch(`${server.origin}/api/agents/${machineId}`, {

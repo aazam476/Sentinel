@@ -17,6 +17,7 @@ import (
 
 	"github.com/aazam476/sentinel/internal/server/config"
 	"github.com/aazam476/sentinel/internal/shared/buildinfo"
+	"github.com/aazam476/sentinel/internal/shared/release"
 )
 
 // Exit codes. 2 matches what the flag package uses for usage errors.
@@ -35,7 +36,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 {
 		switch args[0] {
 		case "version":
-			_, _ = fmt.Fprintln(stdout, "sentinel-server", buildinfo.Version()) // nothing to do if stdout is gone
+			_, _ = fmt.Fprintln(stdout, "sentinel-server", buildinfo.Version()+release.BuildNote()) // nothing to do if stdout is gone
 			return exitOK
 		case "audit":
 			return runAudit(args[1:], stdout, stderr)

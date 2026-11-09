@@ -6,6 +6,7 @@ import {
   expectNoHorizontalScroll,
   signInAsNewAdmin,
   watchForCSPViolations,
+  openOnlineMachine,
 } from './helpers';
 import { Agent, agentFlags, OwnServer } from './processes';
 
@@ -40,7 +41,7 @@ test('M3: a shell, processes, services and logs on a real machine', async ({ pag
     agent.enroll(agentFlags(command));
     agent.run();
     await page.goto(`${server.origin}/`);
-    await page.getByRole('link', { name: /Online/ }).click({ timeout: 15_000 });
+    await openOnlineMachine(page);
 
     // The terminal runs a real shell, under the Content-Security-Policy.
     await page.getByRole('link', { name: 'Terminal' }).click();

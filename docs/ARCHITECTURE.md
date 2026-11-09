@@ -96,6 +96,8 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/localaccess/` | Checks who may run `reset-admin` on the server host | Built |
 | `internal/server/audit/` | Append-only, hash-chained audit log; verify and export | Built |
 | `internal/server/secrets/` | Encrypts stored secrets with the key in `secret.key` | Built |
+| `cmd/sentinel-release/` | Maintainer's release tool: key pairs, signatures, checksums, SBOMs (not shipped) | Built |
+| `internal/shared/release/` | Release signatures and the compiled-in release keys (SEC-30, SEC-31); SBOMs (SEC-33) | Built |
 | `internal/server/backup/` | Encrypted backups: database copy, keys, certificates and config, sealed with a passphrase | Built |
 | `internal/server/serverkey/` | The server's Ed25519 identity key and its fingerprint | Built |
 | `internal/server/fleet/` | Enrollment tokens and the list of managed machines | Built |

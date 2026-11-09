@@ -44,6 +44,14 @@ build: web ## Build both binaries for this machine into bin/
 build-all: web ## Cross-compile both binaries for every release platform into bin/<os>-<arch>/
 	scripts/build-all.sh $(PLATFORMS)
 
+.PHONY: release
+release: web ## Build, sign and describe a release into dist/ (VERSION=v1.2.3; key in $$SENTINEL_RELEASE_KEY)
+	scripts/release.sh $(VERSION) $(PLATFORMS)
+
+.PHONY: check-reproducible
+check-reproducible: ## Check two builds of the same source are byte-for-byte identical
+	scripts/check-reproducible.sh
+
 .PHONY: dev
 dev: ## Start the server and the web UI dev server with hot reload
 	scripts/run-dev.sh

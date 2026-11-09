@@ -89,3 +89,18 @@ export async function signInAsNewAdmin(page: Page, server: OwnServer) {
   });
   expect(completed.ok()).toBe(true);
 }
+
+/**
+ * openOnlineMachine opens the first online machine from the fleet list. The
+ * list re-renders as live readings arrive, so a click can land on a row as
+ * it is replaced; it clicks again until the machine page is open.
+ */
+export async function openOnlineMachine(page: Page) {
+  await expect(async () => {
+    await page
+      .getByRole('link', { name: /Online/ })
+      .first()
+      .click({ timeout: 15_000 });
+    await expect(page).toHaveURL(/\/machines\/[0-9A-Z]{26}$/, { timeout: 3_000 });
+  }).toPass({ timeout: 45_000 });
+}

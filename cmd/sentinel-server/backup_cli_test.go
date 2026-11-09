@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -37,7 +38,7 @@ func TestBackupCommands(t *testing.T) {
 		if result.ExitCode != 0 || !strings.Contains(result.Stdout, "Backed up to") {
 			t.Fatalf("backup = %d %q %q", result.ExitCode, result.Stdout, result.Stderr)
 		}
-		if info, err := os.Stat(file); err != nil || info.Mode().Perm()&0o077 != 0 {
+		if info, err := os.Stat(file); err != nil || (runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0) {
 			t.Errorf("the backup is %v, %v; want readable only by its owner", info, err)
 		}
 		if leftovers, _ := filepath.Glob(filepath.Join(dataDir, "*.tmp")); len(leftovers) != 0 {
