@@ -53,6 +53,13 @@ func (m *Manager) List(path string) (protocol.FileListResultPayload, error) {
 	if err != nil {
 		return protocol.FileListResultPayload{}, err
 	}
+	// Windows reports listing a file as "path not found", so the kind is
+	// checked here rather than read from the error.
+	if info, err := os.Stat(folder); err != nil {
+		return protocol.FileListResultPayload{}, describe(err, folder)
+	} else if !info.IsDir() {
+		return protocol.FileListResultPayload{}, ErrNotFolder
+	}
 	dirEntries, err := os.ReadDir(folder)
 	if err != nil {
 		return protocol.FileListResultPayload{}, describe(err, folder)
