@@ -21,6 +21,16 @@ const ports: Record<string, number> = {
 
 const hasDocker = spawnSync('docker', ['info'], { stdio: 'ignore' }).status === 0;
 
+// The stack's image is pulled here, once, and the compose file says
+// pull_policy: never, so neither deploying nor "pull and redeploy" waits
+// on a public registry (and its rate limits, with four browser projects
+// running at once). The agent's own tests cover pulling.
+test.beforeAll(() => {
+  if (hasDocker) {
+    spawnSync('docker', ['pull', '--quiet', 'alpine:3.20'], { stdio: 'ignore' });
+  }
+});
+
 test('M4: a stack from a pasted compose file, its logs, a shell, and an update', async ({
   page,
 }, testInfo) => {
@@ -52,7 +62,7 @@ test('M4: a stack from a pasted compose file, its logs, a shell, and an update',
     await page.getByRole('textbox', { name: 'Stack name' }).fill(stack);
     await page.getByRole('textbox', { name: 'compose.yaml' }).click();
     await page.keyboard.insertText(
-      'services:\n  app:\n    image: alpine:3.20\n    pull_policy: missing\n    command: ["sh", "-c", "echo hello from sentinel; sleep 3600"]\n    environment:\n      GREETING: ${GREETING}\n',
+      'services:\n  app:\n    image: alpine:3.20\n    pull_policy: never\n    command: ["sh", "-c", "echo hello from sentinel; sleep 3600"]\n    environment:\n      GREETING: ${GREETING}\n',
     );
     await page.getByRole('textbox', { name: '.env' }).click();
     await page.keyboard.insertText('GREETING=hi-from-env\n');
@@ -87,10 +97,8 @@ test('M4: a stack from a pasted compose file, its logs, a shell, and an update',
     await expect(screen).toContainText('hi-from-env', { timeout: 15_000 });
     await page.getByRole('button', { name: 'End session' }).click();
 
-    // Pull updates and redeploy, then stop it. The image says
-    // pull_policy: missing, so the pull is skipped rather than depending on
-    // a public registry (and its rate limits) in the test; the agent's own
-    // tests cover pulling.
+    // Pull updates and redeploy, then stop it. With pull_policy: never the
+    // pull is skipped (see beforeAll).
     await page.getByRole('link', { name: '← Containers' }).click();
     await page.getByRole('link', { name: 'Stacks' }).click();
     await page.getByRole('link', { name: stack, exact: true }).click();
