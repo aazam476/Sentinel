@@ -29,6 +29,28 @@ func (s *Service) Fetch(ctx context.Context, actor auth.Session, request auth.Re
 	if s.options.ReleaseURL == "" {
 		return nil, &InvalidError{"releaseUrl", "no release channel is set; upload builds instead"}
 	}
+	added, err := s.fetch(ctx)
+	if err != nil {
+		var invalid *InvalidError
+		if !errors.As(err, &invalid) {
+			err = &FetchError{Err: err}
+		}
+		return added, err
+	}
+	return added, s.audit(ctx, userEntry(actor, request, "agent.build.fetch", map[string]any{"builds": len(added)}))
+}
+
+// FetchError says the release channel couldn't be reached, or what it
+// served didn't check out.
+type FetchError struct {
+	Err error
+}
+
+func (e *FetchError) Error() string { return e.Err.Error() }
+
+func (e *FetchError) Unwrap() error { return e.Err }
+
+func (s *Service) fetch(ctx context.Context) ([]Build, error) {
 	sums, err := s.download(ctx, "SHA256SUMS")
 	if err != nil {
 		return nil, err
@@ -48,7 +70,7 @@ func (s *Service) Fetch(ctx context.Context, actor auth.Session, request auth.Re
 		}
 		added = append(added, build)
 	}
-	return added, s.audit(ctx, userEntry(actor, request, "agent.build.fetch", map[string]any{"builds": len(added)}))
+	return added, nil
 }
 
 // agentBuilds reads the agent binaries a SHA256SUMS file lists.

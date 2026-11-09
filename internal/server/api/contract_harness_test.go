@@ -12,6 +12,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,6 +35,8 @@ const strongPassword = "correct horse battery staple"
 // name rather than an IP address. Requests still go to 127.0.0.1, and carry
 // the public URL as their Origin, like a browser at that address.
 type testServer struct {
+	// releaseFiles are the files on the server's release channel, by name.
+	releaseFiles *sync.Map
 	t            *testing.T
 	server       *httptest.Server
 	app          *app.App
@@ -45,7 +48,21 @@ func newTestServer(t *testing.T) *testServer {
 	t.Helper()
 	httpServer := httptest.NewUnstartedServer(nil)
 	publicOrigin := "https://localhost:" + portOf(t, httpServer.Listener.Addr().String())
-	settings, err := config.File{DataDir: t.TempDir(), Listen: "127.0.0.1:0", PublicURL: publicOrigin}.Resolve()
+	// A release channel on this machine: tests never reach the internet.
+	releaseFiles := &sync.Map{}
+	releases := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		content, found := releaseFiles.Load(strings.TrimPrefix(r.URL.Path, "/"))
+		if !found {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write(content.([]byte)) //nolint:gosec // G705: release files a test stored, served as bytes
+	}))
+	t.Cleanup(releases.Close)
+	settings, err := config.File{
+		DataDir: t.TempDir(), Listen: "127.0.0.1:0", PublicURL: publicOrigin,
+		Updates: config.UpdatesFile{ReleaseURL: releases.URL + "/"},
+	}.Resolve()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +80,7 @@ func newTestServer(t *testing.T) *testServer {
 		httpServer.Close()
 		_ = server.Close() // nothing to check when a test database closes
 	})
-	return &testServer{t: t, server: httpServer, app: server, clock: clock, publicOrigin: publicOrigin}
+	return &testServer{t: t, server: httpServer, app: server, clock: clock, publicOrigin: publicOrigin, releaseFiles: releaseFiles}
 }
 
 func portOf(t *testing.T, address string) string {

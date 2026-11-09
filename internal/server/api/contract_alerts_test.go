@@ -168,6 +168,22 @@ func TestAlertsAPI(t *testing.T) {
 		expect(t, f.admin.browser.do(http.MethodDelete, "/api/alert-rules/nope", nil), http.StatusNotFound, "not_found")
 	})
 
+	t.Run("refuses malformed requests and IDs", func(t *testing.T) {
+		f := newTerminalFixture(t)
+		b := f.admin.browser
+		for _, path := range []string{"/api/alert-rules", "/api/notification-channels"} {
+			expect(t, b.do(http.MethodPost, path, map[string]int{"name": 1}), http.StatusBadRequest, "invalid_json")
+		}
+		expect(t, b.do(http.MethodPut, "/api/agents/"+f.agentID+"/maintenance", map[string]string{"until": "soon"}), http.StatusBadRequest, "invalid_json")
+		for _, request := range [][2]string{
+			{http.MethodPut, "/api/alert-rules/abc"}, {http.MethodDelete, "/api/alert-rules/0"}, {http.MethodPut, "/api/notification-channels/abc"},
+			{http.MethodDelete, "/api/notification-channels/abc"}, {http.MethodPost, "/api/notification-channels/abc/test"},
+			{http.MethodPost, "/api/alerts/abc/acknowledge"},
+		} {
+			expect(t, b.do(request[0], request[1], nil), http.StatusNotFound, "not_found")
+		}
+	})
+
 	t.Run("puts a machine in maintenance and takes it out", func(t *testing.T) {
 		f := newTerminalFixture(t)
 		path := "/api/agents/" + f.agentID + "/maintenance"

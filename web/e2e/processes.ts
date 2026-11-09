@@ -159,12 +159,14 @@ export class Agent {
 
 /**
  * agentFlags turns the Linux and macOS install command shown in the UI into
- * the agent's flags, dropping `sudo ./sentinel-agent install`.
+ * the agent's flags.
  */
 export function agentFlags(command: string): string[] {
   const words = command.split(/\s+/);
-  const install = words.indexOf('install');
-  return words.slice(install + 1).map((word) => word.replace(/^'(.*)'$/, '$1'));
+  // The script command passes its flags after `sh -s --`; the program's
+  // own command after `install`.
+  const start = words.includes('--') ? words.indexOf('--') : words.indexOf('install');
+  return words.slice(start + 1).map((word) => word.replace(/^'(.*)'$/, '$1'));
 }
 
 /**

@@ -99,6 +99,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `cmd/sentinel-release/` | Maintainer's release tool: key pairs, signatures, checksums, SBOMs (not shipped) | Built |
 | `internal/shared/release/` | Release signatures and the compiled-in release keys (SEC-30, SEC-31); SBOMs (SEC-33) | Built |
 | `internal/server/updates/` | Hosts signed agent builds, updates machines, records how each update went; automatic updates | Built |
+| `internal/server/install/` | Serves the agent install scripts, with the trusted release keys, and the newest build per system (SEC-34) | Built |
 | `internal/server/backup/` | Encrypted backups: database copy, keys, certificates and config, sealed with a passphrase | Built |
 | `internal/server/serverkey/` | The server's Ed25519 identity key and its fingerprint | Built |
 | `internal/server/fleet/` | Enrollment tokens and the list of managed machines | Built |

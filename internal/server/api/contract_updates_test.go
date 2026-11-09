@@ -4,6 +4,8 @@ package api_test
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"mime/multipart"
 	"net/http"
@@ -43,6 +45,29 @@ func signedBuild(t *testing.T, version string, content []byte) []byte {
 	return signature
 }
 
+// signed signs content as an artifact with the development key.
+func signed(t *testing.T, name, version, osName, arch string, content []byte) []byte {
+	t.Helper()
+	_, file, _, _ := runtime.Caller(0)
+	text, err := os.ReadFile(filepath.Join(filepath.Dir(file), "..", "..", "..", "testdata", "release", "development.key"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := release.ParsePrivateKey(string(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := release.ManifestFor(bytes.NewReader(content), name, version, osName, arch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signature, err := release.Sign(manifest, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return signature
+}
+
 // upload sends a build and its signature as the Updates page does.
 func upload(t *testing.T, as *browser, content, signature []byte) response {
 	t.Helper()
@@ -65,6 +90,39 @@ func upload(t *testing.T, as *browser, content, signature []byte) response {
 }
 
 func TestAgentUpdatesAPI(t *testing.T) {
+	t.Run("fetches the agent builds of the latest release", func(t *testing.T) {
+		f := newTerminalFixture(t)
+		content := []byte("\x7fELF agent v0.3.0")
+		name := "sentinel-agent_v0.3.0_linux_amd64"
+		digest := sha256.Sum256(content)
+		sums := []byte(hex.EncodeToString(digest[:]) + "  " + name + "\n")
+		f.server.releaseFiles.Store(name, content)
+		f.server.releaseFiles.Store(name+".sig", signedBuild(t, "v0.3.0", content))
+		f.server.releaseFiles.Store("SHA256SUMS", sums)
+		f.server.releaseFiles.Store("SHA256SUMS.sig", signed(t, "SHA256SUMS", "v0.3.0", "any", "any", sums))
+		got := f.admin.browser.do(http.MethodPost, "/api/agent-builds/fetch", nil)
+		expect(t, got, http.StatusOK, "")
+		var fetched api.FetchedBuilds
+		got.decode(t, &fetched)
+		if len(fetched.Builds) != 1 || fetched.Builds[0].Version != "v0.3.0" {
+			t.Errorf("fetched %+v", fetched)
+		}
+	})
+
+	t.Run("refuses malformed uploads and update requests", func(t *testing.T) {
+		f := newTerminalFixture(t)
+		var body bytes.Buffer
+		form := multipart.NewWriter(&body)
+		part, _ := form.CreateFormFile("signature", "x.sig")
+		_, _ = part.Write([]byte("sig"))
+		_ = form.Close()
+		request, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, f.server.server.URL+"/api/agent-builds", &body)
+		request.Header.Set("Content-Type", form.FormDataContentType())
+		request.Header.Set("Origin", f.server.publicOrigin)
+		expect(t, f.admin.browser.send(request), http.StatusBadRequest, "invalid_input")
+		expect(t, f.admin.browser.do(http.MethodPost, "/api/agent-updates", map[string]int{"target": 1}), http.StatusBadRequest, "invalid_json")
+	})
+
 	t.Run("keeps viewers away from builds and updates", func(t *testing.T) {
 		f := newTerminalFixture(t)
 		viewer := f.server.addUser(f.admin, "viewer", "viewer")
@@ -143,6 +201,9 @@ func TestAgentUpdatesAPI(t *testing.T) {
 		}
 		expect(t, f.admin.browser.do(http.MethodPost, "/api/agent-updates", api.UpdateAgentsRequest{Target: api.ScriptTarget{Kind: "agent", Value: "01JBX3K5Q7Z8M4N6P8R0T2V4WM"}}), http.StatusNotFound, "not_found")
 		expect(t, f.admin.browser.do(http.MethodPut, "/api/agent-builds/auto-update", api.SetAutoUpdateRequest{Enabled: true}), http.StatusNoContent, "")
+		expect(t, f.admin.browser.do(http.MethodPut, "/api/agent-builds/auto-update", map[string]string{"on": "yes"}), http.StatusBadRequest, "invalid_json")
+		// The test server's release channel has nothing on it.
+		expect(t, f.admin.browser.do(http.MethodPost, "/api/agent-builds/fetch", nil), http.StatusBadGateway, "fetch_failed")
 		var builds api.AgentBuilds
 		f.admin.browser.do(http.MethodGet, "/api/agent-builds", nil).decode(t, &builds)
 		if !builds.AutoUpdate {

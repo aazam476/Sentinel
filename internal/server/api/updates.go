@@ -3,12 +3,18 @@
 package api
 
 import (
+	"errors"
 	"io"
 	"net/http"
 
 	"github.com/aazam476/sentinel/internal/server/auth"
+	"github.com/aazam476/sentinel/internal/server/install"
 	"github.com/aazam476/sentinel/internal/server/updates"
 )
+
+// errorCodeFetchFailed: the release channel couldn't be reached, or what it
+// served didn't check out.
+const errorCodeFetchFailed = "fetch_failed"
 
 // maxBuildUpload bounds an uploaded agent build and its signature.
 const maxBuildUpload = 600 << 20
@@ -80,6 +86,7 @@ func (h *handlers) addUpdateRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/agent-builds/auto-update", manage(h.handleSetAutoUpdate))
 	mux.HandleFunc("POST /api/agent-updates", manage(h.handleUpdateAgents))
 	mux.Handle("GET /install/updates/{version}/{file}", h.updates.Handler())
+	install.New(h.updates, nil).Routes(mux)
 }
 
 func buildView(build updates.Build) AgentBuild {
@@ -141,7 +148,12 @@ func (h *handlers) handleUploadBuild(w http.ResponseWriter, r *http.Request, ses
 
 func (h *handlers) handleFetchBuilds(w http.ResponseWriter, r *http.Request, session auth.Session) {
 	added, err := h.updates.Fetch(r.Context(), session, requestInfo(r))
-	if err != nil {
+	var failed *updates.FetchError
+	switch {
+	case errors.As(err, &failed):
+		writeError(w, http.StatusBadGateway, errorCodeFetchFailed, "The latest release couldn't be fetched: "+failed.Error())
+		return
+	case err != nil:
 		h.writeError(w, err)
 		return
 	}

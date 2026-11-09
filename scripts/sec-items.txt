@@ -33,3 +33,4 @@ SEC-30  Release artifacts signed with the offline Ed25519 release key, compiled 
 SEC-31  Signatures verified before installing any update; bad ones rejected and reported
 SEC-33  Reproducible builds, SHA-256 checksums and an SBOM per release
 SEC-32  Agent update rollback: the previous binary is kept, and a new version that can't connect is undone
+SEC-34  Install scripts verify the downloaded agent's signature before installing

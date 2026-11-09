@@ -6,6 +6,7 @@
 #   sentinel-{server,agent}_<version>_<os>_<arch>[.exe]   the binaries
 #   <binary>.sig                                         Ed25519 signatures
 #   <binary>.spdx.json                                   SBOMs
+#   install-server.sh (+ .sig)                           the server's install script
 #   SHA256SUMS, SHA256SUMS.sig                           checksums of everything
 #
 # Usage: scripts/release.sh <version> [os/arch ...]
@@ -58,6 +59,14 @@ for platform in "${platforms[@]}"; do
     "$tool" sbom --name "$product" --version "$version" "${lock[@]}" "$file" > "$file.spdx.json"
   done
 done
+
+# The server's install script carries the release keys it checks with.
+keys="$(grep -v '^#' internal/shared/release/keys/production.pub | tr -s ' \n' ' ' | sed 's/^ *//; s/ *$//')"
+if [ -z "$keys" ]; then
+  keys="$(grep -v '^#' internal/shared/release/keys/development.pub | tr -s ' \n' ' ' | sed 's/^ *//; s/ *$//')"
+fi
+sed "s|@RELEASE_KEYS@|$keys|" scripts/install-server.sh > dist/install-server.sh
+"$tool" sign --name install-server.sh --version "$version" dist/install-server.sh
 
 (cd dist && "$tool" sums ./*) > SHA256SUMS.tmp
 mv SHA256SUMS.tmp dist/SHA256SUMS

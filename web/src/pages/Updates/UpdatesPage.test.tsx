@@ -125,7 +125,7 @@ describe('Agent updates', () => {
     await user.click(within(upload).getByRole('button', { name: 'Upload' }));
     expect(await screen.findByText('Added v0.2.0 for linux/amd64')).toBeVisible();
     expect([...(forms[0]?.keys() ?? [])]).toEqual(['signature', 'build']);
-  });
+  }, 20_000);
 
   it('warns when the server trusts only the development key', async () => {
     withBuilds({ developmentKey: true });

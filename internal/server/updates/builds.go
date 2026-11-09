@@ -278,3 +278,12 @@ func (s *Service) CanFetch() bool {
 func IsDevelopmentKey() bool {
 	return release.IsDevelopmentBuild()
 }
+
+// Newest is the newest hosted build for a system, and the path of its file.
+func (s *Service) Newest(osName, arch string) (Build, string, error) {
+	build, err := s.buildFor(osName, arch, "")
+	if err != nil {
+		return Build{}, "", err
+	}
+	return build, filepath.Join(s.folder(), build.Version, build.File), nil
+}

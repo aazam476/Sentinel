@@ -23,8 +23,9 @@ export function InstallCommands({ created }: InstallCommandsProps) {
         Run this on the machine
       </h2>
       <p className={styles.text}>
-        Copy the sentinel-agent program onto the machine first. The command works for {uses} until{' '}
-        {formatDateTime(created.token.expiresAt)}, and won’t be shown again.
+        The script downloads the agent from this server and checks its signature before installing
+        it. The command works for {uses} until {formatDateTime(created.token.expiresAt)}, and won’t
+        be shown again.
       </p>
       {commands.map((command) => (
         <div key={command.system} className={styles.command}>

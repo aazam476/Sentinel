@@ -80,7 +80,9 @@ describe('add machine', () => {
       await screen.findByRole('button', { name: 'Copy the Linux and macOS command' }),
     );
 
-    expect(await navigator.clipboard.readText()).toMatch(/^sudo \.\/sentinel-agent install /);
+    expect(await navigator.clipboard.readText()).toMatch(
+      /^curl -fsSL .*\/install\/agent\.sh \| sudo sh -s -- --server /,
+    );
     expect(await screen.findByText('Copied the Linux and macOS command')).toBeVisible();
   });
 
@@ -92,7 +94,11 @@ describe('add machine', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Create install command' }));
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('not allowed'));
-    await user.click(await screen.findByRole('button', { name: 'Copy the Windows command' }));
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Copy the Windows, with the program already copied command',
+      }),
+    );
     expect(await screen.findByText(/Couldn’t copy automatically/)).toBeVisible();
   });
 
