@@ -43,3 +43,13 @@ tag of machines with its output viewable.
   retried; the next scheduled time runs as usual.
 - Output beyond 1 MB per machine is dropped, and the run says so.
 - A failed scheduled script raises an alert once alert rules exist (M6-D).
+
+## The Scripts page
+
+- A top-level page, for operators and admins, with the library, runs and schedules. The run
+  dialog chooses one machine, a tag, or a set of machines; a schedule takes the same targets.
+- A run's page lists each machine's state, exit code and duration; opening one follows its
+  output, refreshing every second while it runs, with a button to stop it. Output keeps its
+  lines, scrolling inside its own box rather than wrapping.
+- The cron field says the schedule in words as it is typed ("At 03:00, Monday through Friday"),
+  and new schedules use the browser's time zone.

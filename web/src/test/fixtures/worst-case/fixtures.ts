@@ -10,6 +10,12 @@ import type {
   ServiceList,
   SessionResponse,
   SessionSummary,
+  Schedules,
+  Script,
+  ScriptBatchDetails,
+  ScriptRun,
+  ScriptRunOutput,
+  Scripts,
 } from '../../../api/types.gen';
 import type {
   ContainerListPayload,
@@ -793,3 +799,91 @@ export function worstFolder(): FileListResultPayload {
 }
 
 export const worstFolderLink = `/machines/${worstMachine.id}/files?path=${encodeURIComponent(worstFolderPath)}`;
+
+const worstScriptName =
+  'Nightly verification of every backup set across the archive pools, with a report'.padEnd(
+    100,
+    '!',
+  );
+
+/** worstScripts: a name at the 100-character limit, a long description, every language, 300 scripts. */
+export function worstScripts(): Scripts {
+  return {
+    scripts: Array.from({ length: 300 }, (_, index): Script => ({
+      id: index + 1,
+      name:
+        index === 0
+          ? worstScriptName
+          : `script-${String(index).padStart(3, '0')}-${'x'.repeat(40)}`,
+      description: index === 0 ? 'Checks '.repeat(140).trim() : '',
+      language: ['bash', 'sh', 'powershell', 'python'][index % 4] ?? 'sh',
+      body: 'true',
+      targetOS: ['any', 'linux', 'darwin', 'windows'][index % 4] ?? 'any',
+      timeoutSeconds: 86_400,
+      createdAt: fixtureNow,
+      updatedAt: fixtureNow,
+    })),
+  };
+}
+
+/** worstBatch: 1,000 machines, every state, a 400-character error, a long machine name. */
+export function worstBatch(): ScriptBatchDetails {
+  const states = ['running', 'succeeded', 'failed', 'timed_out', 'offline', 'skipped', 'canceled'];
+  return {
+    id: 3,
+    scriptId: 1,
+    scriptName: worstScriptName,
+    startedBy: worstSession.user.username,
+    scheduleId: null,
+    target: 'tag environment-production-eu-00',
+    startedAt: fixtureNow,
+    counts: Object.fromEntries(states.map((state) => [state, 1_000 / states.length])),
+    language: 'bash',
+    body: `#!/usr/bin/env bash\n${'echo "a very long line that never wraps on its own"; '.repeat(40)}\n`,
+    runs: Array.from({ length: 1_000 }, (_, index) => ({
+      id: 100 + index,
+      batchId: 3,
+      agentId: worstMachine.id,
+      agentName:
+        index === 0
+          ? longDisplayName
+          : `machine-${String(index).padStart(4, '0')}.${longHostname.slice(0, 60)}`,
+      state: states[index % states.length] ?? 'failed',
+      exitCode: index % 3 === 0 ? 2_147_483_647 : null,
+      error:
+        index % 7 === 2 ? `The script couldn't start: ${'interpreter missing; '.repeat(20)}` : '',
+      startedAt: fixtureNow,
+      finishedAt: index % 7 === 0 ? null : fixtureNow + 86_400_000,
+    })),
+  };
+}
+
+/** worstRunOutput: one 20,000-character line, then many short ones, cut at 1 MB. */
+export function worstRunOutput(): ScriptRunOutput {
+  const run = worstBatch().runs[1];
+  return {
+    ...(run as ScriptRun),
+    output: `${'x'.repeat(20_000)}\n${'line of output\n'.repeat(2_000)}`,
+    truncated: true,
+  };
+}
+
+/** worstSchedules: a cron cronstrue can't say in words, a long time zone, 1,000 machines. */
+export const worstSchedules: Schedules = {
+  schedules: [
+    {
+      id: 1,
+      scriptId: 1,
+      scriptName: worstScriptName,
+      cron: '5/20 0-5,23 1-7,15-21 jan-mar,oct-dec mon-fri',
+      timezone: 'America/Argentina/ComodRivadavia',
+      target: {
+        kind: 'agents',
+        value: Array.from({ length: 1_000 }, (_, index) => `id${String(index)}`).join(','),
+      },
+      enabled: false,
+      nextRunAt: null,
+      lastRunAt: fixtureNow,
+    },
+  ],
+};

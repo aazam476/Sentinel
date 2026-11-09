@@ -50,6 +50,7 @@ anything GPL-family.
 | sonner | 2.0.8 | MIT | Toasts for action results ("Passkey added") | Stacking, swiping and timing toasts accessibly is a library's worth of work |
 | clsx | 2.1.1 | MIT | Joining conditional CSS Module class names | Tiny and clearer than string concatenation |
 | codemirror, @codemirror/lang-yaml (and the @codemirror packages, @lezer parsers, style-mod, w3c-keyname and crelt they bring) | 6.0.2, 6.1.3 | MIT | The compose file and .env editor (§9.4: "a code editor (CodeMirror)") | The spec's choice: a full editor (YAML highlighting, search, undo, IME, screen readers) is a project of its own. Its stylesheet injection is patched at build time for the CSP (ADR 0020) |
+| cronstrue | 3.38.0 | MIT | Saying a schedule's cron expression in words ("At 03:00, Monday through Friday") (§9.8: "a human-readable preview") | Describing every cron form in plain English, with its edge cases, is its own small project; this library has no dependencies |
 | @xterm/xterm | 6.0.0 | MIT | The web terminal | A terminal emulator (escape sequences, colors, selection, IME, screen readers) is a project of its own; xterm.js is what VS Code and most web terminals use. Its inline styles are rewritten at build time to satisfy the CSP (ADR 0020) |
 | @xterm/addon-fit | 0.11.0 | MIT | Sizing the terminal to its box | The official add-on for measuring how many rows and columns fit |
 | react-virtuoso | 4.18.20 | MIT | Rendering only the visible rows of long lists (the audit log, services, processes, logs) | Rendering thousands of rows at once makes the page slow |

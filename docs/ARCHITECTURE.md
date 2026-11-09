@@ -128,7 +128,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/files/` | The file manager: listing, chunked reads, resumable uploads, renames, deletes and text editing, inside the folders the local policy allows | Built |
 | `internal/agent/scripts/` | Runs a script with its interpreter, from a private temporary file, passing its output on and stopping it at its time limit | Built |
 | `internal/agent/<feature>/` | One package per agent feature (desktop, updates, ...) | Planned |
-| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power, files, storage and Docker; firing alerts in the fleet |
+| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power, files, storage and Docker; scripts with runs and schedules; firing alerts in the fleet |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |
 

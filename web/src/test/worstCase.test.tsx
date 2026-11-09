@@ -22,6 +22,10 @@ import {
   worstSessions,
   worstStacks,
   worstStorage,
+  worstScripts,
+  worstBatch,
+  worstRunOutput,
+  worstSchedules,
   worstFolder,
   worstFolderLink,
 } from './fixtures/worst-case/fixtures';
@@ -239,6 +243,37 @@ describe('worst-case data', () => {
     expect(screen.getAllByRole('listitem').length).toBeLessThan(100);
     expect(await findAccessibilityViolations(container)).toEqual([]);
   });
+
+  it('scripts: 300 scripts, a batch on 1,000 machines, a 20,000-character line of output', async () => {
+    signedInAs(worstSession);
+    server.use(
+      http.get(apiPath('agents'), () => json({ agents: worstAgents() })),
+      http.get(apiPath('scripts'), () => json(worstScripts())),
+      http.get(apiPath('script-batches/3'), () => json(worstBatch())),
+      http.get(apiPath('script-runs/101'), () => json(worstRunOutput())),
+      http.get(apiPath('schedules'), () => json(worstSchedules)),
+    );
+    const user = userEvent.setup();
+    const { container } = renderApp('/scripts/runs/3');
+    const first = await screen.findByRole('listitem', { name: longDisplayName });
+    expect(within(first).getByText('Running')).toBeVisible();
+    expect(await findAccessibilityViolations(container)).toEqual([]);
+    const second = screen.getAllByRole('listitem')[1];
+    if (second === undefined) {
+      throw new Error('no second run');
+    }
+    await user.click(within(second).getAllByRole('button')[0] as HTMLElement);
+    expect(
+      await within(second).findByText('Only the first 1 MB of output was kept.'),
+    ).toBeVisible();
+
+    const { container: schedules } = renderApp('/scripts/schedules');
+    const schedule = await within(schedules).findByRole('listitem', {
+      name: /^Schedule of Nightly/,
+    });
+    expect(within(schedule).getByText('Paused')).toBeVisible();
+    expect(within(schedule).getByText('1,000 machines')).toBeVisible();
+  }, 30_000);
 
   it('add machine: a 100-character note and a 1,000-use token', async () => {
     signedInAs(worstSession);

@@ -15,6 +15,10 @@ import {
   worstSessions,
   worstStacks,
   worstStorage,
+  worstScripts,
+  worstBatch,
+  worstRunOutput,
+  worstSchedules,
   worstFolder,
   worstFolderLink,
 } from '../src/test/fixtures/worst-case/fixtures';
@@ -43,6 +47,10 @@ async function serveWorstCase(page: Page) {
     [`agents/${worstMachine.id}/docker/stacks`]: worstStacks,
     [`agents/${worstMachine.id}/storage`]: worstStorage(),
     [`agents/${worstMachine.id}/files`]: worstFolder(),
+    scripts: worstScripts(),
+    'script-batches/3': worstBatch(),
+    'script-runs/101': worstRunOutput(),
+    schedules: worstSchedules,
     [`agents/${worstMachine.id}/alerts`]: {
       alerts: [
         {
@@ -107,6 +115,9 @@ const screens: {
   { path: `/machines/${worstMachine.id}/storage`, ready: 'Pools', role: 'region', allowAll: true },
   { path: worstFolderLink, ready: 'Files', role: 'region', allowAll: true },
   { path: '/machines/add', ready: 'Add a machine' },
+  { path: '/scripts', ready: 'Script library', role: 'region' },
+  { path: '/scripts/runs/3', ready: /^Run of /, role: 'region' },
+  { path: '/scripts/schedules', ready: 'Schedules', role: 'region' },
 ];
 
 for (const screen of screens) {

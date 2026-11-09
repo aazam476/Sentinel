@@ -150,6 +150,42 @@ export const routes: RouteObject[] = [
         }),
       },
       {
+        path: '/scripts',
+        lazy: async () => ({
+          Component: (await import('../pages/Scripts/ScriptsPage')).ScriptsPage,
+        }),
+        children: [
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('../pages/Scripts/LibraryView')).LibraryView,
+            }),
+          },
+          {
+            path: 'runs',
+            lazy: async () => ({ Component: (await import('../pages/Scripts/RunsView')).RunsView }),
+          },
+          {
+            path: 'runs/:batchId',
+            lazy: async () => ({
+              Component: (await import('../pages/Scripts/BatchView')).BatchView,
+            }),
+          },
+          {
+            path: 'schedules',
+            lazy: async () => ({
+              Component: (await import('../pages/Scripts/SchedulesView')).SchedulesView,
+            }),
+          },
+          {
+            path: ':scriptId',
+            lazy: async () => ({
+              Component: (await import('../pages/Scripts/ScriptEditor')).ScriptEditor,
+            }),
+          },
+        ],
+      },
+      {
         path: '/audit',
         lazy: async () => ({ Component: (await import('../pages/Audit/AuditPage')).AuditPage }),
       },
