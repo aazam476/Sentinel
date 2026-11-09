@@ -2,6 +2,10 @@
 import type {
   Agent,
   AgentDetails,
+  AlertRules,
+  FleetAlerts,
+  MachineAlerts,
+  NotificationChannels,
   AuditEntry,
   EnrollmentToken,
   LogEntries,
@@ -198,6 +202,7 @@ const base: Agent = {
   enrolledAt: fixtureNow - 400 * 86_400_000,
   tags: maxTags,
   firingAlerts: 1284,
+  maintenanceUntil: fixtureNow + 30 * 86_400_000,
   current: {
     time: fixtureNow,
     uptimeSeconds: 3_650 * 86_400,
@@ -886,4 +891,119 @@ export const worstSchedules: Schedules = {
       lastRunAt: fixtureNow,
     },
   ],
+};
+
+/** worstAlertMessage is a long storage alert about a pool with a long name. */
+const worstAlertMessage = `Pool ${'archive-pool-with-a-very-long-name-'.repeat(4)}has device errors: 18446744073709551615 read, 18446744073709551615 write, 18446744073709551615 checksum.`;
+
+/** worstMachineAlerts: a critical alert with a 200-character message, acknowledged by the longest username. */
+export const worstMachineAlerts: MachineAlerts = {
+  alerts: [
+    {
+      id: 1,
+      kind: 'zfs.pool.errors',
+      subject: 'archive',
+      severity: 'critical',
+      message: worstAlertMessage,
+      state: 'firing',
+      startedAt: fixtureNow - 400 * 86_400_000,
+      resolvedAt: null,
+      ruleName: 'Storage health',
+      acknowledgedBy: longUsername,
+      acknowledgedAt: fixtureNow,
+    },
+  ],
+};
+
+/** worstFleetAlerts: 300 firing alerts (every severity, some acknowledged) and 200 resolved, on the longest-named machine. */
+export function worstFleetAlerts(): FleetAlerts {
+  return {
+    alerts: Array.from({ length: 500 }, (_, index) => ({
+      id: index + 1,
+      agentId: worstMachine.id,
+      agentName: longDisplayName,
+      kind: `rule.${String(index)}`,
+      subject: '',
+      severity: index % 3 === 0 ? 'critical' : 'warning',
+      message:
+        index === 0
+          ? worstAlertMessage
+          : `CPU has been above 99.5% for 1440 minutes (100%). #${String(index)}`,
+      state: index < 300 ? 'firing' : 'resolved',
+      startedAt: fixtureNow - index * 60_000,
+      resolvedAt: index < 300 ? null : fixtureNow,
+      ruleName: worstScriptName,
+      acknowledgedBy: index % 4 === 1 ? longUsername : '',
+      acknowledgedAt: index % 4 === 1 ? fixtureNow : null,
+    })),
+  };
+}
+
+/** worstChannels: 20 channels: email to 50 people, a 500-character error, long names everywhere. */
+export const worstChannels: NotificationChannels = {
+  channels: Array.from({ length: 20 }, (_, index) => {
+    const type = ['email', 'webhook', 'ntfy', 'discord'][index % 4] ?? 'email';
+    return {
+      id: index + 1,
+      type,
+      name:
+        index === 0
+          ? 'Ops team on-call rotation — primary pager and the whole platform group'.padEnd(
+              100,
+              '!',
+            )
+          : `channel-${String(index).padStart(2, '0')}`,
+      enabled: index % 5 !== 3,
+      config:
+        type === 'email'
+          ? {
+              smtpHost: longHostname,
+              smtpPort: 65535,
+              smtpSecurity: 'starttls',
+              from: `${longUsername}@${longHostname.slice(0, 60)}`,
+              to: Array.from(
+                { length: 50 },
+                (_, n) => `person${String(n)}@northwind-industries-holdings.example.com`,
+              ),
+            }
+          : type === 'ntfy'
+            ? { server: `https://${longHostname}`, topic: 'homelab-alerts-'.repeat(4) }
+            : {},
+      summary:
+        type === 'email'
+          ? `${longHostname} to ${Array.from({ length: 50 }, (_, n) => `person${String(n)}@northwind-industries-holdings.example.com`).join(', ')}`
+          : type === 'ntfy'
+            ? `topic ${'homelab-alerts-'.repeat(4)} on ${longHostname}`
+            : `posts to ${longHostname}`,
+      hasSecret: true,
+      lastSentAt: fixtureNow,
+      lastError:
+        index % 4 === 1
+          ? `the notification was refused: 502 Bad Gateway ${'upstream timed out; '.repeat(24)}`
+          : '',
+    };
+  }),
+};
+
+/** worstRules: a 100-character name per type, a tag target, every channel notified. */
+export const worstRules: AlertRules = {
+  rules: ['metric', 'offline', 'storage', 'script_failed'].map((type, index) => ({
+    id: index + 1,
+    type,
+    name: worstScriptName,
+    config:
+      type === 'metric'
+        ? { metric: 'temperature', direction: 'below', threshold: 999.5, minutes: 1440 }
+        : type === 'offline'
+          ? { minutes: 10080 }
+          : type === 'storage'
+            ? { capacityPercent: 100 }
+            : {},
+    target:
+      index === 0
+        ? { kind: 'agent', value: worstMachine.id }
+        : { kind: 'tag', value: 'environment-production-eu-00' },
+    enabled: index !== 3,
+    channelIds: worstChannels.channels.map((channel) => channel.id),
+  })),
 };

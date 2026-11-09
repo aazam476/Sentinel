@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/auth"
@@ -30,7 +31,10 @@ type Agent struct {
 	EnrolledAt      int64
 	LastSeenAt      *int64
 	RevokedAt       *int64
-	Tags            []string
+	// MaintenanceUntil is when the machine's maintenance window ends; while
+	// it lasts, its alerts notify nobody. Nil when it isn't in maintenance.
+	MaintenanceUntil *int64
+	Tags             []string
 	// SystemInfo is what the agent last reported about its machine; empty
 	// until its first report.
 	SystemInfo protocol.SystemInfo
@@ -168,6 +172,39 @@ func applyAgentChanges(ctx context.Context, tx *sql.Tx, agentID int64, changes a
 	return nil
 }
 
+// MaxMaintenance is the longest a maintenance window can be set for.
+const MaxMaintenance = 30 * 24 * time.Hour
+
+// SetMaintenance puts a machine in maintenance until a time (UTC Unix
+// milliseconds), or takes it out with nil, and audits it.
+func (s *Service) SetMaintenance(ctx context.Context, actor auth.Session, publicID string, until *int64, request auth.RequestInfo) (Agent, error) {
+	if err := auth.Authorize(actor, auth.PermissionManageMachines); err != nil {
+		return Agent{}, err
+	}
+	now := s.now()
+	if until != nil && (*until <= now || *until > now+MaxMaintenance.Milliseconds()) {
+		return Agent{}, &auth.ValidationError{Field: "until", Message: "Choose a time in the next 30 days."}
+	}
+	var updated Agent
+	err := s.database.Write(ctx, func(tx *sql.Tx) error {
+		agent, err := findActiveAgent(ctx, tx, publicID)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE agents SET maintenance_until = ? WHERE id = ?`, until, agent.ID); err != nil {
+			return fmt.Errorf("set maintenance: %w", err)
+		}
+		agent.MaintenanceUntil = until
+		updated = agent
+		action, details := "agent.maintenance.end", map[string]any(nil)
+		if until != nil {
+			action, details = "agent.maintenance.start", map[string]any{"until": *until}
+		}
+		return s.audit.RecordInTx(ctx, tx, aboutAgent(byUser(actor, request, action, details), agent))
+	})
+	return updated, err
+}
+
 // RevokeAgent stops a machine from ever connecting again. The
 // caller must also close its live connection, if it has one: see
 // hub.Hub.Disconnect.
@@ -196,7 +233,7 @@ func (s *Service) RevokeAgent(ctx context.Context, actor auth.Session, publicID 
 var errAgentNotFound = errors.New("agent not found")
 
 const selectAgent = `SELECT id, public_id, display_name, hostname, os, arch, agent_version, protocol_version,
-	public_key, enrolled_at, last_seen_at, revoked_at, system_info_json,
+	public_key, enrolled_at, last_seen_at, revoked_at, maintenance_until, system_info_json,
 	(SELECT json_group_array(tag) FROM (SELECT tag FROM agent_tags WHERE agent_id = agents.id ORDER BY tag)),
 	(SELECT json_group_array(json_object('name', capability, 'enabled', json(iif(enabled, 'true', 'false')), 'reason', reason))
 		FROM (SELECT * FROM agent_capabilities WHERE agent_id = agents.id ORDER BY capability))
@@ -247,7 +284,7 @@ func scanAgent(row interface{ Scan(...any) error }) (Agent, error) {
 	var publicKey []byte
 	err := row.Scan(&agent.ID, &agent.PublicID, &agent.DisplayName, &agent.Hostname, &agent.OS, &agent.Arch,
 		&agent.AgentVersion, &agent.ProtocolVersion, &publicKey, &agent.EnrolledAt, &agent.LastSeenAt,
-		&agent.RevokedAt, &systemInfo, &tags, &capabilities)
+		&agent.RevokedAt, &agent.MaintenanceUntil, &systemInfo, &tags, &capabilities)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Agent{}, err
 	}

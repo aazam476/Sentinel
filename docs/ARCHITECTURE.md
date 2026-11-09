@@ -110,7 +110,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/testutil/` | Helpers used only by tests, including a fault-injecting network proxy | Built |
 | `internal/protocol/` | Message types, frames and handshake signatures shared by server and agent | Built |
 | `internal/server/scripts/` | The script library, runs on one machine, a tag or a set, their output, and cron schedules | Built |
-| `internal/server/alerts/` | Machines' alerts, firing and resolved; raised so far from storage health | Storage alerts |
+| `internal/server/alerts/` | Alert rules (metric, offline, storage, failed scheduled script), alerts firing and resolved, acknowledgement, and notifications by email, webhook, ntfy and Discord | Rules, channels, alerts, maintenance |
 | `internal/agent/identity/` | The agent's key, ID and saved server key, in a root-only directory | Built |
 | `internal/agent/policy/` | Reads the local policy file that switches capabilities off | Built |
 | `internal/agent/core/` | Enrollment, the connection to the server, heartbeat, reconnects, requests, streams | Built |
@@ -128,7 +128,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/files/` | The file manager: listing, chunked reads, resumable uploads, renames, deletes and text editing, inside the folders the local policy allows | Built |
 | `internal/agent/scripts/` | Runs a script with its interpreter, from a private temporary file, passing its output on and stopping it at its time limit | Built |
 | `internal/agent/<feature>/` | One package per agent feature (desktop, updates, ...) | Planned |
-| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power, files, storage and Docker; scripts with runs and schedules; firing alerts in the fleet |
+| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power, files, storage and Docker; scripts with runs and schedules; alerts with rules and channels, firing alerts in the fleet and on each machine, maintenance mode |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |
 

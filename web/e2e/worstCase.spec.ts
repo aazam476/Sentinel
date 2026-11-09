@@ -19,6 +19,10 @@ import {
   worstBatch,
   worstRunOutput,
   worstSchedules,
+  worstChannels,
+  worstFleetAlerts,
+  worstMachineAlerts,
+  worstRules,
   worstFolder,
   worstFolderLink,
 } from '../src/test/fixtures/worst-case/fixtures';
@@ -51,20 +55,10 @@ async function serveWorstCase(page: Page) {
     'script-batches/3': worstBatch(),
     'script-runs/101': worstRunOutput(),
     schedules: worstSchedules,
-    [`agents/${worstMachine.id}/alerts`]: {
-      alerts: [
-        {
-          id: 1,
-          kind: 'zfs.pool.health',
-          subject: worstStorage().pools[0]?.name ?? '',
-          severity: 'critical',
-          message: `Pool ${worstStorage().pools[0]?.name ?? ''} is FAULTED.`,
-          state: 'firing',
-          startedAt: 0,
-          resolvedAt: null,
-        },
-      ],
-    },
+    [`agents/${worstMachine.id}/alerts`]: worstMachineAlerts,
+    alerts: worstFleetAlerts(),
+    'alert-rules': worstRules,
+    'notification-channels': worstChannels,
     [`agents/${worstMachine.id}/metrics`]: { metric: 'cpu.percent', resolution: 'raw', points: [] },
     'enrollment-tokens': { tokens: worstTokens, serverFingerprint: 'SHA256:x', tlsFingerprint: '' },
   };
@@ -118,6 +112,9 @@ const screens: {
   { path: '/scripts', ready: 'Script library', role: 'region' },
   { path: '/scripts/runs/3', ready: /^Run of /, role: 'region' },
   { path: '/scripts/schedules', ready: 'Schedules', role: 'region' },
+  { path: '/alerts', ready: 'Alerts', role: 'region' },
+  { path: '/alerts/rules', ready: 'Alert rules', role: 'region' },
+  { path: '/alerts/channels', ready: 'Notification channels', role: 'region' },
 ];
 
 for (const screen of screens) {

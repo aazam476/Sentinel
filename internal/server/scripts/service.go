@@ -73,6 +73,14 @@ type Options struct {
 	Fleet    Fleet
 	Clock    Clock
 	Logger   *slog.Logger
+	// Alerts hears how scheduled runs end; nil leaves them unwatched.
+	Alerts Alerts
+}
+
+// Alerts raises an alert when a scheduled run fails and resolves it when
+// the schedule next succeeds (internal/server/alerts).
+type Alerts interface {
+	RecordScheduledRun(ctx context.Context, agentID, scheduleID int64, scriptName, failure string) error
 }
 
 // Service keeps scripts and runs them.
@@ -83,6 +91,7 @@ type Service struct {
 	fleet    Fleet
 	clock    Clock
 	logger   *slog.Logger
+	alerts   Alerts
 
 	mutex sync.Mutex
 	// live holds the runs going now, by run ID.
@@ -95,7 +104,7 @@ type Service struct {
 func New(options Options) *Service {
 	return &Service{
 		database: options.Database, audit: options.AuditLog, hub: options.Hub, fleet: options.Fleet,
-		clock: options.Clock, logger: options.Logger, live: map[int64]*liveRun{},
+		clock: options.Clock, logger: options.Logger, alerts: options.Alerts, live: map[int64]*liveRun{},
 	}
 }
 

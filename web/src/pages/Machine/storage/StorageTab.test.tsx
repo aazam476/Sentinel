@@ -143,6 +143,9 @@ describe('Storage tab', () => {
           state: 'firing',
           startedAt: fixtureNow - 3_600_000,
           resolvedAt: null,
+          ruleName: 'Storage health',
+          acknowledgedBy: '',
+          acknowledgedAt: null,
         },
         {
           id: 1,
@@ -153,6 +156,9 @@ describe('Storage tab', () => {
           state: 'resolved',
           startedAt: fixtureNow - 7_200_000,
           resolvedAt: fixtureNow - 3_600_000,
+          ruleName: 'Storage health',
+          acknowledgedBy: '',
+          acknowledgedAt: null,
         },
       ],
     });

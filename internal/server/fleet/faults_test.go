@@ -74,6 +74,11 @@ func TestDatabaseFailuresAreReported(t *testing.T) {
 				_, err := h.service.Enroll(t.Context(), enrollInput(t, "wrong"))
 				return err
 			}},
+		{"setting maintenance", func(h *harness) func(t *testing.T) { return failing(h, "UPDATE", "agents") },
+			func(t *testing.T, h *harness, f fixture) error {
+				_, err := h.service.SetMaintenance(t.Context(), h.admin, f.agent.PublicID, nil, browser())
+				return err
+			}},
 		{"listing agents", failingReads, func(t *testing.T, h *harness, _ fixture) error {
 			_, err := h.service.ListAgents(t.Context(), h.viewer)
 			return err

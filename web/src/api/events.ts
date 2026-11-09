@@ -9,7 +9,8 @@ import type { AgentDetails, AgentEvent, AgentsResponse, MetricsEvent } from './t
 /**
  * useFleetEvents keeps machine data live while the user is signed in. It
  * listens to the server's event stream (/api/events): a machine coming
- * online, going offline or reporting new details refetches it; a new
+ * online, going offline or reporting new details refetches it (and an
+ * alert starting or resolving, the alert lists too); a new
  * metrics sample is written straight into the cached machine and list, so
  * the numbers move without a request.
  *
@@ -52,6 +53,9 @@ export function handleAgentEvent(queryClient: QueryClient, event: AgentEvent | u
   }
   void queryClient.invalidateQueries({ queryKey: agentKeys.list() });
   void queryClient.invalidateQueries({ queryKey: agentKeys.detail(event.agentId) });
+  if (event.kind === 'alerts') {
+    void queryClient.invalidateQueries({ queryKey: [...agentKeys.all, 'alerts'] });
+  }
 }
 
 export function handleMetricsEvent(queryClient: QueryClient, event: MetricsEvent | undefined) {

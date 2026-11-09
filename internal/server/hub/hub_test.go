@@ -664,6 +664,13 @@ func TestShutdown(t *testing.T) {
 }
 
 func TestEvents(t *testing.T) {
+	t.Run("announces alerts raised away from the agent's connection", func(t *testing.T) {
+		h := newHarness(t)
+		events := h.subscribe(t)
+		h.hub.AlertsChanged(7, "01JBX3K5Q7Z8M4N6P8R0T2V4W0")
+		waitForEvent(t, events, hub.Event{AgentID: 7, PublicID: "01JBX3K5Q7Z8M4N6P8R0T2V4W0", Kind: hub.EventAlerts})
+	})
+
 	t.Run("a stored sample is announced with the agent's public ID", func(t *testing.T) {
 		h := newHarness(t)
 		events := h.subscribe(t)

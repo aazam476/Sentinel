@@ -86,7 +86,7 @@ func (s *server) start() {
 	s.store = database
 	s.fleet = fleet.NewService(fleet.Options{Database: database, AuditLog: audit.New(database), Clock: s.clock})
 	s.metrics = metrics.NewService(database, s.clock)
-	s.alerts = alerts.NewService(database, s.clock)
+	s.alerts = alerts.NewService(alerts.Options{Database: database, AuditLog: audit.New(database), Clock: s.clock})
 	s.hub = hub.New(hub.Options{
 		Fleet: s.fleet, Metrics: s.metrics, Alerts: s.alerts, Key: s.key, Clock: s.clock, Logger: slog.New(slog.DiscardHandler),
 	})

@@ -128,14 +128,20 @@ func buildServices(database *store.Store, options Options) (services, error) {
 		fleet:     fleet.NewService(fleet.Options{Database: database, AuditLog: auditLog, Clock: options.Clock}),
 		metrics:   metrics.NewService(database, options.Clock),
 		registry:  registry.NewService(database, auditLog, box, options.Clock),
-		alerts:    alerts.NewService(database, options.Clock),
 		serverKey: serverKey,
 	}
+	// The hub, built below, tells alerts which machines are online.
+	built.alerts = alerts.NewService(alerts.Options{
+		Database: database, AuditLog: auditLog, Sealer: box, Clock: options.Clock, Logger: options.Logger,
+		Online:  func(agentID int64) bool { return built.hub.IsOnline(agentID) },
+		Changed: func(agentID int64, publicID string) { built.hub.AlertsChanged(agentID, publicID) },
+	})
 	built.hub = hub.New(hub.Options{
 		Fleet: built.fleet, Metrics: built.metrics, Alerts: built.alerts, Key: serverKey, Clock: options.Clock, Logger: options.Logger,
 	})
 	built.scripts = scripts.New(scripts.Options{
 		Database: database, AuditLog: auditLog, Hub: scripts.HubOf(built.hub), Fleet: built.fleet, Clock: options.Clock, Logger: options.Logger,
+		Alerts: built.alerts,
 	})
 	return built, nil
 }
@@ -151,10 +157,13 @@ func (a *App) Start(ctx context.Context) {
 			scheduler.Job{Name: "metric cleanup", Interval: time.Hour, Run: a.Metrics.Prune},
 			scheduler.Job{Name: "image update check", Interval: 24 * time.Hour, Run: a.checkImages},
 			scheduler.Job{Name: "scheduled scripts", Interval: time.Minute, Run: a.Scripts.RunDue},
+			scheduler.Job{Name: "alert rules", Interval: time.Minute, Run: a.Alerts.Evaluate},
 		)
 		a.Hub.Shutdown()
 		// Closing the agents' connections ends the scripts running on them.
 		a.Scripts.Wait()
+		// Notifications already on their way are let finish.
+		a.Alerts.Wait()
 	})
 }
 

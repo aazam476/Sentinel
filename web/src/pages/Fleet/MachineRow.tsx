@@ -30,6 +30,9 @@ export function MachineRow({ agent, now }: MachineRowProps) {
               {countOf(agent.firingAlerts, 'alert', 'alerts')}
             </span>
           )}
+          {agent.maintenanceUntil !== null && (
+            <span className={styles.maintenance}>Maintenance</span>
+          )}
         </span>
         <span className={styles.meta} title={`${agent.hostname} · ${platform}`}>
           {agent.displayName !== '' && <>{agent.hostname} · </>}

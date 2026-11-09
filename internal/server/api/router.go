@@ -84,6 +84,7 @@ func NewRouter(options RouterOptions) http.Handler {
 	h.addStorageRoutes(mux)
 	h.addFileRoutes(mux)
 	h.addScriptRoutes(mux)
+	h.addAlertRoutes(mux)
 	mux.HandleFunc("/api/", handleUnknownAPIRoute)
 	mux.Handle("/", options.WebUI)
 	return mux

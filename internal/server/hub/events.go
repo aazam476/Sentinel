@@ -60,6 +60,13 @@ func (h *Hub) Subscribe() (<-chan Event, func()) {
 	}
 }
 
+// AlertsChanged tells subscribers an alert on a machine started or
+// resolved, for alerts raised away from the agent's connection (rules the
+// server evaluates on its own).
+func (h *Hub) AlertsChanged(agentID int64, publicID string) {
+	h.publish(Event{AgentID: agentID, PublicID: publicID, Kind: EventAlerts})
+}
+
 // publish is publishLocked for callers that don't hold h.mutex.
 func (h *Hub) publish(event Event) {
 	h.mutex.Lock()

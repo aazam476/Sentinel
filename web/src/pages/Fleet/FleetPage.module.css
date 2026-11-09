@@ -163,7 +163,8 @@
 }
 
 /* Firing alerts: the words say it; the color only draws the eye. */
-.alertCount {
+.alertCount,
+.maintenance {
   flex-shrink: 0;
   padding: 0 var(--space-2);
   border-radius: 999px;
@@ -251,4 +252,9 @@
   .tagButton:active {
     transform: none;
   }
+}
+
+.maintenance {
+  background: var(--color-warning-surface);
+  color: var(--color-warning-text);
 }

@@ -17,7 +17,8 @@ import (
 // shows about that machine.
 type AgentEvent struct {
 	AgentID string `json:"agentId"`
-	// Kind is "online", "offline" or "info_updated".
+	// Kind is "online", "offline", "info_updated" or "alerts" (an alert on
+	// the machine started or resolved).
 	Kind string `json:"kind"`
 }
 

@@ -7,46 +7,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/alerts"
-	"github.com/aazam476/sentinel/internal/server/store"
 	"github.com/aazam476/sentinel/internal/testutil/fakeclock"
 )
-
-type harness struct {
-	service *alerts.Service
-	clock   *fakeclock.Clock
-	agentID int64
-}
-
-func newHarness(t *testing.T) *harness {
-	t.Helper()
-	clock := fakeclock.New(time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC))
-	database, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "sentinel.db"), clock)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = database.Close() }) // nothing to check when a test database closes
-	h := &harness{service: alerts.NewService(database, clock), clock: clock}
-	err = database.Write(t.Context(), func(tx *sql.Tx) error {
-		result, err := tx.ExecContext(t.Context(), `INSERT INTO agents (public_id, public_key, hostname, os, arch, agent_version, protocol_version, enrolled_at)
-			VALUES ('01JBX3K5Q7Z8M4N6P8R0T2V4W0', x'00', 'nas', 'linux', 'amd64', 'v1', 1, 0)`)
-		if err != nil {
-			return err
-		}
-		h.agentID, err = result.LastInsertId()
-		return err
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return h
-}
 
 // healthy is a machine whose storage needs no attention.
 func healthy() protocol.StorageHealthPayload {
@@ -235,7 +203,7 @@ func (failingDatabase) Write(context.Context, func(*sql.Tx) error) error {
 }
 
 func TestDatabaseFailures(t *testing.T) {
-	service := alerts.NewService(failingDatabase{}, fakeclock.New(time.Now()))
+	service := alerts.NewService(alerts.Options{Database: failingDatabase{}, Clock: fakeclock.New(time.Now())})
 	t.Run("reports a failure to record health", func(t *testing.T) {
 		if _, err := service.RecordStorageHealth(t.Context(), 1, healthy()); err == nil {
 			t.Error("expected an error")
@@ -246,6 +214,23 @@ func TestDatabaseFailures(t *testing.T) {
 			t.Error("expected an error")
 		}
 		if _, err := service.FiringCounts(t.Context()); err == nil {
+			t.Error("expected an error")
+		}
+		if _, err := service.List(t.Context(), 10); err == nil {
+			t.Error("expected an error")
+		}
+		if _, err := service.Rules(t.Context()); err == nil {
+			t.Error("expected an error")
+		}
+		if _, err := service.Channels(t.Context()); err == nil {
+			t.Error("expected an error")
+		}
+	})
+	t.Run("reports a failure to evaluate rules or record a scheduled run", func(t *testing.T) {
+		if err := service.Evaluate(t.Context()); err == nil {
+			t.Error("expected an error")
+		}
+		if err := service.RecordScheduledRun(t.Context(), 1, 1, "backup", "boom"); err == nil {
 			t.Error("expected an error")
 		}
 	})

@@ -38,6 +38,11 @@ export interface Agent {
    * FiringAlerts counts the machine's alerts that are firing.
    */
   firingAlerts: number /* int */;
+  /**
+   * MaintenanceUntil is when the machine's maintenance window ends, or
+   * null when it isn't in maintenance; meanwhile its alerts notify nobody.
+   */
+  maintenanceUntil: number | null;
 }
 /**
  * CurrentMetrics is a machine's newest metrics sample.
@@ -105,6 +110,141 @@ export interface AgentsResponse {
 export interface UpdateAgentRequest {
   displayName?: string;
   tags?: string[];
+}
+
+//////////
+// source: alerts.go
+
+/**
+ * FleetAlert is an alert on any machine, as the alerts page lists it.
+ */
+export interface FleetAlert extends MachineAlert {
+  agentId: string;
+  agentName: string;
+}
+/**
+ * FleetAlerts lists every firing alert, then recently resolved ones.
+ */
+export interface FleetAlerts {
+  alerts: FleetAlert[];
+}
+/**
+ * AlertRuleConfig holds each rule type's settings; see alerts.RuleConfig.
+ */
+export interface AlertRuleConfig {
+  metric?: string;
+  direction?: string;
+  threshold?: number /* float64 */;
+  minutes?: number /* int */;
+  capacityPercent?: number /* uint64 */;
+}
+/**
+ * AlertRuleTarget says which machines a rule watches: kind "all", "tag"
+ * (value is a tag) or "agent" (a machine's ID).
+ */
+export interface AlertRuleTarget {
+  kind: string;
+  value: string;
+}
+/**
+ * AlertRule is one alert rule.
+ */
+export interface AlertRule {
+  id: number /* int64 */;
+  /**
+   * Type is metric, offline, storage or script_failed.
+   */
+  type: string;
+  name: string;
+  config: AlertRuleConfig;
+  target: AlertRuleTarget;
+  enabled: boolean;
+  channelIds: number /* int64 */[];
+}
+/**
+ * AlertRules lists every rule.
+ */
+export interface AlertRules {
+  rules: AlertRule[];
+}
+/**
+ * SaveAlertRuleRequest adds or changes a rule.
+ */
+export interface SaveAlertRuleRequest {
+  type: string;
+  name: string;
+  config: AlertRuleConfig;
+  target: AlertRuleTarget;
+  enabled: boolean;
+  channelIds: number /* int64 */[];
+}
+/**
+ * NotificationChannelConfig holds a channel's settings. Secrets (the SMTP
+ * password, the ntfy token and webhook and Discord URLs) are write-only:
+ * they are never sent back, and leaving them empty in a change keeps the
+ * stored ones.
+ */
+export interface NotificationChannelConfig {
+  smtpHost?: string;
+  smtpPort?: number /* int */;
+  smtpUsername?: string;
+  smtpPassword?: string;
+  smtpSecurity?: string;
+  from?: string;
+  to?: string[];
+  url?: string;
+  server?: string;
+  topic?: string;
+  token?: string;
+}
+/**
+ * NotificationChannel is one way of sending notifications, without its
+ * secrets.
+ */
+export interface NotificationChannel {
+  id: number /* int64 */;
+  /**
+   * Type is email, webhook, ntfy or discord.
+   */
+  type: string;
+  name: string;
+  enabled: boolean;
+  config: NotificationChannelConfig;
+  /**
+   * Summary says where it sends, e.g. "posts to discord.com".
+   */
+  summary: string;
+  /**
+   * HasSecret says a password, token or URL is stored.
+   */
+  hasSecret: boolean;
+  lastSentAt: number | null;
+  /**
+   * LastError is why the last notification failed, or "".
+   */
+  lastError: string;
+}
+/**
+ * NotificationChannels lists every channel.
+ */
+export interface NotificationChannels {
+  channels: NotificationChannel[];
+}
+/**
+ * SaveNotificationChannelRequest adds or changes a channel.
+ */
+export interface SaveNotificationChannelRequest {
+  type: string;
+  name: string;
+  enabled: boolean;
+  config: NotificationChannelConfig;
+}
+/**
+ * SetMaintenanceRequest puts a machine in maintenance until a time (UTC
+ * Unix milliseconds), or takes it out with null.
+ */
+export interface SetMaintenanceRequest {
+  until: number | null;
 }
 
 //////////
@@ -293,7 +433,8 @@ export interface ErrorDetail {
 export interface AgentEvent {
   agentId: string;
   /**
-   * Kind is "online", "offline" or "info_updated".
+   * Kind is "online", "offline", "info_updated" or "alerts" (an alert on
+   * the machine started or resolved).
    */
   kind: string;
 }
@@ -744,6 +885,15 @@ export interface MachineAlert {
    */
   startedAt: number /* int64 */;
   resolvedAt: number | null;
+  /**
+   * RuleName is the rule that raised it, or "" if the rule is gone.
+   */
+  ruleName: string;
+  /**
+   * AcknowledgedBy is who acknowledged it, or "" if no one has.
+   */
+  acknowledgedBy: string;
+  acknowledgedAt: number | null;
 }
 /**
  * MachineAlerts lists a machine's firing alerts, then its recently

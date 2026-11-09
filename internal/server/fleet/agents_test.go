@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aazam476/sentinel/internal/server/auth"
 	"github.com/aazam476/sentinel/internal/server/fleet"
@@ -212,6 +213,61 @@ func TestRevokeAgent(t *testing.T) {
 		agent := h.enroll(t, "nas-01")
 		if _, err := h.service.RevokeAgent(t.Context(), h.operator, agent.PublicID, browser()); !errors.Is(err, auth.ErrForbidden) {
 			t.Errorf("err = %v, want ErrForbidden", err)
+		}
+	})
+}
+
+func TestSetMaintenance(t *testing.T) {
+	t.Run("puts a machine in maintenance and takes it out, auditing both", func(t *testing.T) {
+		h := newHarness(t)
+		agent := h.enroll(t, "nas-01")
+		until := h.clock.Now().Add(2 * time.Hour).UnixMilli()
+		updated, err := h.service.SetMaintenance(t.Context(), h.admin, agent.PublicID, &until, browser())
+		if err != nil || updated.MaintenanceUntil == nil || *updated.MaintenanceUntil != until {
+			t.Fatalf("got %+v, %v", updated.MaintenanceUntil, err)
+		}
+		if stored, _ := h.service.GetAgent(t.Context(), h.viewer, agent.PublicID); stored.MaintenanceUntil == nil || *stored.MaintenanceUntil != until {
+			t.Errorf("stored %v", stored.MaintenanceUntil)
+		}
+		if entry := h.lastAudit(t); entry.Action != "agent.maintenance.start" || entry.AgentID == nil || *entry.AgentID != agent.ID {
+			t.Errorf("audit entry = %+v", entry)
+		}
+		updated, err = h.service.SetMaintenance(t.Context(), h.admin, agent.PublicID, nil, browser())
+		if err != nil || updated.MaintenanceUntil != nil {
+			t.Fatalf("got %+v, %v", updated.MaintenanceUntil, err)
+		}
+		if entry := h.lastAudit(t); entry.Action != "agent.maintenance.end" {
+			t.Errorf("audit entry = %+v", entry)
+		}
+	})
+
+	for _, tc := range []struct {
+		name  string
+		after time.Duration
+	}{
+		{"refuses a time that has passed", -time.Minute},
+		{"refuses a time more than 30 days away", 31 * 24 * time.Hour},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			agent := h.enroll(t, "nas-01")
+			until := h.clock.Now().Add(tc.after).UnixMilli()
+			_, err := h.service.SetMaintenance(t.Context(), h.admin, agent.PublicID, &until, browser())
+			var invalid *auth.ValidationError
+			if !errors.As(err, &invalid) || invalid.Field != "until" {
+				t.Errorf("err = %v", err)
+			}
+		})
+	}
+
+	t.Run("only admins can, and only for a machine that exists", func(t *testing.T) {
+		h := newHarness(t)
+		agent := h.enroll(t, "nas-01")
+		if _, err := h.service.SetMaintenance(t.Context(), h.operator, agent.PublicID, nil, browser()); !errors.Is(err, auth.ErrForbidden) {
+			t.Errorf("err = %v, want ErrForbidden", err)
+		}
+		if _, err := h.service.SetMaintenance(t.Context(), h.admin, "01JBX3K5Q7Z8M4N6P8R0T2V4W6", nil, browser()); !errors.Is(err, auth.ErrNotFound) {
+			t.Errorf("err = %v, want ErrNotFound", err)
 		}
 	})
 }

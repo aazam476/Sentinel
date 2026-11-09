@@ -126,6 +126,7 @@ export const agents: Agent[] = [
     enrolledAt: fixtureNow - 30 * 86_400_000,
     tags: ['homelab', 'storage'],
     firingAlerts: 0,
+    maintenanceUntil: null,
     current: nasCurrent,
   },
   {
@@ -143,6 +144,7 @@ export const agents: Agent[] = [
     enrolledAt: fixtureNow - 10 * 86_400_000,
     tags: ['office'],
     firingAlerts: 0,
+    maintenanceUntil: null,
     current: { time: fixtureNow, uptimeSeconds: 720, values: { 'cpu.percent': 4 } },
   },
   {
@@ -160,6 +162,7 @@ export const agents: Agent[] = [
     enrolledAt: fixtureNow - 86_400_000,
     tags: [],
     firingAlerts: 0,
+    maintenanceUntil: null,
     current: null,
   },
 ];

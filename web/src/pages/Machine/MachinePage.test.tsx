@@ -3,7 +3,12 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http } from 'msw';
 
-import type { AgentDetails, MetricSeries, UpdateAgentRequest } from '../../api/types.gen';
+import type {
+  AgentDetails,
+  MachineAlerts,
+  MetricSeries,
+  UpdateAgentRequest,
+} from '../../api/types.gen';
 import { findAccessibilityViolations } from '../../test/axe';
 import { eventStream, useFakeEventSource } from '../../test/fakeEventSource';
 import {
@@ -22,6 +27,7 @@ function withMachine(details: AgentDetails = nasDetails) {
   const queries: URLSearchParams[] = [];
   server.use(
     http.get(apiPath(`agents/${details.id}`), () => json(details)),
+    http.get(apiPath(`agents/${details.id}/alerts`), () => json({ alerts: [] })),
     http.get(apiPath(`agents/${details.id}/metrics`), ({ request }) => {
       const query = new URL(request.url).searchParams;
       queries.push(query);
@@ -179,5 +185,73 @@ describe('machine view', () => {
     server.use(http.get(apiPath('agents/missing'), () => apiError(404, 'not_found', 'not found')));
     renderApp('/machines/missing');
     expect(await screen.findByText('This machine doesn’t exist or was revoked.')).toBeVisible();
+  });
+
+  it('lists the machine’s firing alerts, and refreshes them when one starts', async () => {
+    useFakeEventSource();
+    signedInAs(adminSession);
+    withMachine();
+    let alerts: MachineAlerts = { alerts: [] };
+    server.use(http.get(apiPath(`agents/${nasDetails.id}/alerts`), () => json(alerts)));
+    renderApp(path);
+    await screen.findByRole('heading', { name: 'Living room NAS' });
+    expect(screen.queryByRole('region', { name: 'Alerts' })).toBeNull();
+
+    alerts = {
+      alerts: [
+        {
+          id: 1,
+          kind: 'rule.2',
+          subject: '',
+          severity: 'warning',
+          message: 'CPU has been above 90% for 5 minutes (97%).',
+          state: 'firing',
+          startedAt: fixtureNow,
+          resolvedAt: null,
+          ruleName: 'CPU busy',
+          acknowledgedBy: 'admin',
+          acknowledgedAt: fixtureNow,
+        },
+      ],
+    };
+    eventStream().emit('agent', { agentId: nasDetails.id, kind: 'alerts' });
+    const region = await screen.findByRole('region', { name: 'Alerts' });
+    expect(within(region).getByText('CPU has been above 90% for 5 minutes (97%).')).toBeVisible();
+    expect(within(region).getByText(/acknowledged by admin/)).toBeVisible();
+  });
+
+  it('lets an admin put the machine in maintenance, and take it out', async () => {
+    signedInAs(adminSession);
+    withMachine();
+    const user = userEvent.setup();
+    const sent: (number | null)[] = [];
+    server.use(
+      http.put(apiPath(`agents/${nasDetails.id}/maintenance`), async ({ request }) => {
+        const { until } = (await request.json()) as { until: number | null };
+        sent.push(until);
+        return json({ ...nasDetails, maintenanceUntil: until });
+      }),
+    );
+    renderApp(path);
+    const panel = await screen.findByRole('region', { name: 'Maintenance' });
+    await user.selectOptions(within(panel).getByRole('combobox', { name: 'For' }), '1 day');
+    await user.click(within(panel).getByRole('button', { name: 'Start maintenance' }));
+    expect(await within(panel).findByText(/In maintenance until/)).toBeVisible();
+    expect(screen.getByText('In maintenance')).toBeVisible();
+    const until = sent[0] ?? 0;
+    expect(until - Date.now()).toBeGreaterThan(23 * 3_600_000);
+    expect(until - Date.now()).toBeLessThanOrEqual(24 * 3_600_000);
+
+    await user.click(within(panel).getByRole('button', { name: 'End maintenance' }));
+    expect(await within(panel).findByRole('button', { name: 'Start maintenance' })).toBeVisible();
+    expect(sent[1]).toBeNull();
+  }, 15_000);
+
+  it('shows viewers no maintenance control', async () => {
+    signedInAs(viewerSession);
+    withMachine();
+    renderApp(path);
+    await screen.findByRole('heading', { name: 'Living room NAS' });
+    expect(screen.queryByRole('region', { name: 'Maintenance' })).toBeNull();
   });
 });

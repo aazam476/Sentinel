@@ -6,8 +6,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -84,6 +86,27 @@ func (h *fakeHub) OpenScript(_ context.Context, agentID int64, payload func(prot
 	return stream, nil
 }
 
+// fakeAlerts records how scheduled runs ended, as "agent schedule script: failure".
+type fakeAlerts struct {
+	mutex    sync.Mutex
+	recorded []string
+}
+
+func (f *fakeAlerts) RecordScheduledRun(_ context.Context, agentID, scheduleID int64, scriptName, failure string) error {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	f.recorded = append(f.recorded, fmt.Sprintf("%d %d %s: %s", agentID, scheduleID, scriptName, failure))
+	return nil
+}
+
+func (f *fakeAlerts) take() []string {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	recorded := f.recorded
+	f.recorded = nil
+	return recorded
+}
+
 type fakeFleet struct{ agents []fleet.Agent }
 
 func (f fakeFleet) AllAgents(context.Context) ([]fleet.Agent, error) { return f.agents, nil }
@@ -96,6 +119,7 @@ type harness struct {
 	operator auth.Session
 	viewer   auth.Session
 	agents   []fleet.Agent
+	alerts   *fakeAlerts
 }
 
 // newHarness has three machines: nas (linux, tagged homelab, online), pc
@@ -108,7 +132,7 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = database.Close() }) // nothing to check when a test database closes
-	h := &harness{clock: clock, auditLog: audit.New(database)}
+	h := &harness{clock: clock, auditLog: audit.New(database), alerts: &fakeAlerts{}}
 	err = database.Write(t.Context(), func(tx *sql.Tx) error {
 		result, err := tx.ExecContext(t.Context(), `INSERT INTO users (username, password_hash, role, created_at) VALUES ('olga', 'x', 'operator', 0)`)
 		if err != nil {
@@ -142,7 +166,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	h.hub = &fakeHub{online: map[int64]bool{h.agents[0].ID: true, h.agents[1].ID: true}, plans: map[int64]plan{}, streams: map[int64]*fakeStream{}}
 	h.service = scripts.New(scripts.Options{Database: database, AuditLog: h.auditLog, Hub: h.hub, Fleet: fakeFleet{h.agents},
-		Clock: clock, Logger: slog.New(slog.DiscardHandler)})
+		Clock: clock, Logger: slog.New(slog.DiscardHandler), Alerts: h.alerts})
 	return h
 }
 
@@ -471,6 +495,55 @@ func TestSchedules(t *testing.T) {
 		}
 		if err := h.service.DeleteSchedule(t.Context(), h.operator, auth.RequestInfo{}, schedule.ID); !errors.Is(err, scripts.ErrNotFound) {
 			t.Errorf("again: %v", err)
+		}
+	})
+}
+
+func TestScheduledRunAlerts(t *testing.T) {
+	cases := []struct {
+		name string
+		plan plan
+		want string
+	}{
+		{"reports a success, so an earlier failure's alert resolves", plan{output: []string{"ok\n"}}, ""},
+		{"reports a non-zero exit code", plan{result: protocol.ScriptResult{ExitCode: 2}}, "it exited with code 2."},
+		{"reports a timeout", plan{result: protocol.ScriptResult{ExitCode: -1, TimedOut: true}}, "it timed out."},
+		{"reports why the machine refused it", plan{refusal: &protocol.Error{Code: protocol.ErrorPolicyDenied, Message: "Scripts are turned off."}}, "Scripts are turned off."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			script := h.save(t, uptime())
+			h.hub.plans[h.agents[0].ID] = tc.plan
+			schedule, err := h.service.SaveSchedule(t.Context(), h.operator, auth.RequestInfo{}, scripts.Schedule{
+				ScriptID: script.ID, Cron: "* * * * *", Target: scripts.Target{Kind: "tag", Value: "homelab"}, Enabled: true,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			h.clock.Advance(time.Minute)
+			if err := h.service.RunDue(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			h.service.Wait()
+			// The pc is skipped (the script is for Linux), so only the nas reports.
+			want := []string{fmt.Sprintf("%d %d Uptime: %s", h.agents[0].ID, schedule.ID, tc.want)}
+			if got := h.alerts.take(); !slices.Equal(got, want) {
+				t.Errorf("got %q, want %q", got, want)
+			}
+		})
+	}
+
+	t.Run("doesn't report runs a person started", func(t *testing.T) {
+		h := newHarness(t)
+		script := h.save(t, uptime())
+		h.hub.plans[h.agents[0].ID] = plan{result: protocol.ScriptResult{ExitCode: 1}}
+		if _, err := h.service.Start(t.Context(), h.operator, auth.RequestInfo{}, script.ID, scripts.Target{Kind: "agent", Value: h.agents[0].PublicID}); err != nil {
+			t.Fatal(err)
+		}
+		h.service.Wait()
+		if got := h.alerts.take(); len(got) != 0 {
+			t.Errorf("got %q", got)
 		}
 	})
 }

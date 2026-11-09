@@ -186,6 +186,32 @@ export const routes: RouteObject[] = [
         ],
       },
       {
+        path: '/alerts',
+        lazy: async () => ({
+          Component: (await import('../pages/Alerts/AlertsPage')).AlertsPage,
+        }),
+        children: [
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('../pages/Alerts/AlertsView')).AlertsView,
+            }),
+          },
+          {
+            path: 'rules',
+            lazy: async () => ({
+              Component: (await import('../pages/Alerts/RulesView')).RulesView,
+            }),
+          },
+          {
+            path: 'channels',
+            lazy: async () => ({
+              Component: (await import('../pages/Alerts/ChannelsView')).ChannelsView,
+            }),
+          },
+        ],
+      },
+      {
         path: '/audit',
         lazy: async () => ({ Component: (await import('../pages/Audit/AuditPage')).AuditPage }),
       },

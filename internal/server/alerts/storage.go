@@ -4,7 +4,9 @@ package alerts
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/aazam476/sentinel/internal/protocol"
@@ -39,8 +41,9 @@ func StorageKinds() []string {
 	}
 }
 
-// Condition is something that should be firing.
+// Condition is something that should be firing, and the rule it's for.
 type Condition struct {
+	RuleID   int64
 	Kind     string
 	Subject  string
 	Severity string
@@ -125,7 +128,70 @@ func diskConditions(disk protocol.DiskHealth) []Condition {
 }
 
 // RecordStorageHealth raises and resolves a machine's storage alerts from
-// its storage.health event, and returns whether any changed.
+// its storage.health event, by the enabled storage rules that watch it,
+// and returns whether any changed. Where two rules raise the same alert,
+// the first (by name) is the one it belongs to.
 func (s *Service) RecordStorageHealth(ctx context.Context, agentID int64, health protocol.StorageHealthPayload) (bool, error) {
-	return s.Reconcile(ctx, agentID, StorageKinds(), StorageConditions(health, DefaultCapacityPercent))
+	var rules []Rule
+	var target machine
+	var found bool
+	err := s.database.Read(ctx, func(tx *sql.Tx) error {
+		var err error
+		if rules, err = readRules(ctx, tx, RuleStorage); err != nil {
+			return err
+		}
+		target, found, err = readMachine(ctx, tx, agentID)
+		return err
+	})
+	if err != nil || !found {
+		return false, err
+	}
+	var conditions []Condition
+	seen := map[string]bool{}
+	for _, rule := range rules {
+		if !rule.appliesTo(target) {
+			continue
+		}
+		for _, condition := range StorageConditions(health, rule.Config.CapacityPercent) {
+			if key := condition.Kind + "\x00" + condition.Subject; !seen[key] {
+				seen[key] = true
+				condition.RuleID = rule.ID
+				conditions = append(conditions, condition)
+			}
+		}
+	}
+	return s.reconcile(ctx, scope{agentID: agentID, kinds: StorageKinds()}, conditions)
+}
+
+// KindScriptFailed is the kind of a failed scheduled script's alert.
+const KindScriptFailed = "script.failed"
+
+// RecordScheduledRun raises an alert when a scheduled script failed on a
+// machine, for the script_failed rules that watch it, and resolves it
+// when the schedule's next run there succeeds.
+func (s *Service) RecordScheduledRun(ctx context.Context, agentID, scheduleID int64, scriptName string, failure string) error {
+	var rules []Rule
+	var target machine
+	var found bool
+	err := s.database.Read(ctx, func(tx *sql.Tx) error {
+		var err error
+		if rules, err = readRules(ctx, tx, RuleScriptFailed); err != nil {
+			return err
+		}
+		target, found, err = readMachine(ctx, tx, agentID)
+		return err
+	})
+	if err != nil || !found {
+		return err
+	}
+	in := scope{agentID: agentID, kinds: []string{KindScriptFailed}, subject: "schedule " + strconv.FormatInt(scheduleID, 10)}
+	var conditions []Condition
+	for _, rule := range rules {
+		if failure != "" && rule.appliesTo(target) {
+			conditions = []Condition{{RuleID: rule.ID, Kind: KindScriptFailed, Subject: in.subject, Severity: Warning,
+				Message: fmt.Sprintf("Scheduled script %s failed: %s", scriptName, failure)}}
+			break
+		}
+	}
+	return s.reconcileAndAnnounce(ctx, target, in, conditions)
 }

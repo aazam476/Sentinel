@@ -25,6 +25,11 @@ type MachineAlert struct {
 	// StartedAt and ResolvedAt are UTC Unix milliseconds.
 	StartedAt  int64  `json:"startedAt"`
 	ResolvedAt *int64 `json:"resolvedAt" tstype:"number | null,required"`
+	// RuleName is the rule that raised it, or "" if the rule is gone.
+	RuleName string `json:"ruleName"`
+	// AcknowledgedBy is who acknowledged it, or "" if no one has.
+	AcknowledgedBy string `json:"acknowledgedBy"`
+	AcknowledgedAt *int64 `json:"acknowledgedAt" tstype:"number | null,required"`
 }
 
 // MachineAlerts lists a machine's firing alerts, then its recently
@@ -91,7 +96,11 @@ func (h *handlers) handleMachineAlerts(w http.ResponseWriter, r *http.Request, s
 func machineAlert(alert alerts.Alert) MachineAlert {
 	result := MachineAlert{
 		ID: alert.ID, Kind: alert.Kind, Subject: alert.Subject, Severity: alert.Severity, Message: alert.Message,
-		State: alert.State, StartedAt: alert.StartedAt,
+		State: alert.State, StartedAt: alert.StartedAt, RuleName: alert.RuleName, AcknowledgedBy: alert.AcknowledgedBy,
+	}
+	if alert.AcknowledgedAt != 0 {
+		acknowledgedAt := alert.AcknowledgedAt
+		result.AcknowledgedAt = &acknowledgedAt
 	}
 	if alert.ResolvedAt != 0 {
 		resolvedAt := alert.ResolvedAt

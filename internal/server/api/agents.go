@@ -32,6 +32,9 @@ type Agent struct {
 	Current *CurrentMetrics `json:"current" tstype:"CurrentMetrics | null,required"`
 	// FiringAlerts counts the machine's alerts that are firing.
 	FiringAlerts int `json:"firingAlerts"`
+	// MaintenanceUntil is when the machine's maintenance window ends, or
+	// null when it isn't in maintenance; meanwhile its alerts notify nobody.
+	MaintenanceUntil *int64 `json:"maintenanceUntil" tstype:"number | null,required"`
 }
 
 // CurrentMetrics is a machine's newest metrics sample.
@@ -164,6 +167,9 @@ func (h *handlers) agentSummary(agent fleet.Agent, firingAlerts map[int64]int) A
 	}
 	if snapshot, ok := h.metrics.Latest(agent.ID); ok && summary.Online {
 		summary.Current = currentMetrics(snapshot)
+	}
+	if until := agent.MaintenanceUntil; until != nil && *until > h.clock.Now().UnixMilli() {
+		summary.MaintenanceUntil = until
 	}
 	return summary
 }

@@ -31,6 +31,9 @@ export function AppShell({ session }: AppShellProps) {
           >
             Machines
           </NavLink>
+          <NavLink to="/alerts" className={linkClass}>
+            Alerts
+          </NavLink>
           {session.user.role !== 'viewer' && (
             <NavLink to="/scripts" className={linkClass}>
               Scripts

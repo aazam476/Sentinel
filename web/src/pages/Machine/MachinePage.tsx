@@ -51,6 +51,7 @@ export function MachinePage() {
         </div>
         <p className={styles.subtitle}>
           <MachineStatus isOnline={machine.online} />
+          {machine.maintenanceUntil !== null && <span className={styles.tag}>In maintenance</span>}
           {!machine.online && machine.lastSeenAt !== null && (
             <span className={styles.muted}>
               Last seen {formatRelative(machine.lastSeenAt, now)}

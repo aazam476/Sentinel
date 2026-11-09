@@ -144,7 +144,7 @@ func (s *Service) start(ctx context.Context, scriptID int64, target Target, by s
 	}
 	for i, agent := range agents {
 		if s.stateOf(runs[i]) == StateRunning {
-			s.running.Go(func() { s.execute(context.WithoutCancel(ctx), runs[i], agent.ID, script) })
+			s.running.Go(func() { s.execute(context.WithoutCancel(ctx), runs[i], agent.ID, script, by.scheduleID) })
 		}
 	}
 	return batchID, nil
@@ -214,8 +214,9 @@ func (l *liveRun) snapshot() (string, bool) {
 	return l.output.String(), l.truncated
 }
 
-// execute runs the script on one machine and stores how it ended.
-func (s *Service) execute(ctx context.Context, runID, agentID int64, script Script) {
+// execute runs the script on one machine and stores how it ended, telling
+// alerts how a scheduled run went.
+func (s *Service) execute(ctx context.Context, runID, agentID int64, script Script, scheduleID *int64) {
 	s.mutex.Lock()
 	live := s.live[runID]
 	ctx, live.cancel = context.WithCancel(ctx)
@@ -223,8 +224,13 @@ func (s *Service) execute(ctx context.Context, runID, agentID int64, script Scri
 	defer live.cancel()
 	result := s.stream(ctx, agentID, script, live)
 	output, truncated := live.snapshot()
-	if err := s.finish(context.WithoutCancel(ctx), runID, result, output, truncated); err != nil {
+	state, err := s.finish(context.WithoutCancel(ctx), runID, result, output, truncated)
+	if err != nil {
 		s.logger.Error("could not store a script run", "run", runID, "error", err)
+	} else if scheduleID != nil && s.alerts != nil && state != StateCanceled {
+		if err := s.alerts.RecordScheduledRun(context.WithoutCancel(ctx), agentID, *scheduleID, script.Name, failure(state, result)); err != nil {
+			s.logger.Error("could not record a scheduled run's alert", "run", runID, "error", err)
+		}
 	}
 	s.mutex.Lock()
 	delete(s.live, runID)
@@ -264,8 +270,21 @@ func (s *Service) stream(ctx context.Context, agentID int64, script Script, live
 	}
 }
 
-// finish stores a run's result and output.
-func (s *Service) finish(ctx context.Context, runID int64, result protocol.ScriptResult, output string, truncated bool) error {
+// failure says why a run failed, or "" if it succeeded.
+func failure(state string, result protocol.ScriptResult) string {
+	switch {
+	case state == StateSucceeded:
+		return ""
+	case state == StateTimedOut:
+		return "it timed out."
+	case result.Error != "":
+		return result.Error
+	}
+	return fmt.Sprintf("it exited with code %d.", result.ExitCode)
+}
+
+// finish stores a run's result and output, and returns its state.
+func (s *Service) finish(ctx context.Context, runID int64, result protocol.ScriptResult, output string, truncated bool) (string, error) {
 	state := StateSucceeded
 	switch {
 	case result.TimedOut:
@@ -279,7 +298,7 @@ func (s *Service) finish(ctx context.Context, runID int64, result protocol.Scrip
 	if result.ExitCode >= 0 {
 		exitCode = result.ExitCode
 	}
-	return s.database.Write(ctx, func(tx *sql.Tx) error {
+	return state, s.database.Write(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `UPDATE script_runs SET state = ?, exit_code = ?, error = ?, output = ?, output_truncated = ?, finished_at = ?
 			WHERE id = ?`, state, exitCode, result.Error, output, truncated, s.clock.Now().UnixMilli(), runID)
 		if err != nil {

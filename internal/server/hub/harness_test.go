@@ -61,7 +61,7 @@ func newHarness(t testing.TB) *harness {
 	h := &harness{
 		fleet:   fleet.NewService(fleet.Options{Database: database, AuditLog: audit.New(database), Clock: clock}),
 		metrics: metrics.NewService(database, clock),
-		alerts:  alerts.NewService(database, clock),
+		alerts:  alerts.NewService(alerts.Options{Database: database, AuditLog: audit.New(database), Clock: clock}),
 		clock:   clock,
 		key:     serverkey.FromPrivateKey(private),
 		admin:   addAdmin(t, database),

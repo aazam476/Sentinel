@@ -26,6 +26,9 @@ import {
   worstBatch,
   worstRunOutput,
   worstSchedules,
+  worstChannels,
+  worstFleetAlerts,
+  worstRules,
   worstFolder,
   worstFolderLink,
 } from './fixtures/worst-case/fixtures';
@@ -273,6 +276,31 @@ describe('worst-case data', () => {
     });
     expect(within(schedule).getByText('Paused')).toBeVisible();
     expect(within(schedule).getByText('1,000 machines')).toBeVisible();
+  }, 30_000);
+
+  it('alerts: 500 alerts, every rule type notifying 20 channels, email to 50 people', async () => {
+    signedInAs(worstSession);
+    server.use(
+      http.get(apiPath('agents'), () => json({ agents: worstAgents() })),
+      http.get(apiPath('alerts'), () => json(worstFleetAlerts())),
+      http.get(apiPath('alert-rules'), () => json(worstRules)),
+      http.get(apiPath('notification-channels'), () => json(worstChannels)),
+    );
+    const { container } = renderApp('/alerts');
+    const firing = await screen.findByRole('list', { name: 'Firing alerts' });
+    expect(within(firing).getAllByRole('listitem')).toHaveLength(300);
+    expect(
+      within(firing).getAllByText(`Acknowledged by ${longUsername}`, { exact: false }).length,
+    ).toBe(75);
+    expect(await findAccessibilityViolations(container)).toEqual([]);
+
+    const { container: rules } = renderApp('/alerts/rules');
+    const rule = (await within(rules).findAllByRole('listitem'))[0];
+    expect(rule).toHaveTextContent('Temperature below 999.5 °C for 1440 minutes');
+    expect(rule).toHaveTextContent(/Notifies channel-01.*channel-19, Ops team/);
+
+    const { container: channels } = renderApp('/alerts/channels');
+    expect(await within(channels).findAllByText(/^Last send failed: /)).toHaveLength(5);
   }, 30_000);
 
   it('add machine: a 100-character note and a 1,000-use token', async () => {
