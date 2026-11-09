@@ -45,3 +45,31 @@ jobs:
           go-version-file: go.mod
       - name: Build twice from two copies and compare
         run: scripts/check-reproducible.sh
+
+  docker-image:
+    name: Server image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build a test release with the development key, then the image
+        run: |
+          make web
+          export SENTINEL_RELEASE_KEY="$(cat testdata/release/development.key)"
+          ALLOW_DEVELOPMENT_KEY=1 scripts/release.sh all v0.0.0-nightly linux/amd64
+          docker build --build-arg VERSION=v0.0.0-nightly -t sentinel-nightly .
+      - name: Start it and check it serves and prints the setup token
+        run: |
+          docker run -d --name sentinel -p 7443:7443 -v sentinel-data:/var/lib/sentinel sentinel-nightly
+          for _ in $(seq 1 30); do curl -fsk https://127.0.0.1:7443/healthz && break; sleep 1; done
+          curl -fsk https://127.0.0.1:7443/healthz
+          docker logs sentinel 2>&1 | grep "Sentinel setup token:"

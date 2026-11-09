@@ -92,10 +92,12 @@ describe('Agent updates', () => {
   it('uploads a build with its signature as a form, and shows a refusal', async () => {
     withBuilds({ builds: [], canFetch: false });
     const user = userEvent.setup();
-    const forms: FormData[] = [];
+    // The raw multipart body: Node 24's own form parser can't read the
+    // files jsdom makes, though browsers send them fine.
+    const forms: string[] = [];
     server.use(
       http.post(apiPath('agent-builds'), async ({ request }) => {
-        forms.push(await request.formData());
+        forms.push(await request.text());
         if (forms.length === 1) {
           return apiError(400, 'invalid_input', 'the build’s release signature doesn’t check out', {
             field: 'signature',
@@ -124,7 +126,10 @@ describe('Agent updates', () => {
     ).toBeVisible();
     await user.click(within(upload).getByRole('button', { name: 'Upload' }));
     expect(await screen.findByText('Added v0.2.0 for linux/amd64')).toBeVisible();
-    expect([...(forms[0]?.keys() ?? [])]).toEqual(['signature', 'build']);
+    // The signature goes first, so the server can check the build as it arrives.
+    const form = forms[0] ?? '';
+    expect(form.indexOf('name="signature"')).toBeGreaterThanOrEqual(0);
+    expect(form.indexOf('name="signature"')).toBeLessThan(form.indexOf('name="build"'));
   }, 20_000);
 
   it('warns when the server trusts only the development key', async () => {

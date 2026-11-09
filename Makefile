@@ -46,7 +46,7 @@ build-all: web ## Cross-compile both binaries for every release platform into bi
 
 .PHONY: release
 release: web ## Build, sign and describe a release into dist/ (VERSION=v1.2.3; key in $$SENTINEL_RELEASE_KEY)
-	scripts/release.sh $(VERSION) $(PLATFORMS)
+	scripts/release.sh all $(VERSION) $(PLATFORMS)
 
 .PHONY: check-reproducible
 check-reproducible: ## Check two builds of the same source are byte-for-byte identical

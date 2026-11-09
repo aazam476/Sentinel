@@ -33,7 +33,7 @@ scripts depend on all three.
 - **Builds are reproducible**: cgo off, `-trimpath`, an empty build ID, and the commit's time
   (`SOURCE_DATE_EPOCH`) for anything dated. A nightly job builds both binaries twice from two
   copies of the source in different folders and compares them byte for byte.
-- **`scripts/release.sh <version>`** builds every platform, signs each binary, writes its SBOM,
+- **`scripts/release.sh all <version>`** (or `build`, then `sign`) builds every platform, signs each binary, writes its SBOM,
   then lists the SHA-256 of everything in `SHA256SUMS` and signs that too.
 
 ## Consequences

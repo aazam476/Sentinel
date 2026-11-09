@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Runs the Sentinel server with Docker Compose (§11.1):
+#
+#   docker compose up -d
+#   docker compose logs sentinel   # shows the one-time setup token
+#
+# Then open https://<this host>:7443. The certificate is self-signed until
+# you set up ACME or a reverse proxy; see docs/INSTALL.md.
+services:
+  sentinel:
+    image: ghcr.io/aazam476/sentinel-server:latest
+    restart: unless-stopped
+    ports:
+      - "7443:7443"
+    volumes:
+      - sentinel-data:/var/lib/sentinel
+    # Settings beyond the defaults go in a server.toml, mounted read-only:
+    # command: ["--config", "/etc/sentinel/server.toml"]
+    # volumes:
+    #   - ./server.toml:/etc/sentinel/server.toml:ro
+
+volumes:
+  sentinel-data:

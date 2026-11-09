@@ -1,0 +1,5 @@
+# Only the release binaries are copied into the image.
+*
+!dist/sentinel-server_*_linux_*
+dist/*.sig
+dist/*.json

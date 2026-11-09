@@ -48,6 +48,7 @@ Screenshots will be added here once there is a dashboard to show.
 
 | Document | What's in it |
 |---|---|
+| [docs/INSTALL.md](docs/INSTALL.md) | Installing the server and agents, updates, backups, releases |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Setting up, running tests, house rules |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pieces fit together |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | The words we use |

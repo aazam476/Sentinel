@@ -1,0 +1,10 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+#
+# Runs after the macOS installer copies sentinel-agent into place. Enrolling
+# needs the one-time token from the server's Add machine page, so it is
+# left to the person installing.
+mkdir -p /usr/local/bin && ln -sf /Library/Sentinel/bin/sentinel-agent /usr/local/bin/sentinel-agent 2>/dev/null || true
+echo "sentinel-agent is installed. To connect this Mac, run the command from your server's Add machine page:"
+echo "  sudo /Library/Sentinel/bin/sentinel-agent install --server … --token … --fingerprint …"
+exit 0
