@@ -61,6 +61,8 @@ func TestRun(t *testing.T) {
 			clock.Advance(time.Minute)
 			<-runs
 		}
+		// The timer is set again only after the failure is logged.
+		waitForTimers(t, clock, 1)
 		cancel()
 		<-done
 		if got := log.String(); strings.Count(got, "job=rollup") != 2 || !strings.Contains(got, "database is locked") {
