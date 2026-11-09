@@ -60,6 +60,10 @@ type AgentDetails struct {
 	// empty while the machine is offline.
 	Filesystems  []Filesystem  `json:"filesystems"`
 	Temperatures []Temperature `json:"temperatures"`
+	// DesktopAvailable says remote desktop can be used now;
+	// DesktopReason says why not.
+	DesktopAvailable bool   `json:"desktopAvailable"`
+	DesktopReason    string `json:"desktopReason"`
 	// Update is the last update the machine was asked to make, or null.
 	Update *AgentUpdateStatus `json:"update" tstype:"AgentUpdateStatus | null,required"`
 }
@@ -190,6 +194,7 @@ func (h *handlers) agentDetails(agent fleet.Agent, firingAlerts map[int64]int) A
 		Capabilities:     capabilities(agent.SystemInfo.Capabilities),
 		Filesystems:      []Filesystem{}, Temperatures: []Temperature{},
 	}
+	details.DesktopAvailable, details.DesktopReason = desktopAvailability(agent)
 	if snapshot, ok := h.metrics.Latest(agent.ID); ok && details.Online {
 		for _, filesystem := range snapshot.Filesystems {
 			details.Filesystems = append(details.Filesystems, Filesystem(filesystem))

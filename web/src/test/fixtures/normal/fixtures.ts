@@ -184,6 +184,8 @@ export const nasDetails: AgentDetails = {
     { mount: '/srv', type: 'zfs', usedBytes: 9.2 * 1024 ** 4, totalBytes: 10 * 1024 ** 4 },
   ],
   temperatures: [{ sensor: 'coretemp', celsius: 51 }],
+  desktopAvailable: false,
+  desktopReason: 'Remote desktop is turned off by this machine’s local policy.',
 };
 
 export const enrollmentTokens: EnrollmentToken[] = [

@@ -133,7 +133,7 @@ func TestRun(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = s.hub.Request(t.Context(), stored.ID, "desktop.session.start", nil, nil)
+		err = s.hub.Request(t.Context(), stored.ID, "clipboard.read", nil, nil)
 		var agentErr *protocol.Error
 		if !errors.As(err, &agentErr) || agentErr.Code != protocol.ErrorUnknownAction {
 			t.Errorf("err = %v, want unknown_action", err)

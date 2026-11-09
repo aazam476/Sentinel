@@ -258,7 +258,7 @@ func (s *server) runAgentWith(state identity.State, key ed25519.PrivateKey, loca
 		Shells:   s.shells,
 		Services: s.machine.Services, Logs: s.machine.Logs, Processes: s.machine.Processes, Power: s.machine.Power,
 		Docker: s.machine.Docker, Stacks: s.machine.Stacks, Storage: s.machine.Storage, Files: s.machine.Files, Scripts: s.machine.Scripts,
-		Updater: s.machine.Updater, Restart: s.machine.Restart,
+		Updater: s.machine.Updater, Restart: s.machine.Restart, Desktop: s.machine.Desktop,
 	})
 	ctx, cancel := context.WithCancel(s.t.Context())
 	done := make(chan struct{})

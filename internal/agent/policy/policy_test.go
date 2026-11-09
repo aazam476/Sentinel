@@ -121,6 +121,16 @@ func TestSEC22_APolicyFileThatCantBeTrustedStopsTheAgent(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
+	t.Run("reads the desktop settings", func(t *testing.T) {
+		parsed, err := policy.Parse("[desktop]\ntest_pattern = true\n")
+		if err != nil || !parsed.Desktop.TestPattern {
+			t.Errorf("got %+v, %v", parsed.Desktop, err)
+		}
+		if _, err := policy.Parse("[desktop]\ntest_patern = true\n"); err == nil {
+			t.Error("a misspelt desktop setting was accepted")
+		}
+	})
+
 	t.Run("SEC-25 reads the folders the file manager may use, cleaned", func(t *testing.T) {
 		root := filepath.Join(t.TempDir(), "srv")
 		parsed, err := policy.Parse(fmt.Sprintf("[files]\nallowed_paths = [%q, %q]\n", root+string(filepath.Separator), filepath.Join(root, "..", "home")))

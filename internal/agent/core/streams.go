@@ -35,6 +35,10 @@ func (c *connection) handleFrame(frame []byte) {
 		c.agent.options.Logger.Debug("the server sent a malformed stream frame", "error", err)
 		return
 	}
+	if input, desktop := c.agent.desktopInputs.Load(stream); desktop {
+		input.(func([]byte))(data) //nolint:forcetypeassert // only startDesktop stores into desktopInputs
+		return
+	}
 	c.agent.terminals.Input(stream, data)
 }
 

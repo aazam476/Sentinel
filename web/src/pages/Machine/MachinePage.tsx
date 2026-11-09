@@ -87,6 +87,12 @@ function MachineTabs({ session, machine }: MachineContext) {
       label: 'Terminal',
       shown: canOperate(session) && allows(machine, 'terminal'),
     },
+    {
+      to: 'desktop',
+      label: 'Desktop',
+      // Hidden while there's no desktop to share (§9.3).
+      shown: canOperate(session) && allows(machine, 'desktop') && machine.desktopAvailable,
+    },
     { to: 'services', label: 'Services', shown: true },
     { to: 'processes', label: 'Processes', shown: canOperate(session) },
     { to: 'logs', label: 'Logs', shown: true },

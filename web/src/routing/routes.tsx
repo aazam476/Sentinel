@@ -59,6 +59,12 @@ export const routes: RouteObject[] = [
             }),
           },
           {
+            path: 'desktop',
+            lazy: async () => ({
+              Component: (await import('../pages/Machine/DesktopTab')).DesktopTab,
+            }),
+          },
+          {
             path: 'services',
             lazy: async () => ({
               Component: (await import('../pages/Machine/ServicesTab')).ServicesTab,

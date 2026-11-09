@@ -21,23 +21,24 @@ type handler func(ctx context.Context, request protocol.Message) (any, *protocol
 // something on the machine checks the local policy first (SEC-22).
 func (c *connection) handlers() map[string]handler {
 	handlers := map[string]handler{
-		protocol.ActionSystemInfo:     c.systemInfo,
-		protocol.ActionTerminalOpen:   c.openTerminal,
-		protocol.ActionTerminalResize: c.resizeTerminal,
-		protocol.ActionServiceList:    c.listServices,
-		protocol.ActionServiceStart:   c.serviceAction(services.Start),
-		protocol.ActionServiceStop:    c.serviceAction(services.Stop),
-		protocol.ActionServiceRestart: c.serviceAction(services.Restart),
-		protocol.ActionServiceEnable:  c.serviceAction(services.Enable),
-		protocol.ActionServiceDisable: c.serviceAction(services.Disable),
-		protocol.ActionServiceLogs:    c.serviceLogs,
-		protocol.ActionLogQuery:       c.queryLogs,
-		protocol.ActionProcessList:    c.listProcesses,
-		protocol.ActionProcessKill:    c.killProcess,
-		protocol.ActionSystemReboot:   c.power(power.Reboot),
-		protocol.ActionSystemShutdown: c.power(power.Shutdown),
-		protocol.ActionScriptRun:      c.runScript,
-		protocol.ActionAgentUpdate:    c.startUpdate,
+		protocol.ActionSystemInfo:          c.systemInfo,
+		protocol.ActionTerminalOpen:        c.openTerminal,
+		protocol.ActionTerminalResize:      c.resizeTerminal,
+		protocol.ActionServiceList:         c.listServices,
+		protocol.ActionServiceStart:        c.serviceAction(services.Start),
+		protocol.ActionServiceStop:         c.serviceAction(services.Stop),
+		protocol.ActionServiceRestart:      c.serviceAction(services.Restart),
+		protocol.ActionServiceEnable:       c.serviceAction(services.Enable),
+		protocol.ActionServiceDisable:      c.serviceAction(services.Disable),
+		protocol.ActionServiceLogs:         c.serviceLogs,
+		protocol.ActionLogQuery:            c.queryLogs,
+		protocol.ActionProcessList:         c.listProcesses,
+		protocol.ActionProcessKill:         c.killProcess,
+		protocol.ActionSystemReboot:        c.power(power.Reboot),
+		protocol.ActionSystemShutdown:      c.power(power.Shutdown),
+		protocol.ActionScriptRun:           c.runScript,
+		protocol.ActionAgentUpdate:         c.startUpdate,
+		protocol.ActionDesktopSessionStart: c.startDesktop,
 	}
 	maps.Copy(handlers, c.dockerHandlers())
 	maps.Copy(handlers, c.stackHandlers())
@@ -84,6 +85,8 @@ func (c *connection) systemInfo(ctx context.Context, _ protocol.Message) (any, *
 		options.Logger.Warn("could not describe this machine", "error", err)
 		return nil, &protocol.Error{Code: protocol.ErrorInternal, Message: "The agent couldn't read this machine's details."}
 	}
+	availability := c.agent.desktopAvailability()
+	info.Desktop = &availability
 	return info, nil
 }
 

@@ -1,0 +1,94 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.desktop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--control-height);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.status,
+.notice {
+  min-width: 0;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  font-size: var(--font-size-small);
+}
+
+.check,
+.quality {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 44px;
+}
+
+.qualityValue {
+  min-width: 2ch;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The screen keeps its shape and shrinks to fit; it is never shown larger
+   than it is, so small screens stay sharp. */
+.frame {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  min-height: 12rem;
+  padding: var(--space-2);
+  overflow: hidden;
+  border-radius: var(--radius-medium);
+  background: #16171a;
+}
+
+.frame:fullscreen {
+  align-items: center;
+  padding: 0;
+  border-radius: 0;
+  background: #000;
+}
+
+.screen {
+  display: block;
+  max-width: 100%;
+  max-height: max(18rem, 75vh);
+  max-height: max(18rem, 75dvh);
+  outline: none;
+  cursor: default;
+  touch-action: none;
+}
+
+.frame:fullscreen .screen {
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+.screen:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}

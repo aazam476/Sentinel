@@ -185,6 +185,14 @@ limit the file manager to some folders. It lives in `/etc/sentinel/` on Linux,
 `/Library/Sentinel/etc/` on macOS, and `C:\ProgramData\Sentinel\etc\` on Windows. The machine
 page shows what the policy turns off.
 
+To check remote desktop end to end without sharing a real screen, add this to the policy. The
+Desktop tab then shows a test pattern of colour bars that marks where you click:
+
+```toml
+[desktop]
+test_pattern = true
+```
+
 ### Updates
 
 On **Updates**, update every machine, or open a machine and choose **Update to …**. You can

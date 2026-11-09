@@ -73,6 +73,12 @@ export interface AgentDetails extends Agent {
   filesystems: Filesystem[];
   temperatures: Temperature[];
   /**
+   * DesktopAvailable says remote desktop can be used now;
+   * DesktopReason says why not.
+   */
+  desktopAvailable: boolean;
+  desktopReason: string;
+  /**
    * Update is the last update the machine was asked to make, or null.
    */
   update: AgentUpdateStatus | null;
@@ -292,6 +298,23 @@ export interface AuditVerifyResponse {
   valid: boolean;
   brokenAtId: number /* int64 */;
   problem: string;
+}
+
+//////////
+// source: desktop.go
+
+/**
+ * DesktopReady is the first message on a desktop WebSocket: the session
+ * started on the agent.
+ */
+export interface DesktopReady {
+  /**
+   * Type is "ready".
+   */
+  type: string;
+  source: string;
+  width: number /* int */;
+  height: number /* int */;
 }
 
 //////////

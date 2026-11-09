@@ -144,6 +144,7 @@ func (h *handlers) addMachineRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/agents/{id}/revoke", h.withPermission(auth.PermissionRevokeAgents, h.handleRevokeAgent))
 	mux.HandleFunc("GET /api/agents/{id}/metrics", h.withPermission(auth.PermissionViewFleet, h.handleAgentMetrics))
 	mux.HandleFunc("GET /api/agents/{id}/terminal", h.withPermission(auth.PermissionUseTerminal, h.handleTerminal))
+	mux.HandleFunc("GET /api/agents/{id}/desktop", h.withPermission(auth.PermissionUseDesktop, h.handleDesktop))
 	mux.HandleFunc("GET /api/agents/{id}/services", h.withPermission(auth.PermissionViewFleet, h.handleListServices))
 	mux.HandleFunc("POST /api/agents/{id}/services/{name}/{action}", h.withPermission(auth.PermissionManageServices, h.handleServiceAction))
 	mux.HandleFunc("GET /api/agents/{id}/logs", h.withPermission(auth.PermissionViewFleet, h.handleQueryLogs))

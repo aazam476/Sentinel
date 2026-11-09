@@ -42,6 +42,13 @@ func (s *testServer) connectAgent(secret, fingerprint string) (string, *websocke
 // connectAgentWith is connectAgent with the capabilities the agent reports.
 func (s *testServer) connectAgentWith(secret, fingerprint string, capabilities []protocol.Capability) (string, *websocket.Conn) {
 	s.t.Helper()
+	return s.connectAgentWithInfo(secret, fingerprint, protocol.SystemInfo{Hostname: "nas-01", OS: "linux", Platform: "debian", Arch: "amd64", CPUCores: 4,
+		Capabilities: capabilities})
+}
+
+// connectAgentWithInfo is connectAgent with all the agent reports.
+func (s *testServer) connectAgentWithInfo(secret, fingerprint string, info protocol.SystemInfo) (string, *websocket.Conn) {
+	s.t.Helper()
 	url := "wss" + strings.TrimPrefix(s.server.URL, "https") + "/agent/connect"
 	conn, _, err := websocket.Dial(s.t.Context(), url, &websocket.DialOptions{HTTPClient: s.server.Client()}) //nolint:bodyclose // closed by coder/websocket
 	if err != nil {
@@ -75,8 +82,6 @@ func (s *testServer) connectAgentWith(secret, fingerprint string, capabilities [
 	if err != nil {
 		s.t.Fatal(err)
 	}
-	info := protocol.SystemInfo{Hostname: "nas-01", OS: "linux", Platform: "debian", Arch: "amd64", CPUCores: 4,
-		Capabilities: capabilities}
 	if err := protocol.WriteMessage(s.t.Context(), conn, protocol.Message{Type: protocol.TypeResponse, ID: request.ID}, info); err != nil {
 		s.t.Fatal(err)
 	}

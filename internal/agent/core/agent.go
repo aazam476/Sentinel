@@ -18,6 +18,7 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/aazam476/sentinel/internal/agent/command"
+	"github.com/aazam476/sentinel/internal/agent/desktop"
 	"github.com/aazam476/sentinel/internal/agent/docker"
 	"github.com/aazam476/sentinel/internal/agent/files"
 	"github.com/aazam476/sentinel/internal/agent/identity"
@@ -100,6 +101,15 @@ type Options struct {
 	// the agent as the new version.
 	Updater Updater
 	Restart func()
+	// Desktop finds the desktop to share (internal/agent/desktop); nil uses
+	// this machine's, or the test pattern the local policy asks for.
+	Desktop DesktopProvider
+}
+
+// DesktopProvider finds the desktop to share (internal/agent/desktop).
+type DesktopProvider interface {
+	Availability() protocol.DesktopAvailability
+	Open() (desktop.Source, error)
 }
 
 // Updater updates the agent in place (internal/agent/update).
@@ -195,6 +205,9 @@ type Agent struct {
 	updating atomic.Bool
 	// updateReports wakes the connection to send an update's result.
 	updateReports chan struct{}
+	// desktopInputs passes each desktop session's stream data on, by
+	// stream ID.
+	desktopInputs sync.Map
 	// sessions guards the current session's cancel and the pause, which
 	// holds the agent off the server while a new version is on trial.
 	sessions      sync.Mutex
@@ -251,6 +264,9 @@ func withMachineDefaults(options *Options) {
 	}
 	if options.Files == nil {
 		options.Files = files.New(options.Policy.Files.AllowedPaths)
+	}
+	if options.Desktop == nil {
+		options.Desktop = desktop.Provider{TestPattern: options.Policy.Desktop.TestPattern}
 	}
 	if options.Storage == nil {
 		options.Storage = storage.New(storage.Options{GOOS: runtime.GOOS, Runner: runner, Logger: options.Logger})

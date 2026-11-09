@@ -48,6 +48,16 @@ type Policy struct {
 	Docker DockerSettings
 	// Files limits the file manager (SEC-25).
 	Files FilesSettings
+	// Desktop configures remote desktop (§9.3).
+	Desktop DesktopSettings
+}
+
+// DesktopSettings are the machine owner's remote desktop settings.
+type DesktopSettings struct {
+	// TestPattern shares a moving test pattern instead of the screen, to
+	// check that remote desktop connects (directly or through the server)
+	// without showing anything on the machine.
+	TestPattern bool `toml:"test_pattern"`
 }
 
 // FilesSettings limit the file manager to some folders (SEC-25). Like the
@@ -74,6 +84,7 @@ type file struct {
 	Capabilities map[string]bool `toml:"capabilities"`
 	Docker       DockerSettings  `toml:"docker"`
 	Files        FilesSettings   `toml:"files"`
+	Desktop      DesktopSettings `toml:"desktop"`
 }
 
 // Allows reports whether the policy allows a capability.
@@ -139,7 +150,7 @@ func Parse(text string) (Policy, error) {
 	if err != nil {
 		return Policy{}, err
 	}
-	policy := Policy{Docker: parsed.Docker, Files: FilesSettings{AllowedPaths: allowed}}
+	policy := Policy{Docker: parsed.Docker, Files: FilesSettings{AllowedPaths: allowed}, Desktop: parsed.Desktop}
 	for name, allowed := range parsed.Capabilities {
 		if !slices.Contains(Capabilities(), name) {
 			return Policy{}, fmt.Errorf("unknown capability %q; the capabilities are %s", name, strings.Join(Capabilities(), ", "))

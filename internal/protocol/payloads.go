@@ -65,6 +65,17 @@ type SystemInfo struct {
 	AgentVersion    string `json:"agentVersion"`
 	// Capabilities says which features the local policy allows.
 	Capabilities []Capability `json:"capabilities"`
+	// Desktop says whether remote desktop can be used now; absent from
+	// agents that predate it.
+	Desktop *DesktopAvailability `json:"desktop,omitempty"`
+}
+
+// DesktopAvailability says whether a machine's desktop can be shared.
+type DesktopAvailability struct {
+	Available bool `json:"available"`
+	// Reason says why not, e.g. "No one is logged in to a graphical
+	// session".
+	Reason string `json:"reason,omitempty"`
 }
 
 // Capability is one feature and whether this machine allows it.
