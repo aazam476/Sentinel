@@ -5,6 +5,7 @@ package api_test
 import (
 	"encoding/json"
 	"net/http"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -104,6 +105,21 @@ func browserStatus(t *testing.T, conn *websocket.Conn) relay.Status {
 		t.Fatal(err)
 	}
 	return status
+}
+
+// eventualAuditActions waits up to five seconds for the audit entries with
+// prefix to be want, for actions audited just after their response ends,
+// such as a download, and returns what it last saw.
+func eventualAuditActions(t *testing.T, server *testServer, prefix string, want []string) []string {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		got := auditActions(t, server, prefix)
+		if slices.Equal(got, want) || time.Now().After(deadline) {
+			return got
+		}
+		runtime.Gosched()
+	}
 }
 
 func auditActions(t *testing.T, server *testServer, prefix string) []string {

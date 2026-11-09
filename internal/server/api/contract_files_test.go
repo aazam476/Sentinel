@@ -135,7 +135,8 @@ func TestFiles(t *testing.T) {
 		if !bytes.Equal(resumed.body, content[1000:]) {
 			t.Errorf("resumed with %d bytes, want %d", len(resumed.body), len(content)-1000)
 		}
-		if got := auditActions(t, f.server, "file."); !slices.Equal(got, []string{"file.download:success", "file.download:success"}) {
+		want := []string{"file.download:success", "file.download:success"}
+		if got := eventualAuditActions(t, f.server, "file.", want); !slices.Equal(got, want) {
 			t.Errorf("audit = %v", got)
 		}
 	})
