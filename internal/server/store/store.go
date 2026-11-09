@@ -132,3 +132,18 @@ func escapeURIPath(path string) string {
 func closeQuietly(db *sql.DB) {
 	_ = db.Close() // the caller is already returning a more useful error
 }
+
+// Snapshot writes a consistent copy of the database at path to dest, which
+// must not exist. It works while the server runs: SQLite's VACUUM INTO
+// reads one snapshot of the database, as any reader does under WAL.
+func Snapshot(ctx context.Context, path, dest string) error {
+	db, err := openConnection(ctx, path, false)
+	if err != nil {
+		return err
+	}
+	defer closeQuietly(db)
+	if _, err := db.ExecContext(ctx, `VACUUM INTO ?`, dest); err != nil {
+		return fmt.Errorf("copy the database: %w", err)
+	}
+	return nil
+}

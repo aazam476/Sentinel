@@ -20,6 +20,7 @@ module="$(go list -m)"
 # secrets, the audit log, the agent's policy and updates.
 security_critical=(
   "$module/internal/server/secrets"
+  "$module/internal/server/backup"
   "$module/internal/server/auth"
   "$module/internal/server/audit"
   "$module/internal/server/fleet"

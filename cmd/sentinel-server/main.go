@@ -41,6 +41,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return runAudit(args[1:], stdout, stderr)
 		case "reset-admin":
 			return runResetAdmin(args[1:], stdout, stderr)
+		case "backup":
+			return runBackup(args[1:], os.Stdin, stdout, stderr)
+		case "restore":
+			return runRestore(args[1:], os.Stdin, stdout, stderr)
 		}
 	}
 
@@ -97,6 +101,10 @@ func printUsage(flags *flag.FlagSet) {
 	_, _ = fmt.Fprintln(output, "  sentinel-server version    print the version and exit")
 	_, _ = fmt.Fprintln(output, "  sentinel-server reset-admin [--data-dir dir] [--username name]")
 	_, _ = fmt.Fprintln(output, "                             reset an admin's password and 2FA (run on the server host)")
+	_, _ = fmt.Fprintln(output, "  sentinel-server backup [--data-dir dir] [--passphrase-file f] <file>")
+	_, _ = fmt.Fprintln(output, "                             write an encrypted backup of the database, keys and config")
+	_, _ = fmt.Fprintln(output, "  sentinel-server restore [--data-dir dir] [--passphrase-file f] [--force] <file>")
+	_, _ = fmt.Fprintln(output, "                             restore a backup (stop the server first)")
 	_, _ = fmt.Fprintln(output, "  sentinel-server audit verify [--data-dir dir]")
 	_, _ = fmt.Fprintln(output, "                             check the audit log's hash chain")
 	_, _ = fmt.Fprintln(output, "  sentinel-server audit export [--data-dir dir] [--format json|csv]")

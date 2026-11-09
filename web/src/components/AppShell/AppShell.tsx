@@ -43,6 +43,11 @@ export function AppShell({ session }: AppShellProps) {
             Account
           </NavLink>
           {session.user.role === 'admin' && (
+            <NavLink to="/users" className={linkClass}>
+              Users
+            </NavLink>
+          )}
+          {session.user.role === 'admin' && (
             <NavLink to="/audit" className={linkClass}>
               Audit log
             </NavLink>

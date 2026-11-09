@@ -253,3 +253,33 @@ func mustRead(t *testing.T, db *store.Store, work func(tx *sql.Tx) error) {
 		t.Fatalf("Read returned %v", err)
 	}
 }
+
+func TestSnapshot(t *testing.T) {
+	t.Run("copies the database while it is open, writes included", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "sentinel.db")
+		db := openStore(t, path)
+		setSetting(t, db, "greeting", `"hello"`)
+		copied := filepath.Join(t.TempDir(), "copy.db")
+		if err := store.Snapshot(t.Context(), path, copied); err != nil {
+			t.Fatal(err)
+		}
+		if got := getSetting(t, openStore(t, copied), "greeting"); got != `"hello"` {
+			t.Errorf("the copy has %q", got)
+		}
+	})
+
+	t.Run("won't overwrite a file, and reports a database it can't open", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "sentinel.db")
+		openStore(t, path)
+		existing := filepath.Join(t.TempDir(), "existing.db")
+		if err := os.WriteFile(existing, []byte("keep"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.Snapshot(t.Context(), path, existing); err == nil {
+			t.Error("an existing file was overwritten")
+		}
+		if err := store.Snapshot(t.Context(), filepath.Join(t.TempDir(), "missing", "x.db"), existing+"2"); err == nil {
+			t.Error("expected an error")
+		}
+	})
+}

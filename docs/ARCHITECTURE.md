@@ -83,7 +83,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 
 | Path | What's there | Status |
 |---|---|---|
-| `cmd/sentinel-server/` | Server entry point: parses flags, wires packages together | Serves the web UI |
+| `cmd/sentinel-server/` | Server entry point: parses flags, wires packages together; `reset-admin`, `audit`, `backup` and `restore` commands | Serves the web UI |
 | `cmd/sentinel-agent/` | Agent entry point and subcommands | `install`, `enroll`, `run`, `uninstall`, `version` |
 | `internal/server/config/` | Reads and validates `server.toml` | Built |
 | `internal/server/servertls/` | Self-signed and ACME certificates | Built |
@@ -96,6 +96,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/localaccess/` | Checks who may run `reset-admin` on the server host | Built |
 | `internal/server/audit/` | Append-only, hash-chained audit log; verify and export | Built |
 | `internal/server/secrets/` | Encrypts stored secrets with the key in `secret.key` | Built |
+| `internal/server/backup/` | Encrypted backups: database copy, keys, certificates and config, sealed with a passphrase | Built |
 | `internal/server/serverkey/` | The server's Ed25519 identity key and its fingerprint | Built |
 | `internal/server/fleet/` | Enrollment tokens and the list of managed machines | Built |
 | `internal/server/hub/` | The agents' WebSocket endpoint: handshake, heartbeat, requests, streams, online status | Built |
@@ -128,7 +129,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/files/` | The file manager: listing, chunked reads, resumable uploads, renames, deletes and text editing, inside the folders the local policy allows | Built |
 | `internal/agent/scripts/` | Runs a script with its interpreter, from a private temporary file, passing its output on and stopping it at its time limit | Built |
 | `internal/agent/<feature>/` | One package per agent feature (desktop, updates, ...) | Planned |
-| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power, files, storage and Docker; scripts with runs and schedules; alerts with rules and channels, firing alerts in the fleet and on each machine, maintenance mode |
+| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power, files, storage and Docker; scripts with runs and schedules; alerts with rules and channels, users, firing alerts in the fleet and on each machine, maintenance mode |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |
 

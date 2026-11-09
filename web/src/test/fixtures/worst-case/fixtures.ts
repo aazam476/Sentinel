@@ -20,6 +20,7 @@ import type {
   ScriptRun,
   ScriptRunOutput,
   Scripts,
+  UsersResponse,
 } from '../../../api/types.gen';
 import type {
   ContainerListPayload,
@@ -1007,3 +1008,17 @@ export const worstRules: AlertRules = {
     channelIds: worstChannels.channels.map((channel) => channel.id),
   })),
 };
+
+/** worstUsers: 500 users, the longest username first, every role, some disabled. */
+export function worstUsers(): UsersResponse {
+  return {
+    users: Array.from({ length: 500 }, (_, index) => ({
+      id: index + 1,
+      username:
+        index === 0 ? longUsername : `user-${String(index).padStart(3, '0')}-${'x'.repeat(50)}`,
+      role: ['admin', 'operator', 'viewer'][index % 3] ?? 'viewer',
+      createdAt: fixtureNow - index * 86_400_000,
+      disabled: index % 7 === 3,
+    })),
+  };
+}
