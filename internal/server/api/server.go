@@ -16,6 +16,7 @@ import (
 	"github.com/aazam476/sentinel/internal/server/metrics"
 	"github.com/aazam476/sentinel/internal/server/registry"
 	"github.com/aazam476/sentinel/internal/server/relay"
+	"github.com/aazam476/sentinel/internal/server/scripts"
 	"github.com/aazam476/sentinel/internal/server/serverkey"
 	"github.com/aazam476/sentinel/internal/shared/clock"
 )
@@ -32,6 +33,7 @@ type handlers struct {
 	metrics    *metrics.Service
 	registries *registry.Service
 	alerts     *alerts.Service
+	scripts    *scripts.Service
 	// maxFileBytes is the largest file the file manager moves.
 	maxFileBytes int64
 	terminals    *relay.Sessions

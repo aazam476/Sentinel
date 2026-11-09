@@ -24,6 +24,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/agent/power"
 	"github.com/aazam476/sentinel/internal/agent/processes"
+	"github.com/aazam476/sentinel/internal/agent/scripts"
 	"github.com/aazam476/sentinel/internal/agent/services"
 	"github.com/aazam476/sentinel/internal/agent/stacks"
 	"github.com/aazam476/sentinel/internal/agent/storage"
@@ -88,6 +89,8 @@ type Options struct {
 	// Files is the file manager (§9.7); nil uses this machine's, within
 	// the folders the local policy allows (SEC-25).
 	Files Files
+	// Scripts runs scripts (§9.8); nil runs them on this machine.
+	Scripts Scripts
 	// Observe, if set, is told when the agent reaches each Event. Tests
 	// use it to know when to move their fake clock.
 	Observe func(Event)
@@ -218,6 +221,9 @@ func withMachineDefaults(options *Options) {
 	}
 	if options.Stacks == nil {
 		options.Stacks = stacks.New(runner, options.Policy.Docker.StacksDir, runtime.GOOS)
+	}
+	if options.Scripts == nil {
+		options.Scripts = scripts.New(runtime.GOOS)
 	}
 	if options.Files == nil {
 		options.Files = files.New(options.Policy.Files.AllowedPaths)

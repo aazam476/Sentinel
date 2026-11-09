@@ -24,6 +24,7 @@ import (
 	"github.com/aazam476/sentinel/internal/server/middleware"
 	"github.com/aazam476/sentinel/internal/server/registry"
 	"github.com/aazam476/sentinel/internal/server/scheduler"
+	"github.com/aazam476/sentinel/internal/server/scripts"
 	"github.com/aazam476/sentinel/internal/server/secrets"
 	"github.com/aazam476/sentinel/internal/server/serverkey"
 	"github.com/aazam476/sentinel/internal/server/store"
@@ -61,6 +62,7 @@ type App struct {
 	Metrics   *metrics.Service
 	Registry  *registry.Service
 	Alerts    *alerts.Service
+	Scripts   *scripts.Service
 	ServerKey serverkey.Key
 	database  *store.Store
 	clock     Clock
@@ -78,6 +80,7 @@ type services struct {
 	metrics   *metrics.Service
 	registry  *registry.Service
 	alerts    *alerts.Service
+	scripts   *scripts.Service
 	serverKey serverkey.Key
 }
 
@@ -102,7 +105,7 @@ func New(ctx context.Context, options Options) (*App, error) {
 	}
 	return &App{
 		Handler: handler, Auth: built.auth, AuditLog: built.auditLog, Fleet: built.fleet, Hub: built.hub,
-		Metrics: built.metrics, Registry: built.registry, Alerts: built.alerts, ServerKey: built.serverKey, database: database, clock: options.Clock, logger: options.Logger,
+		Metrics: built.metrics, Registry: built.registry, Alerts: built.alerts, Scripts: built.scripts, ServerKey: built.serverKey, database: database, clock: options.Clock, logger: options.Logger,
 	}, nil
 }
 
@@ -131,6 +134,9 @@ func buildServices(database *store.Store, options Options) (services, error) {
 	built.hub = hub.New(hub.Options{
 		Fleet: built.fleet, Metrics: built.metrics, Alerts: built.alerts, Key: serverKey, Clock: options.Clock, Logger: options.Logger,
 	})
+	built.scripts = scripts.New(scripts.Options{
+		Database: database, AuditLog: auditLog, Hub: scripts.HubOf(built.hub), Fleet: built.fleet, Clock: options.Clock, Logger: options.Logger,
+	})
 	return built, nil
 }
 
@@ -144,8 +150,11 @@ func (a *App) Start(ctx context.Context) {
 			scheduler.Job{Name: "metric rollup", Interval: time.Minute, Run: a.Metrics.Rollup},
 			scheduler.Job{Name: "metric cleanup", Interval: time.Hour, Run: a.Metrics.Prune},
 			scheduler.Job{Name: "image update check", Interval: 24 * time.Hour, Run: a.checkImages},
+			scheduler.Job{Name: "scheduled scripts", Interval: time.Minute, Run: a.Scripts.RunDue},
 		)
 		a.Hub.Shutdown()
+		// Closing the agents' connections ends the scripts running on them.
+		a.Scripts.Wait()
 	})
 }
 
@@ -204,6 +213,7 @@ func buildHandler(options Options, built services) (http.Handler, error) {
 		Metrics:        built.metrics,
 		Registry:       built.registry,
 		Alerts:         built.alerts,
+		Scripts:        built.scripts,
 		ServerKey:      built.serverKey,
 		TLSFingerprint: options.TLSFingerprint,
 		Logger:         options.Logger,

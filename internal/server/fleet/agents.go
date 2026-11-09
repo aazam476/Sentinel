@@ -59,6 +59,19 @@ func (s *Service) ListAgents(ctx context.Context, actor auth.Session) ([]Agent, 
 	return agents, err
 }
 
+// AllAgents returns every machine that hasn't been revoked, for background
+// work that acts for no one, such as scheduled scripts. Callers acting for
+// a person use ListAgents, which checks their permission.
+func (s *Service) AllAgents(ctx context.Context) ([]Agent, error) {
+	var agents []Agent
+	err := s.database.Read(ctx, func(tx *sql.Tx) error {
+		var err error
+		agents, err = listAgents(ctx, tx)
+		return err
+	})
+	return agents, err
+}
+
 // GetAgent returns one machine that hasn't been revoked.
 func (s *Service) GetAgent(ctx context.Context, actor auth.Session, publicID string) (Agent, error) {
 	if err := auth.Authorize(actor, auth.PermissionViewFleet); err != nil {

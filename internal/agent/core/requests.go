@@ -36,6 +36,7 @@ func (c *connection) handlers() map[string]handler {
 		protocol.ActionProcessKill:    c.killProcess,
 		protocol.ActionSystemReboot:   c.power(power.Reboot),
 		protocol.ActionSystemShutdown: c.power(power.Shutdown),
+		protocol.ActionScriptRun:      c.runScript,
 	}
 	maps.Copy(handlers, c.dockerHandlers())
 	maps.Copy(handlers, c.stackHandlers())

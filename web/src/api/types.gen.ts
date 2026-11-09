@@ -510,6 +510,152 @@ export interface AddRegistryLoginRequest {
 }
 
 //////////
+// source: scripts.go
+
+/**
+ * Script is a script in the library.
+ */
+export interface Script {
+  id: number /* int64 */;
+  name: string;
+  description: string;
+  language: string;
+  body: string;
+  targetOS: string;
+  timeoutSeconds: number /* int */;
+  createdAt: number /* int64 */;
+  updatedAt: number /* int64 */;
+}
+/**
+ * Scripts lists the library.
+ */
+export interface Scripts {
+  scripts: Script[];
+}
+/**
+ * SaveScriptRequest adds or changes a script.
+ */
+export interface SaveScriptRequest {
+  name: string;
+  description: string;
+  language: string;
+  body: string;
+  targetOS: string;
+  timeoutSeconds: number /* int */;
+}
+/**
+ * ScriptTarget is where a script runs: kind "agent" (value is a machine's
+ * ID), "tag" (a tag) or "agents" (machine IDs, comma-separated).
+ */
+export interface ScriptTarget {
+  kind: string;
+  value: string;
+}
+/**
+ * RunScriptRequest runs a script.
+ */
+export interface RunScriptRequest {
+  target: ScriptTarget;
+}
+/**
+ * RunScriptResponse names the batch the run started.
+ */
+export interface RunScriptResponse {
+  batchId: number /* int64 */;
+}
+/**
+ * ScriptBatch is one script run on some machines.
+ */
+export interface ScriptBatch {
+  id: number /* int64 */;
+  scriptId: number | null;
+  scriptName: string;
+  /**
+   * StartedBy is the person who started it; empty when a schedule did.
+   */
+  startedBy: string;
+  scheduleId: number | null;
+  target: string;
+  startedAt: number /* int64 */;
+  /**
+   * Counts says how many runs are in each state.
+   */
+  counts: { [key: string]: number /* int */};
+}
+/**
+ * ScriptBatches lists recent batches, newest first.
+ */
+export interface ScriptBatches {
+  batches: ScriptBatch[];
+}
+/**
+ * ScriptBatchDetails is a batch with the script as it ran and each run.
+ */
+export interface ScriptBatchDetails extends ScriptBatch {
+  language: string;
+  body: string;
+  runs: ScriptRun[];
+}
+/**
+ * ScriptRun is one machine's run.
+ */
+export interface ScriptRun {
+  id: number /* int64 */;
+  batchId: number /* int64 */;
+  agentId: string;
+  agentName: string;
+  /**
+   * State is running, succeeded, failed, timed_out, offline, skipped or
+   * canceled.
+   */
+  state: string;
+  exitCode: number | null;
+  error: string;
+  startedAt: number /* int64 */;
+  finishedAt: number | null;
+}
+/**
+ * ScriptRunOutput is a run with its output so far.
+ */
+export interface ScriptRunOutput extends ScriptRun {
+  output: string;
+  /**
+   * Truncated means only the first 1 MB was kept.
+   */
+  truncated: boolean;
+}
+/**
+ * Schedule runs a script on a target at the times its cron gives.
+ */
+export interface Schedule {
+  id: number /* int64 */;
+  scriptId: number /* int64 */;
+  scriptName: string;
+  cron: string;
+  timezone: string;
+  target: ScriptTarget;
+  enabled: boolean;
+  nextRunAt: number | null;
+  lastRunAt: number | null;
+}
+/**
+ * Schedules lists every schedule.
+ */
+export interface Schedules {
+  schedules: Schedule[];
+}
+/**
+ * SaveScheduleRequest adds or changes a schedule.
+ */
+export interface SaveScheduleRequest {
+  scriptId: number /* int64 */;
+  cron: string;
+  timezone: string;
+  target: ScriptTarget;
+  enabled: boolean;
+}
+
+//////////
 // source: sessions.go
 
 /**

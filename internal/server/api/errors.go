@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/aazam476/sentinel/internal/server/auth"
+	"github.com/aazam476/sentinel/internal/server/scripts"
 )
 
 // Error codes the API returns in {"error": {"code": ...}}. The web UI
@@ -98,6 +99,8 @@ func knownErrors() []knownError {
 		{auth.ErrLastAdmin, http.StatusConflict, errorCodeLastAdmin},
 		{auth.ErrPasskeyFailed, http.StatusUnauthorized, errorCodePasskeyFailed},
 		{auth.ErrLastSecondFactor, http.StatusConflict, errorCodeLastSecondFactor},
+		{scripts.ErrNotFound, http.StatusNotFound, errorCodeNotFound},
+		{scripts.ErrExists, http.StatusConflict, errorCodeConflict},
 	}
 }
 
@@ -110,6 +113,12 @@ func writeServiceError(w http.ResponseWriter, logger *slog.Logger, err error) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: ErrorDetail{
 			Code: errorCodeInvalidInput, Message: validation.Message, Field: validation.Field,
 		}})
+		return
+	}
+
+	var invalid *scripts.InvalidError
+	if errors.As(err, &invalid) {
+		writeInvalidInput(w, invalid.Field, invalid.Reason)
 		return
 	}
 
