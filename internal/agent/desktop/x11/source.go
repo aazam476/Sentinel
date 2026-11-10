@@ -61,6 +61,20 @@ type Source struct {
 
 // Open connects to the display and checks it can be captured and driven.
 func Open(display Display) (*Source, error) {
+	conn, err := dial(display)
+	if err != nil {
+		return nil, err
+	}
+	source := &Source{conn: conn, root: xproto.Setup(conn).DefaultScreen(conn).Root, display: display}
+	if err := source.check(); err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return source, nil
+}
+
+// dial connects to the display with its cookie, if it has one.
+func dial(display Display) (*xgb.Conn, error) {
 	netConn, err := (&net.Dialer{}).Dial("unix", display.socket())
 	if err != nil {
 		return nil, fmt.Errorf("connect to X display %s: %w", display.Name(), err)
@@ -75,12 +89,7 @@ func Open(display Display) (*Source, error) {
 		_ = netConn.Close() // the connection never started
 		return nil, fmt.Errorf("connect to X display %s: %w", display.Name(), err)
 	}
-	source := &Source{conn: conn, root: xproto.Setup(conn).DefaultScreen(conn).Root, display: display}
-	if err := source.check(); err != nil {
-		conn.Close()
-		return nil, err
-	}
-	return source, nil
+	return conn, nil
 }
 
 // check makes sure the server has XTEST and a pixel format Capture reads.

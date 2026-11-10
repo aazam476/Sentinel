@@ -50,6 +50,12 @@ type Policy struct {
 	Files FilesSettings
 	// Desktop configures remote desktop (§9.3).
 	Desktop DesktopSettings
+	// DesktopRequiresConsent asks the person at the machine to allow each
+	// remote desktop session first (SEC-23).
+	DesktopRequiresConsent bool
+	// ShowSessionIndicator shows the person at the machine a notice while
+	// any remote terminal or desktop session is open (SEC-24).
+	ShowSessionIndicator bool
 }
 
 // DesktopSettings are the machine owner's remote desktop settings.
@@ -91,6 +97,10 @@ type file struct {
 	Docker       DockerSettings  `toml:"docker"`
 	Files        FilesSettings   `toml:"files"`
 	Desktop      DesktopSettings `toml:"desktop"`
+	// The two SEC-23 and SEC-24 settings sit at the top level, under the
+	// names §6 gives them.
+	DesktopRequiresConsent bool `toml:"desktop_requires_consent"`
+	ShowSessionIndicator   bool `toml:"show_session_indicator"`
 }
 
 // Allows reports whether the policy allows a capability.
@@ -159,7 +169,10 @@ func Parse(text string) (Policy, error) {
 	if err := checkDesktop(parsed.Desktop); err != nil {
 		return Policy{}, err
 	}
-	policy := Policy{Docker: parsed.Docker, Files: FilesSettings{AllowedPaths: allowed}, Desktop: parsed.Desktop}
+	policy := Policy{
+		Docker: parsed.Docker, Files: FilesSettings{AllowedPaths: allowed}, Desktop: parsed.Desktop,
+		DesktopRequiresConsent: parsed.DesktopRequiresConsent, ShowSessionIndicator: parsed.ShowSessionIndicator,
+	}
 	for name, allowed := range parsed.Capabilities {
 		if !slices.Contains(Capabilities(), name) {
 			return Policy{}, fmt.Errorf("unknown capability %q; the capabilities are %s", name, strings.Join(Capabilities(), ", "))

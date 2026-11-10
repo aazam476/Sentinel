@@ -108,8 +108,8 @@ func TestDesktop(t *testing.T) {
 			t.Fatal(err)
 		}
 		start := f.acceptDesktop(t)
-		if start.ViewOnly {
-			t.Error("asked for a view-only session")
+		if start.ViewOnly || start.User != "admin" {
+			t.Errorf("start = %+v, want a full session for admin", start)
 		}
 		kind, data, err := browser.Read(t.Context())
 		var ready api.DesktopReady

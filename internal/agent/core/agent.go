@@ -104,6 +104,10 @@ type Options struct {
 	// Desktop finds the desktop to share (internal/agent/desktop); nil uses
 	// this machine's, or the test pattern the local policy asks for.
 	Desktop DesktopProvider
+	// Notifier asks the person at the machine and shows them sessions
+	// are open, when the local policy says to (SEC-23, SEC-24); nil uses
+	// this machine's desktop where there is a way to.
+	Notifier Notifier
 }
 
 // DesktopProvider finds the desktop to share (internal/agent/desktop).
@@ -211,6 +215,8 @@ type Agent struct {
 	// desktopInputs passes each desktop session's stream data on, by
 	// stream ID.
 	desktopInputs sync.Map
+	// activity keeps the session indicator up to date (SEC-24).
+	activity *activity
 	// sessions guards the current session's cancel and the pause, which
 	// holds the agent off the server while a new version is on trial.
 	sessions      sync.Mutex
@@ -238,6 +244,11 @@ func New(options Options) *Agent {
 		updateReports: make(chan struct{}, 1),
 	}
 	agent.metricsInterval.Store(int64(defaultMetricsInterval))
+	agent.activity = &activity{logger: options.Logger}
+	if options.Policy.ShowSessionIndicator {
+		agent.activity.notifier = options.Notifier
+		agent.terminals.OnChange(agent.activity.setTerminals)
+	}
 	return agent
 }
 
@@ -271,6 +282,9 @@ func withMachineDefaults(options *Options) {
 	if options.Desktop == nil {
 		options.Desktop = desktop.Provider{TestPattern: options.Policy.Desktop.TestPattern, Screen: platformScreen(options.Policy.Desktop)}
 	}
+	if options.Notifier == nil {
+		options.Notifier = platformNotifier(options.Policy.Desktop)
+	}
 	if options.Storage == nil {
 		options.Storage = storage.New(storage.Options{GOOS: runtime.GOOS, Runner: runner, Logger: options.Logger})
 	}
@@ -278,6 +292,7 @@ func withMachineDefaults(options *Options) {
 
 // Run keeps the agent connected until ctx ends.
 func (a *Agent) Run(ctx context.Context) {
+	defer a.activity.close()
 	defer a.terminals.CloseAll()
 	sampling := make(chan struct{})
 	// The timer starts here, not in the goroutine, so the first sample is

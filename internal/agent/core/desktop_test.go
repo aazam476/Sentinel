@@ -62,7 +62,7 @@ func (s *server) openDesktop(t *testing.T, agentID string) (*hub.Stream, protoco
 	}
 	var started protocol.DesktopStartedPayload
 	stream, err := s.hub.OpenStream(t.Context(), stored.ID, protocol.ActionDesktopSessionStart, func(id protocol.StreamID) any {
-		return protocol.DesktopStartPayload{StreamID: id}
+		return protocol.DesktopStartPayload{StreamID: id, User: "admin"}
 	}, &started)
 	return stream, started, err
 }

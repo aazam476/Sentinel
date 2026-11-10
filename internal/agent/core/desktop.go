@@ -50,6 +50,9 @@ func (c *connection) startDesktop(ctx context.Context, request protocol.Message)
 	if err := protocol.DecodePayload(request, &payload); err != nil {
 		return nil, invalidRequest(err)
 	}
+	if refusal := c.askConsent(ctx, payload); refusal != nil {
+		return nil, refusal
+	}
 	source, err := c.agent.options.Desktop.Open(ctx)
 	if err != nil {
 		if errors.Is(err, desktop.ErrUnavailable) {
@@ -68,7 +71,9 @@ func (c *connection) startDesktop(ctx context.Context, request protocol.Message)
 		ViewOnly: payload.ViewOnly, ICEServers: payload.ICEServers, Clock: c.agent.options.Clock, Logger: c.agent.options.Logger,
 	})
 	width, height := source.Size()
+	endActivity := c.agent.activity.beginDesktop(payload.User)
 	c.follow(ctx, payload.StreamID, func(ctx context.Context) string {
+		defer endActivity()
 		defer c.agent.desktopInputs.Delete(payload.StreamID)
 		defer func() { _ = source.Close() }() // the session is over either way
 		if err := session.Run(ctx, inbound, desktopOutput{conn: c, stream: payload.StreamID}); err != nil {

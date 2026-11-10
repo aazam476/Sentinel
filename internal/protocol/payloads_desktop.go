@@ -26,6 +26,9 @@ type DesktopStartPayload struct {
 	ViewOnly bool `json:"viewOnly,omitempty"`
 	// ICEServers are the STUN and TURN servers the agent may use.
 	ICEServers []ICEServer `json:"iceServers,omitempty"`
+	// User is who asks, for the machine's consent prompt (SEC-23) and
+	// session indicator (SEC-24).
+	User string `json:"user,omitempty"`
 }
 
 // ICEServer is a STUN or TURN server for WebRTC.

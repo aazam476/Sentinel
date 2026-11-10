@@ -23,6 +23,8 @@ SEC-14  public_url, base_path and trusted_proxies; X-Forwarded-* only from trust
 SEC-20  Agent key and state in a directory only root/SYSTEM can read
 SEC-21  Mutual Ed25519 handshake between agent and server; revocation closes the live connection
 SEC-22  Local policy file switches capabilities off; the server can't change it
+SEC-23  Policy desktop_requires_consent: the person at the machine allows each desktop session
+SEC-24  Policy show_session_indicator: a visible notice while a remote terminal or desktop session is open
 SEC-26  The agent never listens on a network port
 SEC-40  Append-only, hash-chained audit log
 SEC-41  Audit log view, CSV/JSON export, and verify command

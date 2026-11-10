@@ -6,6 +6,8 @@ import (
 	"bufio"
 	"errors"
 	"image"
+	"io"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -21,15 +23,28 @@ import (
 	"github.com/aazam476/sentinel/internal/protocol"
 )
 
+// TestMain silences xgb's own logging: connecting without a cookie, as
+// these tests' servers allow, makes it complain about ~/.Xauthority.
+func TestMain(m *testing.M) {
+	xgb.Logger = log.New(io.Discard, "", 0)
+	os.Exit(m.Run())
+}
+
 // startXvfb starts a virtual X server of 320×240 and returns its display.
 // With a cookie, the server lets in only clients that present it. Xvfb
 // writes its display number to file descriptor 3 once it is ready.
 func startXvfb(t *testing.T, withCookie bool) x11.Display {
 	t.Helper()
+	return startXvfbSized(t, withCookie, "320x240")
+}
+
+// startXvfbSized is startXvfb with a screen of the given size, "WxH".
+func startXvfbSized(t *testing.T, withCookie bool, size string) x11.Display {
+	t.Helper()
 	if _, err := exec.LookPath("Xvfb"); err != nil {
 		t.Skip("Xvfb isn't installed")
 	}
-	args := []string{"-displayfd", "3", "-screen", "0", "320x240x24", "-nolisten", "tcp"}
+	args := []string{"-displayfd", "3", "-screen", "0", size + "x24", "-nolisten", "tcp"}
 	if withCookie {
 		file := filepath.Join(t.TempDir(), "Xauthority")
 		if err := os.WriteFile(file, authEntry(65535, "", "", "MIT-MAGIC-COOKIE-1", cookie), 0o600); err != nil {

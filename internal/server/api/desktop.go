@@ -88,7 +88,7 @@ func (h *handlers) runDesktop(ctx context.Context, conn *websocket.Conn, session
 	var started protocol.DesktopStartedPayload
 	iceServers := h.iceServers()
 	stream, err := h.hub.OpenStream(ctx, agent.ID, protocol.ActionDesktopSessionStart, func(id protocol.StreamID) any {
-		return protocol.DesktopStartPayload{StreamID: id, ViewOnly: viewOnly, ICEServers: iceServers}
+		return protocol.DesktopStartPayload{StreamID: id, ViewOnly: viewOnly, ICEServers: iceServers, User: session.Username}
 	}, &started)
 	if err != nil {
 		h.auditMachine(ctx, session, agent, client, "desktop.open", outcomeOf(err), map[string]any{"error": err.Error()})

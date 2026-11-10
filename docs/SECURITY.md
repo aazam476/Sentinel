@@ -27,8 +27,20 @@ Two features limit the damage a compromised server can do:
   changed by anyone other than root, or if it has a typo, so a mistake can never switch a
   capability back on. The web UI shows switched-off capabilities as "Disabled by local
   policy".
-- **Consent prompts** can require the logged-in user to approve each remote desktop session
-  (planned, with remote desktop).
+- **Consent prompts.** With `desktop_requires_consent = true` in the policy file, the
+  person logged in at the machine is asked, by name of whoever is connecting, to allow or deny
+  each remote desktop session. With no answer in 25 seconds, or no one to ask, it is
+  refused. Where the agent can't ask yet (Windows, macOS and Wayland, for now), the setting
+  refuses every session.
+- **A session indicator.** With `show_session_indicator = true`, a bar at the top of the
+  screen says who is connected while any remote terminal or desktop session is open.
+
+Both are local policy settings, so the server can't turn them off:
+
+```toml
+desktop_requires_consent = true
+show_session_indicator = true
+```
 
 ## How agents and the server trust each other
 

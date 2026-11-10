@@ -216,6 +216,14 @@ display = ":0"
 xauthority = "/home/kiosk/.Xauthority"
 ```
 
+To be asked before each remote desktop session, and to see a notice while anyone is
+connected, add these at the top of the policy (see [SECURITY.md](SECURITY.md)):
+
+```toml
+desktop_requires_consent = true
+show_session_indicator = true
+```
+
 To check remote desktop end to end without sharing a real screen, use the test pattern
 instead. The Desktop tab then shows colour bars and marks where you click:
 

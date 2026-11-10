@@ -139,6 +139,16 @@ func TestParse(t *testing.T) {
 		}
 	})
 
+	t.Run("SEC-23 and SEC-24 read the consent and indicator settings", func(t *testing.T) {
+		parsed, err := policy.Parse("desktop_requires_consent = true\nshow_session_indicator = true\n")
+		if err != nil || !parsed.DesktopRequiresConsent || !parsed.ShowSessionIndicator {
+			t.Errorf("got %+v, %v", parsed, err)
+		}
+		if parsed, _ := policy.Parse(""); parsed.DesktopRequiresConsent || parsed.ShowSessionIndicator {
+			t.Error("asking and showing are on by default")
+		}
+	})
+
 	t.Run("refuses desktop settings that can't work", func(t *testing.T) {
 		for _, text := range []string{
 			"[desktop]\ndisplay = \"host:0\"\n",

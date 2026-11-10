@@ -144,6 +144,12 @@ const starterPolicy = `# Sentinel agent policy (SEC-22). The server can't change
 # Every capability is allowed unless switched off here. To switch one off,
 # remove the # and set it to false, then restart the agent.
 
+# Ask the person at this machine to allow each remote desktop session
+# (SEC-23), and show a notice on screen while anyone is connected (SEC-24).
+# These must stay above the first [section].
+# desktop_requires_consent = true
+# show_session_indicator   = true
+
 [capabilities]
 # terminal = false
 # desktop  = false
@@ -164,6 +170,13 @@ const starterPolicy = `# Sentinel agent policy (SEC-22). The server can't change
 # this it can reach the whole file system.
 # [files]
 # allowed_paths = ["/srv", "/home"]
+
+# Remote desktop shares the active X11 session. Name a display here where
+# it can't be found (no systemd), or share a test pattern instead.
+# [desktop]
+# display      = ":0"
+# xauthority   = "/home/kiosk/.Xauthority"
+# test_pattern = true
 `
 
 func (options Options) writeStarterPolicy() error {

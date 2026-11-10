@@ -36,6 +36,11 @@ export interface DesktopStartPayload {
    * ICEServers are the STUN and TURN servers the agent may use.
    */
   iceServers?: ICEServer[];
+  /**
+   * User is who asks, for the machine's consent prompt (SEC-23) and
+   * session indicator (SEC-24).
+   */
+  user?: string;
 }
 /**
  * ICEServer is a STUN or TURN server for WebRTC.

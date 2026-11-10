@@ -14,3 +14,9 @@ import (
 func platformScreen(policy.DesktopSettings) desktop.Screen {
 	return nil
 }
+
+// platformNotifier is nil until this platform can ask and show (SEC-23,
+// SEC-24): a policy that wants consent then refuses remote desktop.
+func platformNotifier(policy.DesktopSettings) Notifier {
+	return nil
+}

@@ -228,3 +228,20 @@ func TestUninstall(t *testing.T) {
 		}
 	})
 }
+
+// TestStarterPolicyExamples checks every example in the starter policy is
+// a setting the agent accepts, once its # is removed.
+func TestStarterPolicyExamples(t *testing.T) {
+	var lines []string
+	for line := range strings.Lines(setup.StarterPolicy) {
+		example := strings.TrimPrefix(line, "# ")
+		if strings.HasPrefix(example, "[") || strings.Contains(example, " = ") {
+			lines = append(lines, example)
+		} else {
+			lines = append(lines, line)
+		}
+	}
+	if _, err := policy.Parse(strings.Join(lines, "")); err != nil {
+		t.Errorf("the starter policy's examples don't parse: %v", err)
+	}
+}

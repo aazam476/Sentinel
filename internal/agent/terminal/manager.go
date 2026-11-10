@@ -51,6 +51,27 @@ type Manager struct {
 	sessions map[string]*session
 	// byStream finds the session attached to a stream.
 	byStream map[protocol.StreamID]*session
+	// changed hears how many shells run whenever that changes.
+	changed func(running int)
+}
+
+// OnChange calls changed with the number of running shells whenever a
+// shell starts or ends, for the machine's session indicator (SEC-24).
+func (m *Manager) OnChange(changed func(running int)) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.changed = changed
+}
+
+// notify tells OnChange's function how many shells run. It is called
+// without the lock held.
+func (m *Manager) notify() {
+	m.mutex.Lock()
+	changed, running := m.changed, len(m.sessions)
+	m.mutex.Unlock()
+	if changed != nil {
+		changed(running)
+	}
 }
 
 // NewManager returns a Manager that starts shells with start.
@@ -88,6 +109,7 @@ func (m *Manager) OpenWith(request protocol.TerminalOpenPayload, out Output, sta
 	m.mutex.Lock()
 	m.sessions[s.id] = s
 	m.mutex.Unlock()
+	m.notify()
 	m.attach(s, request.StreamID, out)
 	go s.copyOutput()
 	m.logger.Info("terminal session started", "session", s.id)
@@ -186,11 +208,12 @@ func (m *Manager) forgetStream(stream protocol.StreamID) {
 // forget removes an ended session.
 func (m *Manager) forget(s *session) {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	delete(m.sessions, s.id)
 	for stream, attached := range m.byStream {
 		if attached == s {
 			delete(m.byStream, stream)
 		}
 	}
+	m.mutex.Unlock()
+	m.notify()
 }

@@ -14,3 +14,9 @@ import (
 func platformScreen(settings policy.DesktopSettings) desktop.Screen {
 	return x11.NewScreen(command.Exec{}, settings.Display, settings.XAuthority)
 }
+
+// platformNotifier asks and shows on the active X11 session (SEC-23,
+// SEC-24).
+func platformNotifier(settings policy.DesktopSettings) Notifier {
+	return x11.NewScreen(command.Exec{}, settings.Display, settings.XAuthority)
+}
