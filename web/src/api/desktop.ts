@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { apiRequest, apiURL } from './client';
-import { FrameEnd, FrameScreen, FrameTile, type ICEServer } from './protocol.gen';
+import {
+  FrameEnd,
+  FrameScreen,
+  FrameTile,
+  MaxClipboardBytes,
+  type ICEServer,
+  type MonitorInfo,
+} from './protocol.gen';
 
 /**
  * A remote desktop session (§9.3), outside React: the screen is drawn
@@ -31,6 +38,13 @@ export interface DesktopCallbacks {
   onResize: (width: number, height: number) => void;
   /** onFrame draws one screen's worth of tiles. */
   onFrame: (tiles: DecodedTile[]) => void;
+  /** onClipboard gives text copied on the machine. */
+  onClipboard?: (text: string) => void;
+  /**
+   * onMonitors lists the machine's monitors, when it has more than one,
+   * and which is shown (-1: the whole desktop).
+   */
+  onMonitors?: (monitors: MonitorInfo[], shown: number) => void;
 }
 
 export interface DecodedTile {
@@ -114,6 +128,10 @@ interface ControlMessage {
   height?: number;
   /** iceServers come with "ready": the server's relay, if it has one. */
   iceServers?: ICEServer[];
+  /** text is copied text, with "clipboard". */
+  text?: string;
+  monitors?: MonitorInfo[];
+  monitor?: number;
 }
 
 export class DesktopConnection {
@@ -178,6 +196,21 @@ export class DesktopConnection {
   }
 
   /** setQuality changes the picture's JPEG quality, 10 to 95. */
+  /**
+   * setClipboard puts text on the machine's clipboard, so pasting there
+   * pastes it. A view-only session shares no clipboard.
+   */
+  setClipboard(text: string) {
+    if (!this.options.viewOnly && new TextEncoder().encode(text).length <= MaxClipboardBytes) {
+      this.sendControl(JSON.stringify({ type: 'clipboard', text }));
+    }
+  }
+
+  /** showMonitor shows one of the machine's monitors, or -1 for all. */
+  showMonitor(index: number) {
+    this.sendControl(JSON.stringify({ type: 'monitor', monitor: index }));
+  }
+
   setQuality(quality: number) {
     this.sendControl(JSON.stringify({ type: 'quality', quality }));
   }
@@ -225,6 +258,14 @@ export class DesktopConnection {
       case 'candidate':
         if (message.candidate !== undefined) {
           await this.peer?.addIceCandidate(message.candidate).catch(() => undefined);
+        }
+        break;
+      case 'monitors':
+        this.callbacks.onMonitors?.(message.monitors ?? [], message.monitor ?? -1);
+        break;
+      case 'clipboard':
+        if (message.text !== undefined) {
+          this.callbacks.onClipboard?.(message.text);
         }
         break;
       case 'error':

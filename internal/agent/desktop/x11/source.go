@@ -8,8 +8,11 @@ import (
 	"image"
 	"net"
 	"strconv"
+	"sync"
 
 	"github.com/jezek/xgb"
+	"github.com/jezek/xgb/randr"
+	"github.com/jezek/xgb/xfixes"
 	"github.com/jezek/xgb/xproto"
 	"github.com/jezek/xgb/xtest"
 
@@ -57,6 +60,9 @@ type Source struct {
 	conn    *xgb.Conn
 	root    xproto.Window
 	display Display
+
+	clipboardMutex sync.Mutex
+	clipboard      *clipboard // opened on first use
 }
 
 // Open connects to the display and checks it can be captured and driven.
@@ -89,13 +95,14 @@ func dial(display Display) (*xgb.Conn, error) {
 		_ = netConn.Close() // the connection never started
 		return nil, fmt.Errorf("connect to X display %s: %w", display.Name(), err)
 	}
+	registerExtensions(conn)
 	return conn, nil
 }
 
 // check makes sure the server has XTEST and a pixel format Capture reads.
 func (s *Source) check() error {
-	if err := xtest.Init(s.conn); err != nil {
-		return fmt.Errorf("the X display %s has no XTEST extension for input: %w", s.display.Name(), err)
+	if !hasExtension(s.conn, extensionXTEST) {
+		return fmt.Errorf("the X display %s has no XTEST extension for input", s.display.Name())
 	}
 	setup := xproto.Setup(s.conn)
 	screen := setup.DefaultScreen(s.conn)
@@ -123,11 +130,17 @@ func (s *Source) Size() (int, int) {
 	return int(geometry.Width), int(geometry.Height)
 }
 
-// Capture copies the screen into frame. X sends 32-bit pixels as blue,
-// green, red and an unused byte.
+// Capture copies the screen into frame.
 func (s *Source) Capture(frame *image.RGBA) error {
+	return s.CaptureRegion(frame, image.Point{})
+}
+
+// CaptureRegion copies the part of the screen at origin, frame's size,
+// into frame. X sends 32-bit pixels as blue, green, red and an unused
+// byte.
+func (s *Source) CaptureRegion(frame *image.RGBA, origin image.Point) error {
 	bounds := frame.Bounds()
-	reply, err := xproto.GetImage(s.conn, xproto.ImageFormatZPixmap, xproto.Drawable(s.root), 0, 0,
+	reply, err := xproto.GetImage(s.conn, xproto.ImageFormatZPixmap, xproto.Drawable(s.root), int16(origin.X), int16(origin.Y), //nolint:gosec // G115: screen coordinates fit
 		uint16(bounds.Dx()), uint16(bounds.Dy()), ^uint32(0)).Reply() //nolint:gosec // G115: Size gave these, from X's own uint16s
 	if err != nil {
 		return fmt.Errorf("capture X display %s: %w", s.display.Name(), err)
@@ -144,6 +157,12 @@ func (s *Source) Capture(frame *image.RGBA) error {
 
 // Close disconnects from the display.
 func (s *Source) Close() error {
+	s.clipboardMutex.Lock()
+	if s.clipboard != nil {
+		s.clipboard.close()
+		s.clipboard = nil
+	}
+	s.clipboardMutex.Unlock()
 	s.conn.Close()
 	return nil
 }
@@ -229,4 +248,53 @@ func (s *Source) fake(kind, detail byte, x, y int) error {
 
 func clamp16(value int) int16 {
 	return int16(max(min(value, 32767), -32768))
+}
+
+// The extensions this package uses, by the names xgb files them under.
+const (
+	extensionXTEST  = "XTEST"
+	extensionXFIXES = "XFIXES"
+	extensionRANDR  = "RANDR"
+)
+
+// extensionInits are the xgb Init functions of the extensions used.
+func extensionInits() map[string]func(*xgb.Conn) error {
+	return map[string]func(*xgb.Conn) error{extensionXTEST: xtest.Init, extensionXFIXES: xfixes.Init, extensionRANDR: randr.Init}
+}
+
+// extensions records which extensions' Init has run in this process.
+// Each Init fills package-level tables that every xgb connection's reader
+// reads without a lock, so it may run only once, on the first connection:
+// later connections only learn the extensions' opcodes, which is the rest
+// of what Init does.
+var extensions = struct { //nolint:gochecknoglobals // guards xgb's own package-level tables
+	sync.Mutex
+	primed map[string]bool
+}{primed: map[string]bool{}}
+
+// registerExtensions makes the extensions this package uses known to conn.
+func registerExtensions(conn *xgb.Conn) {
+	extensions.Lock()
+	defer extensions.Unlock()
+	for name, initialize := range extensionInits() {
+		if !extensions.primed[name] {
+			extensions.primed[name] = initialize(conn) == nil
+			continue
+		}
+		reply, err := xproto.QueryExtension(conn, uint16(len(name)), name).Reply() //nolint:gosec // G115: short names
+		if err != nil || !reply.Present {
+			continue
+		}
+		conn.ExtLock.Lock()
+		conn.Extensions[name] = reply.MajorOpcode
+		conn.ExtLock.Unlock()
+	}
+}
+
+// hasExtension says whether the display offers an extension.
+func hasExtension(conn *xgb.Conn, name string) bool {
+	conn.ExtLock.RLock()
+	defer conn.ExtLock.RUnlock()
+	_, ok := conn.Extensions[name]
+	return ok
 }

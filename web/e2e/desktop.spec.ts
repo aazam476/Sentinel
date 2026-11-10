@@ -90,6 +90,32 @@ test('M8: remote desktop on a real machine, direct and through the server', asyn
     const canvas = desktop.getByLabel('Screen');
     await expect(canvas).toHaveJSProperty('width', 1280);
     await clickAndSeeMark(page, canvas, 0.25, 0.5);
+
+    // Ctrl+V on the screen pastes this computer's clipboard there; the test
+    // pattern answers with a copy of its own, which lands back here.
+    await page
+      .context()
+      .grantPermissions(['clipboard-read', 'clipboard-write'], { origin: server.origin });
+    await page.evaluate(() => navigator.clipboard.writeText('hello from the browser'));
+    await page.keyboard.press('Control+V');
+    await expect(
+      desktop.getByText('Text copied on the machine is on your clipboard.'),
+    ).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      'Copied on the test pattern: hello from the browser',
+    );
+
+    // The test pattern's halves stand in for two monitors: show the right
+    // one alone, and a click there lands on it.
+    await desktop
+      .getByRole('combobox', { name: 'Monitor' })
+      .selectOption({ label: 'Right half · 640×720' });
+    await expect(canvas).toHaveJSProperty('width', 640);
+    await clickAndSeeMark(page, canvas, 0.5, 0.25);
+    await desktop
+      .getByRole('combobox', { name: 'Monitor' })
+      .selectOption({ label: 'All monitors' });
+    await expect(canvas).toHaveJSProperty('width', 1280);
     await expectNoHorizontalScroll(page);
     await expectAccessible(page);
 

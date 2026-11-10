@@ -2,5 +2,5 @@
 
 package setup
 
-// StarterPolicy is the policy file written on first enrollment.
-const StarterPolicy = starterPolicy
+// StarterPolicy is the policy file written on first enrollment on goos.
+func StarterPolicy(goos string) string { return starterPolicy(goos) }

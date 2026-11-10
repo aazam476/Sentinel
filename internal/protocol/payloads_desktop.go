@@ -65,6 +65,14 @@ const (
 	DesktopInput     = "input"
 	DesktopQuality   = "quality"
 	DesktopKeyframe  = "keyframe"
+	// DesktopClipboard carries copied text, either way: the browser's
+	// paste to the machine's clipboard, the machine's copy to the browser.
+	DesktopClipboard = "clipboard"
+	// DesktopMonitors lists the machine's monitors, from the agent, when
+	// it has more than one; DesktopMonitor, from the browser, picks the
+	// one to show (Monitor), or -1 for the whole desktop.
+	DesktopMonitors = "monitors"
+	DesktopMonitor  = "monitor"
 	// DesktopAck says the browser has drawn the last frame sent over the
 	// stream; the agent sends the next only then, so a slow link isn't
 	// flooded.
@@ -88,7 +96,29 @@ type DesktopControlMessage struct {
 	Quality int `json:"quality,omitempty"`
 	// Message says what went wrong, for errors.
 	Message string `json:"message,omitempty"`
+	// Text is the clipboard's text, at most MaxClipboardBytes.
+	Text string `json:"text,omitempty"`
+	// Monitors are the machine's monitors, with "monitors".
+	Monitors []MonitorInfo `json:"monitors,omitempty"`
+	// Monitor is the monitor shown: an index into Monitors, or -1 for the
+	// whole desktop.
+	Monitor *int `json:"monitor,omitempty"`
 }
+
+// MonitorInfo is one of the machine's monitors: where it is on the
+// desktop, in pixels.
+type MonitorInfo struct {
+	Name    string `json:"name"`
+	X       int    `json:"x"`
+	Y       int    `json:"y"`
+	Width   int    `json:"width"`
+	Height  int    `json:"height"`
+	Primary bool   `json:"primary"`
+}
+
+// MaxClipboardBytes is the most clipboard text a session passes on. Even
+// escaped as JSON it stays well inside one message.
+const MaxClipboardBytes = 64 << 10
 
 // ICECandidate is an ICE candidate in the browser's shape.
 type ICECandidate struct {

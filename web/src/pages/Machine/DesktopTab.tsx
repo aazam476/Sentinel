@@ -10,6 +10,7 @@ import {
   type DesktopOptions,
   type DesktopState,
 } from '../../api/desktop';
+import type { MonitorInfo } from '../../api/protocol.gen';
 import type { SessionResponse } from '../../api/types.gen';
 import { Button } from '../../components/Button/Button';
 import { FormError } from '../../components/FormError/FormError';
@@ -78,6 +79,9 @@ export function DesktopView({
   const connection = useRef<DesktopConnection>(null);
   const [state, setState] = useState<DesktopState>({ kind: 'connecting' });
   const [quality, setQuality] = useState(defaultQuality);
+  const [clipboardNote, setClipboardNote] = useState('');
+  const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
+  const [shownMonitor, setShownMonitor] = useState(-1);
 
   // An effect because the connection and the canvas live outside React:
   // frames are drawn as they arrive, and leaving the tab ends the session.
@@ -98,6 +102,22 @@ export function DesktopView({
           context.drawImage(tile.image, tile.x, tile.y);
           tile.image.close();
         }
+      },
+      onMonitors: (list, shown) => {
+        setMonitors(list);
+        setShownMonitor(shown);
+      },
+      onClipboard: (text) => {
+        copyToClipboard(text).then(
+          () => {
+            setClipboardNote('Text copied on the machine is on your clipboard.');
+          },
+          () => {
+            setClipboardNote(
+              'Text was copied on the machine, but this browser kept it off your clipboard.',
+            );
+          },
+        );
       },
     });
     connection.current = desktop;
@@ -201,10 +221,40 @@ export function DesktopView({
           />
           <span className={styles.qualityValue}>{quality}</span>
         </label>
+        {monitors.length > 1 && (
+          <label className={styles.quality}>
+            Monitor
+            <select
+              className={styles.select}
+              value={shownMonitor}
+              onChange={(event) => {
+                const index = Number(event.target.value);
+                setShownMonitor(index);
+                connection.current?.showMonitor(index);
+              }}
+            >
+              <option value={-1}>All monitors</option>
+              {monitors.map((monitor, index) => (
+                <option key={`${String(index)}-${monitor.name}`} value={index}>
+                  {monitor.primary ? `${monitor.name} (main)` : monitor.name} · {monitor.width}×
+                  {monitor.height}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <p className={styles.note} aria-live="polite">
+          {clipboardNote}
+        </p>
       </div>
       {state.kind === 'failed' && !needsStepUp && <FormError error={state.error} />}
       <div ref={frame} className={styles.frame}>
-        <Screen canvasRef={canvas} interactive={isOpen && !options.viewOnly} send={send} />
+        <Screen
+          canvasRef={canvas}
+          interactive={isOpen && !options.viewOnly}
+          send={send}
+          paste={(text) => connection.current?.setClipboard(text)}
+        />
       </div>
       <StepUpDialog
         open={needsStepUp}
@@ -227,17 +277,34 @@ interface ScreenProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   interactive: boolean;
   send: (input: DesktopInput) => void;
+  /** paste puts text on the machine's clipboard. */
+  paste: (text: string) => void;
 }
 
-/** Screen is the canvas, turning the user's mouse and keys into input. */
-function Screen({ canvasRef, interactive, send }: ScreenProps) {
+/**
+ * Screen is the canvas, turning the user's mouse and keys into input.
+ * Ctrl+V pastes what is on this computer's clipboard: the browser's paste
+ * comes first, its text goes to the machine's clipboard, then V.
+ */
+function Screen({ canvasRef, interactive, send, paste }: ScreenProps) {
+  const pastePending = useRef(false);
   const point = (event: React.PointerEvent | React.WheelEvent) => {
     const element = event.currentTarget as HTMLCanvasElement;
     const rect = element.getBoundingClientRect();
     return screenPoint(event.clientX - rect.left, event.clientY - rect.top, rect, element);
   };
   const key = (kind: 'keydown' | 'keyup') => (event: React.KeyboardEvent) => {
+    if (kind === 'keydown' && event.code === 'KeyV' && event.ctrlKey && !event.altKey) {
+      // Not prevented, so the browser pastes; onPaste sends V after the text.
+      pastePending.current = true;
+      return;
+    }
     event.preventDefault();
+    if (kind === 'keyup' && event.code === 'KeyV' && pastePending.current) {
+      // No paste came (nothing to paste): V goes as typed.
+      pastePending.current = false;
+      send({ kind: 'keydown', code: 'KeyV', key: event.key });
+    }
     send({ kind, code: event.code, key: event.key });
   };
   if (!interactive) {
@@ -276,6 +343,17 @@ function Screen({ canvasRef, interactive, send }: ScreenProps) {
       }}
       onKeyDown={key('keydown')}
       onKeyUp={key('keyup')}
+      onPaste={(event) => {
+        event.preventDefault();
+        const text = event.clipboardData.getData('text/plain');
+        if (text !== '') {
+          paste(text);
+        }
+        if (pastePending.current) {
+          pastePending.current = false;
+          send({ kind: 'keydown', code: 'KeyV', key: 'v' });
+        }
+      }}
     />
   );
 }
@@ -293,4 +371,14 @@ function statusText(state: DesktopState): string {
     case 'failed':
       return 'Remote desktop couldn’t be opened.';
   }
+}
+
+/** copyToClipboard writes text to this computer's clipboard, where allowed. */
+function copyToClipboard(text: string): Promise<void> {
+  // Without a secure context, or in an old browser, there's no clipboard API.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (navigator.clipboard === undefined) {
+    return Promise.reject(new Error('no clipboard'));
+  }
+  return navigator.clipboard.writeText(text);
 }

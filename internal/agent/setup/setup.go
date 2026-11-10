@@ -138,8 +138,25 @@ func Uninstall(options Options) error {
 }
 
 // starterPolicy is written on first enrollment so admins find the file and
-// what it can do. It switches nothing off.
-const starterPolicy = `# Sentinel agent policy (SEC-22). The server can't change this file.
+// what it can do. It switches nothing off. Its examples are for the system
+// it is written on, so each one works once uncommented.
+func starterPolicy(goos string) string {
+	folders := `["/srv", "/home"]`
+	if goos == "windows" {
+		folders = `['D:\Shares', 'C:\Users']`
+	}
+	text := starterPolicyHead + `
+# Limit the file manager to these folders and what is inside them; without
+# this it can reach the whole file system.
+# [files]
+# allowed_paths = ` + folders + "\n"
+	if goos == "linux" {
+		text += starterPolicyX11
+	}
+	return text
+}
+
+const starterPolicyHead = `# Sentinel agent policy (SEC-22). The server can't change this file.
 #
 # Every capability is allowed unless switched off here. To switch one off,
 # remove the # and set it to false, then restart the agent.
@@ -165,12 +182,9 @@ const starterPolicy = `# Sentinel agent policy (SEC-22). The server can't change
 # [docker]
 # socket     = "unix:///run/podman/podman.sock"
 # stacks_dir = "/opt/sentinel/stacks"
+`
 
-# Limit the file manager to these folders and what is inside them; without
-# this it can reach the whole file system.
-# [files]
-# allowed_paths = ["/srv", "/home"]
-
+const starterPolicyX11 = `
 # Remote desktop shares the active X11 session. Name a display here where
 # it can't be found (no systemd), or share a test pattern instead.
 # [desktop]
@@ -191,7 +205,7 @@ func (options Options) writeStarterPolicy() error {
 	if err := os.MkdirAll(options.Paths.ConfigDir, 0o755); err != nil { //nolint:gosec // G301: the policy is readable by all, writable by root only
 		return fmt.Errorf("create %s: %w", options.Paths.ConfigDir, err)
 	}
-	if err := os.WriteFile(path, []byte(starterPolicy), 0o644); err != nil { //nolint:gosec // G306: readable by all, writable by root only
+	if err := os.WriteFile(path, []byte(starterPolicy(runtime.GOOS)), 0o644); err != nil { //nolint:gosec // G306: readable by all, writable by root only
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	options.say("Wrote a starter policy file at %s; edit it to switch capabilities off", path)

@@ -96,6 +96,21 @@ export const DesktopQuality = "quality";
  */
 export const DesktopKeyframe = "keyframe";
 /**
+ * DesktopClipboard carries copied text, either way: the browser's
+ * paste to the machine's clipboard, the machine's copy to the browser.
+ */
+export const DesktopClipboard = "clipboard";
+/**
+ * DesktopMonitors lists the machine's monitors, from the agent, when
+ * it has more than one; DesktopMonitor, from the browser, picks the
+ * one to show (Monitor), or -1 for the whole desktop.
+ */
+export const DesktopMonitors = "monitors";
+/**
+ * Desktop control message types.
+ */
+export const DesktopMonitor = "monitor";
+/**
  * DesktopAck says the browser has drawn the last frame sent over the
  * stream; the agent sends the next only then, so a slow link isn't
  * flooded.
@@ -135,7 +150,37 @@ export interface DesktopControlMessage {
    * Message says what went wrong, for errors.
    */
   message?: string;
+  /**
+   * Text is the clipboard's text, at most MaxClipboardBytes.
+   */
+  text?: string;
+  /**
+   * Monitors are the machine's monitors, with "monitors".
+   */
+  monitors?: MonitorInfo[];
+  /**
+   * Monitor is the monitor shown: an index into Monitors, or -1 for the
+   * whole desktop.
+   */
+  monitor?: number /* int */;
 }
+/**
+ * MonitorInfo is one of the machine's monitors: where it is on the
+ * desktop, in pixels.
+ */
+export interface MonitorInfo {
+  name: string;
+  x: number /* int */;
+  y: number /* int */;
+  width: number /* int */;
+  height: number /* int */;
+  primary: boolean;
+}
+/**
+ * MaxClipboardBytes is the most clipboard text a session passes on. Even
+ * escaped as JSON it stays well inside one message.
+ */
+export const MaxClipboardBytes = 64 << 10;
 /**
  * ICECandidate is an ICE candidate in the browser's shape.
  */

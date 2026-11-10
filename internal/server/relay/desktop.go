@@ -14,8 +14,9 @@ import (
 )
 
 // maxDesktopMessage caps a browser's message on a desktop session: an SDP
-// offer is a few kilobytes, input events far less.
-const maxDesktopMessage = 256 << 10
+// offer is a few kilobytes, input events far less, and clipboard text at
+// most protocol.MaxClipboardBytes, escaped as JSON.
+const maxDesktopMessage = 512 << 10
 
 // PipeDesktop relays a remote desktop session (§9.3) until either end
 // stops. The browser's text messages are control messages for the agent;

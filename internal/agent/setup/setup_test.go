@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -233,7 +234,7 @@ func TestUninstall(t *testing.T) {
 // a setting the agent accepts, once its # is removed.
 func TestStarterPolicyExamples(t *testing.T) {
 	var lines []string
-	for line := range strings.Lines(setup.StarterPolicy) {
+	for line := range strings.Lines(setup.StarterPolicy(runtime.GOOS)) {
 		example := strings.TrimPrefix(line, "# ")
 		if strings.HasPrefix(example, "[") || strings.Contains(example, " = ") {
 			lines = append(lines, example)
@@ -243,5 +244,17 @@ func TestStarterPolicyExamples(t *testing.T) {
 	}
 	if _, err := policy.Parse(strings.Join(lines, "")); err != nil {
 		t.Errorf("the starter policy's examples don't parse: %v", err)
+	}
+}
+
+func TestStarterPolicyFitsItsSystem(t *testing.T) {
+	if linux := setup.StarterPolicy("linux"); !strings.Contains(linux, `"/srv"`) || !strings.Contains(linux, "xauthority") {
+		t.Error("the Linux starter policy lacks its examples")
+	}
+	if windows := setup.StarterPolicy("windows"); !strings.Contains(windows, `'D:\Shares'`) || strings.Contains(windows, "xauthority") {
+		t.Error("the Windows starter policy has the wrong examples")
+	}
+	if darwin := setup.StarterPolicy("darwin"); strings.Contains(darwin, "xauthority") {
+		t.Error("the macOS starter policy offers X11 settings")
 	}
 }

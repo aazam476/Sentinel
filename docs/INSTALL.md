@@ -207,6 +207,10 @@ works at a login screen that runs on X11 too. Wayland sessions aren't supported 
 (such as "Ubuntu on Xorg") at the login screen. Windows and macOS are still to come; the tab
 says so.
 
+Ctrl+V on the remote screen pastes what is on your own computer's clipboard there, and text
+copied on the machine lands on your clipboard (up to 64 KiB of text, not in view-only
+sessions). A machine with several monitors gets a **Monitor** list to show one of them.
+
 Where `loginctl` can't find the session (no systemd, or a kiosk started by hand), name the
 display in the policy, with its Xauthority file if the X server checks one:
 

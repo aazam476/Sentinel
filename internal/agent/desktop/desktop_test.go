@@ -10,6 +10,7 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -415,3 +416,148 @@ func (fakeScreen) Open(context.Context) (desktop.Source, error) { return namedSo
 type namedSource struct{ desktop.Source }
 
 func (namedSource) Name() string { return "screen" }
+
+func TestClipboard(t *testing.T) {
+	waitForCopy := func(t *testing.T, out *streamOutput) (protocol.DesktopControlMessage, bool) {
+		t.Helper()
+		deadline := time.After(2 * time.Second)
+		for {
+			if message, ok := out.control(protocol.DesktopClipboard); ok {
+				return message, true
+			}
+			select {
+			case <-deadline:
+				return protocol.DesktopControlMessage{}, false
+			case <-time.After(10 * time.Millisecond):
+			}
+		}
+	}
+
+	t.Run("pastes the browser's text and sends the machine's copy back", func(t *testing.T) {
+		out := newStreamOutput()
+		inbound, _ := session(t, desktop.Options{Clock: fakeclock.New(time.Now())}, out)
+		// The session watches the clipboard from its start; a paste
+		// before that would have no one to answer it.
+		var message protocol.DesktopControlMessage
+		var ok bool
+		for !ok {
+			inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopClipboard, Text: "héllo"})
+			message, ok = waitForCopy(t, out)
+		}
+		if message.Text != "Copied on the test pattern: héllo" {
+			t.Errorf("copy = %q", message.Text)
+		}
+	})
+
+	tests := []struct {
+		name     string
+		viewOnly bool
+		text     string
+	}{
+		{"shares no clipboard in a view-only session", true, "secret"},
+		{"drops text bigger than the limit", false, strings.Repeat("x", protocol.MaxClipboardBytes+1)},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			out := newStreamOutput()
+			inbound, _ := session(t, desktop.Options{Clock: fakeclock.New(time.Now()), ViewOnly: test.viewOnly}, out)
+			for range 5 {
+				inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopClipboard, Text: test.text})
+			}
+			if message, ok := waitForCopy(t, out); ok {
+				t.Errorf("sent %q", message.Text[:min(len(message.Text), 40)])
+			}
+		})
+	}
+}
+
+// recordingPattern is the test pattern, recording the input it gets.
+type recordingPattern struct {
+	*desktop.TestPattern
+	mutex  sync.Mutex
+	inputs []protocol.DesktopInputEvent
+}
+
+func (p *recordingPattern) Input(event protocol.DesktopInputEvent) error {
+	p.mutex.Lock()
+	p.inputs = append(p.inputs, event)
+	p.mutex.Unlock()
+	return p.TestPattern.Input(event)
+}
+
+func TestMonitors(t *testing.T) {
+	clock := fakeclock.New(time.Now())
+	out := newStreamOutput()
+	pattern := &recordingPattern{TestPattern: desktop.NewTestPattern(200, 150)}
+	inbound := make(chan []byte, 100)
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() { done <- desktop.NewSession(pattern, desktop.Options{Clock: clock}).Run(ctx, inbound, out) }()
+	t.Cleanup(func() {
+		cancel()
+		if err := <-done; err != nil {
+			t.Errorf("the session ended with %v", err)
+		}
+	})
+	var view screen
+	nextFrame := func() {
+		t.Helper()
+		inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopAck})
+		clock.Advance(100 * time.Millisecond)
+		for {
+			select {
+			case data := <-out.updates:
+				view.apply(t, data)
+			case <-time.After(50 * time.Millisecond):
+				return
+			}
+		}
+	}
+	size := func() image.Point {
+		view.mutex.Lock()
+		defer view.mutex.Unlock()
+		if view.image == nil {
+			return image.Point{}
+		}
+		return view.image.Bounds().Size()
+	}
+
+	inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopFallback})
+	nextFrame()
+	nextFrame()
+	listed, ok := out.control(protocol.DesktopMonitors)
+	if !ok || len(listed.Monitors) != 2 || listed.Monitor == nil || *listed.Monitor != -1 {
+		t.Fatalf("monitors = %+v", listed)
+	}
+	if got := size(); got != image.Pt(200, 150) {
+		t.Errorf("the whole desktop is %v, want 200x150", got)
+	}
+
+	right := 1
+	inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopMonitor, Monitor: &right})
+	nextFrame()
+	nextFrame()
+	if got := size(); got != image.Pt(100, 150) {
+		t.Errorf("the right monitor is %v, want 100x150", got)
+	}
+	// A click on the right monitor lands that far right on the desktop.
+	inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopInput, Input: &protocol.DesktopInputEvent{Kind: protocol.InputMouseDown, X: 10, Y: 20}})
+	inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopInput, Input: &protocol.DesktopInputEvent{Kind: protocol.InputKeyDown, Code: "KeyA"}})
+	nextFrame()
+	pattern.mutex.Lock()
+	inputs := append([]protocol.DesktopInputEvent(nil), pattern.inputs...)
+	pattern.mutex.Unlock()
+	if len(inputs) != 2 || inputs[0].X != 110 || inputs[0].Y != 20 || inputs[1].X != 0 {
+		t.Errorf("inputs = %+v, want the click at 110,20 and the key untouched", inputs)
+	}
+
+	// -1, or a monitor the machine doesn't have, is the whole desktop again.
+	for _, index := range []int{-1, 7} {
+		inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopMonitor, Monitor: &index})
+		nextFrame()
+		nextFrame()
+		if got := size(); got != image.Pt(200, 150) {
+			t.Errorf("after %d the view is %v, want the whole desktop", index, got)
+		}
+	}
+}

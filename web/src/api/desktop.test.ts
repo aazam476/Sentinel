@@ -11,6 +11,7 @@ import {
   type DesktopOptions,
   type DesktopState,
 } from './desktop';
+import type { MonitorInfo } from './protocol.gen';
 import { ApiError } from './client';
 
 /** FakeSocket is the browser's WebSocket to the desktop endpoint. */
@@ -112,6 +113,8 @@ function harness(options: HarnessOptions = {}) {
   const peerServers: RTCIceServer[][] = [];
   const states: DesktopState[] = [];
   const frames: DecodedTile[][] = [];
+  const copied: string[] = [];
+  const monitorLists: [MonitorInfo[], number][] = [];
   const sizes: [number, number][] = [];
   const timers: (() => void)[] = [];
   const preflights: string[] = [];
@@ -150,6 +153,8 @@ function harness(options: HarnessOptions = {}) {
       onState: (state) => states.push(state),
       onResize: (width, height) => sizes.push([width, height]),
       onFrame: (tiles) => frames.push(tiles),
+      onClipboard: (text) => copied.push(text),
+      onMonitors: (monitors, shown) => monitorLists.push([monitors, shown]),
     },
     deps,
   );
@@ -176,6 +181,8 @@ function harness(options: HarnessOptions = {}) {
     peer,
     states,
     frames,
+    copied,
+    monitorLists,
     sizes,
     timers,
     preflights,
@@ -501,6 +508,49 @@ describe('DesktopConnection', () => {
     h.connection.close();
     expect(h.socket().closed).toBe(true);
     expect(h.last()).toEqual({ kind: 'ended', reason: 'You closed the session.' });
+  });
+
+  it('lists the machine’s monitors and shows the one picked', async () => {
+    const h = harness({ relayOnly: true });
+    await h.connection.start();
+    const monitors = [
+      { name: 'DP-1', x: 0, y: 0, width: 1920, height: 1080, primary: true },
+      { name: 'HDMI-1', x: 1920, y: 0, width: 1280, height: 1024, primary: false },
+    ];
+    h.socket().control({ type: 'monitors', monitors, monitor: -1 });
+    h.socket().control({ type: 'monitors' });
+    expect(h.monitorLists).toEqual([
+      [monitors, -1],
+      [[], -1],
+    ]);
+    h.connection.showMonitor(1);
+    expect(JSON.parse(h.socket().sent.at(-1) ?? '')).toEqual({ type: 'monitor', monitor: 1 });
+  });
+
+  it('shares the clipboard both ways', async () => {
+    const h = harness({ relayOnly: true });
+    await h.connection.start();
+    h.connection.setClipboard('pasted in the browser');
+    h.socket().control({ type: 'clipboard', text: 'copied on the machine' });
+    h.socket().control({ type: 'clipboard' });
+    expect(h.socket().sent.map((s) => JSON.parse(s) as unknown)).toEqual([
+      { type: 'clipboard', text: 'pasted in the browser' },
+    ]);
+    expect(h.copied).toEqual(['copied on the machine']);
+  });
+
+  it.each([
+    { name: 'shares no clipboard in a view-only session', viewOnly: true, text: 'secret' },
+    {
+      name: 'keeps text bigger than the limit to itself',
+      viewOnly: false,
+      text: 'x'.repeat(64 * 1024 + 1),
+    },
+  ])('$name', async ({ viewOnly, text }) => {
+    const h = harness({ viewOnly, relayOnly: true });
+    await h.connection.start();
+    h.connection.setClipboard(text);
+    expect(h.socket().sent).toHaveLength(0);
   });
 
   it('gives WebRTC eight seconds', () => {

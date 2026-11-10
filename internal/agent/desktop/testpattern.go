@@ -3,6 +3,7 @@
 package desktop
 
 import (
+	"context"
 	"image"
 	"image/color"
 	"image/draw"
@@ -22,6 +23,9 @@ type TestPattern struct {
 	cursor image.Point
 	marks  []image.Point
 	typed  int
+	// copied hears what the test pattern "copies": it answers each paste
+	// with a copy of its own, so one paste checks both directions.
+	copied func(text string)
 }
 
 // MarkColor is what a click leaves on the test pattern.
@@ -85,3 +89,36 @@ func (p *TestPattern) Input(event protocol.DesktopInputEvent) error {
 
 // Close does nothing: a test pattern holds nothing.
 func (p *TestPattern) Close() error { return nil }
+
+// SetClipboard takes pasted text and copies it back, marked as the test
+// pattern's.
+func (p *TestPattern) SetClipboard(text string) error {
+	p.mutex.Lock()
+	copied := p.copied
+	p.mutex.Unlock()
+	if copied != nil {
+		copied("Copied on the test pattern: " + text)
+	}
+	return nil
+}
+
+// WatchClipboard hears the test pattern's copies until ctx ends.
+func (p *TestPattern) WatchClipboard(ctx context.Context, changed func(text string)) {
+	p.mutex.Lock()
+	p.copied = changed
+	p.mutex.Unlock()
+	<-ctx.Done()
+	p.mutex.Lock()
+	p.copied = nil
+	p.mutex.Unlock()
+}
+
+// Monitors are the test pattern's two halves, as if it were two monitors
+// side by side, so a session can switch between them.
+func (p *TestPattern) Monitors() ([]protocol.MonitorInfo, error) {
+	half := p.width / 2
+	return []protocol.MonitorInfo{
+		{Name: "Left half", Width: half, Height: p.height, Primary: true},
+		{Name: "Right half", X: half, Width: p.width - half, Height: p.height},
+	}, nil
+}

@@ -100,14 +100,19 @@ func TestDesktop(t *testing.T) {
 		if err := stream.Write(t.Context(), append([]byte{protocol.DesktopControl}, `{"type":"fallback"}`...)); err != nil {
 			t.Fatal(err)
 		}
-		// The first update over the stream is the screen's size.
+		// The first screen update over the stream is the screen's size;
+		// control messages (the test pattern's two "monitors") may come
+		// before it.
 		deadline := time.After(5 * time.Second)
 		for {
 			agent.clock.Advance(100 * time.Millisecond)
 			select {
 			case data := <-stream.Frames():
+				if data[0] == protocol.DesktopControl {
+					continue
+				}
 				if data[0] != protocol.DesktopFrame {
-					t.Fatalf("first message = %q, want a frame", data)
+					t.Fatalf("message = %q, want a frame", data)
 				}
 				update, err := protocol.DecodeScreenUpdate(data[1:])
 				if err != nil || update.Kind != protocol.FrameScreen || update.Width != 1280 {

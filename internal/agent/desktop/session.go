@@ -72,6 +72,13 @@ type Session struct {
 	// awaitingAck holds back frames over the stream until the browser has
 	// drawn the last one.
 	awaitingAck bool
+
+	// monitors are the machine's, when it has several; region is the one
+	// shown (empty: the whole desktop), and whole a capture to crop it
+	// from.
+	monitors []protocol.MonitorInfo
+	region   image.Rectangle
+	whole    *image.RGBA
 }
 
 // NewSession returns a session sharing source.
@@ -86,6 +93,12 @@ func NewSession(source Source, options Options) *Session {
 // closed), reading the browser's messages from inbound and sending to out.
 func (s *Session) Run(ctx context.Context, inbound <-chan []byte, out Output) error {
 	defer s.closePeer()
+	ctx, cancel := context.WithCancel(ctx)
+	var watching sync.WaitGroup
+	watching.Go(func() { s.watchClipboard(ctx, out) })
+	defer watching.Wait()
+	defer cancel() // runs first: the watcher stops before Run returns
+	s.announceMonitors(ctx, out)
 	timer := s.options.Clock.NewTimer(frameInterval)
 	defer timer.Stop()
 	for {
@@ -136,14 +149,50 @@ func (s *Session) handle(ctx context.Context, data []byte, out Output) {
 		s.encoder.full = true
 	case protocol.DesktopAck:
 		s.awaitingAck = false
+	case protocol.DesktopClipboard:
+		s.paste(message.Text)
+	case protocol.DesktopMonitor:
+		s.selectMonitor(message.Monitor)
 	}
+}
+
+// paste puts the browser's copied text on the machine's clipboard. A
+// view-only session shares no clipboard, either way.
+func (s *Session) paste(text string) {
+	clipboard, ok := s.source.(Clipboard)
+	if !ok || s.options.ViewOnly || len(text) > protocol.MaxClipboardBytes {
+		return
+	}
+	if err := clipboard.SetClipboard(text); err != nil {
+		s.options.Logger.Debug("couldn't set the clipboard", "error", err)
+	}
+}
+
+// watchClipboard sends what the machine copies to the browser.
+func (s *Session) watchClipboard(ctx context.Context, out Output) {
+	clipboard, ok := s.source.(Clipboard)
+	if !ok || s.options.ViewOnly {
+		return
+	}
+	clipboard.WatchClipboard(ctx, func(text string) {
+		if len(text) > protocol.MaxClipboardBytes {
+			s.options.Logger.Debug("didn't send a copy too big for the browser", "bytes", len(text))
+			return
+		}
+		select {
+		case s.events <- func() {
+			sendControl(ctx, out, protocol.DesktopControlMessage{Type: protocol.DesktopClipboard, Text: text})
+		}:
+		case <-ctx.Done():
+		}
+	})
 }
 
 func (s *Session) input(event *protocol.DesktopInputEvent) {
 	if event == nil || s.options.ViewOnly {
 		return
 	}
-	if err := s.source.Input(*event); err != nil {
+	if err := s.source.Input(s.toScreen(*event)); err != nil {
 		s.options.Logger.Debug("couldn't apply an input event", "kind", event.Kind, "error", err)
 	}
 }
@@ -159,12 +208,8 @@ func (s *Session) sendFrame(ctx context.Context, out Output) error {
 	if (webRTC && s.buffered() > maxBuffered) || (!webRTC && s.awaitingAck) {
 		return nil
 	}
-	width, height := s.source.Size()
-	if s.frame == nil || s.frame.Bounds().Dx() != width || s.frame.Bounds().Dy() != height {
-		s.frame = image.NewRGBA(image.Rect(0, 0, width, height))
-	}
-	if err := s.source.Capture(s.frame); err != nil {
-		return fmt.Errorf("capture the screen: %w", err)
+	if err := s.capture(); err != nil {
+		return err
 	}
 	updates, err := s.encoder.encode(s.frame)
 	if err != nil {

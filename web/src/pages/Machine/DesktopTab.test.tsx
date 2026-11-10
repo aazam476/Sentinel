@@ -82,6 +82,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  Reflect.deleteProperty(navigator, 'clipboard');
 });
 
 async function openSession() {
@@ -130,6 +131,86 @@ describe('remote desktop', () => {
     ]);
     // Ctrl+Alt+Del is only for Windows.
     expect(screen.queryByRole('button', { name: 'Ctrl+Alt+Del' })).not.toBeInTheDocument();
+  });
+
+  it('pastes with Ctrl+V: the text first, then the key', async () => {
+    setUp();
+    renderApp(path(desktopMachine));
+    const socket = await openSession();
+    const canvas = await screen.findByLabelText('Screen');
+    fireEvent.keyDown(canvas, { code: 'ControlLeft', key: 'Control', ctrlKey: true });
+    fireEvent.keyDown(canvas, { code: 'KeyV', key: 'v', ctrlKey: true });
+    fireEvent.paste(canvas, { clipboardData: { getData: () => 'from my computer' } });
+    fireEvent.keyUp(canvas, { code: 'KeyV', key: 'v', ctrlKey: true });
+    const sent = socket.sent.filter(
+      (message) => message.type !== 'fallback' && message.type !== 'ack',
+    );
+    expect(sent).toEqual([
+      { type: 'input', input: { kind: 'keydown', code: 'ControlLeft', key: 'Control' } },
+      { type: 'clipboard', text: 'from my computer' },
+      { type: 'input', input: { kind: 'keydown', code: 'KeyV', key: 'v' } },
+      { type: 'input', input: { kind: 'keyup', code: 'KeyV', key: 'v' } },
+    ]);
+  });
+
+  it('types V when Ctrl+V pastes nothing', async () => {
+    setUp();
+    renderApp(path(desktopMachine));
+    const socket = await openSession();
+    const canvas = await screen.findByLabelText('Screen');
+    fireEvent.keyDown(canvas, { code: 'KeyV', key: 'v', ctrlKey: true });
+    fireEvent.keyUp(canvas, { code: 'KeyV', key: 'v', ctrlKey: true });
+    const inputs = socket.sent
+      .filter((message) => message.type === 'input')
+      .map((message) => message.input);
+    expect(inputs).toEqual([
+      { kind: 'keydown', code: 'KeyV', key: 'v' },
+      { kind: 'keyup', code: 'KeyV', key: 'v' },
+    ]);
+  });
+
+  it('puts what the machine copies on this computer’s clipboard', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    setUp();
+    renderApp(path(desktopMachine));
+    const socket = await openSession();
+    socket.control({ type: 'clipboard', text: 'copied on the machine' });
+    expect(
+      await screen.findByText('Text copied on the machine is on your clipboard.'),
+    ).toBeVisible();
+    expect(writeText).toHaveBeenCalledWith('copied on the machine');
+  });
+
+  it('says when the browser keeps the machine’s copy off the clipboard', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    setUp();
+    renderApp(path(desktopMachine));
+    const socket = await openSession();
+    socket.control({ type: 'clipboard', text: 'copied on the machine' });
+    expect(await screen.findByText(/browser kept it off your clipboard/)).toBeVisible();
+  });
+
+  it('switches between the machine’s monitors', async () => {
+    setUp();
+    const user = userEvent.setup();
+    renderApp(path(desktopMachine));
+    const socket = await openSession();
+    expect(screen.queryByRole('combobox', { name: 'Monitor' })).not.toBeInTheDocument();
+    socket.control({
+      type: 'monitors',
+      monitor: -1,
+      monitors: [
+        { name: 'DP-1', x: 0, y: 0, width: 1920, height: 1080, primary: true },
+        { name: 'HDMI-1', x: 1920, y: 0, width: 1280, height: 1024, primary: false },
+      ],
+    });
+    const picker = await screen.findByRole('combobox', { name: 'Monitor' });
+    expect(picker).toHaveValue('-1');
+    expect(screen.getByRole('option', { name: 'DP-1 (main) · 1920×1080' })).toBeInTheDocument();
+    await user.selectOptions(picker, 'HDMI-1 · 1280×1024');
+    expect(socket.sent.at(-1)).toEqual({ type: 'monitor', monitor: 1 });
+    expect(picker).toHaveValue('1');
   });
 
   it('changes the picture’s quality', async () => {
