@@ -8,7 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -139,16 +139,17 @@ func (f Finder) display(s session) (Display, error) {
 }
 
 // authorityFiles lists where display managers keep a session's
-// Xauthority file: GDM, SDDM, LightDM, then the user's home folder.
+// Xauthority file: GDM, SDDM, LightDM, then the user's home folder. They
+// are Linux paths, so they're joined with "/" whatever builds this.
 func (f Finder) authorityFiles(s session) []string {
-	runtime := filepath.Join("/run/user", s.uid)
-	files := []string{filepath.Join(runtime, "gdm", "Xauthority")}
-	if matches, err := f.Glob(filepath.Join(runtime, "xauth_*")); err == nil {
+	runtime := path.Join("/run/user", s.uid)
+	files := []string{path.Join(runtime, "gdm", "Xauthority")}
+	if matches, err := f.Glob(path.Join(runtime, "xauth_*")); err == nil {
 		files = append(files, matches...)
 	}
-	files = append(files, filepath.Join("/run/lightdm", s.name, "xauthority"))
+	files = append(files, path.Join("/run/lightdm", s.name, "xauthority"))
 	if home, err := f.HomeOf(s.name); err == nil {
-		files = append(files, filepath.Join(home, ".Xauthority"))
+		files = append(files, path.Join(home, ".Xauthority"))
 	}
 	return files
 }
