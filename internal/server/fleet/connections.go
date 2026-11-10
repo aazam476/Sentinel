@@ -101,6 +101,28 @@ func (s *Service) SaveSystemInfo(ctx context.Context, agentID int64, info protoc
 	})
 }
 
+// SaveDesktopAvailability stores what the agent last said about sharing
+// its desktop, which changes as people log in and out.
+func (s *Service) SaveDesktopAvailability(ctx context.Context, agentID int64, desktop protocol.DesktopAvailability) error {
+	reason, err := cleanText("reason", desktop.Reason, maxReportedLength)
+	if err != nil {
+		return err
+	}
+	desktop.Reason = reason
+	encoded, err := json.Marshal(desktop)
+	if err != nil {
+		return fmt.Errorf("encode desktop availability: %w", err)
+	}
+	return s.database.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE agents SET system_info_json = json_set(system_info_json, '$.desktop', json(?)) WHERE id = ?`,
+			string(encoded), agentID)
+		if err != nil {
+			return fmt.Errorf("save desktop availability: %w", err)
+		}
+		return nil
+	})
+}
+
 // maxCapabilities is far more than the features Sentinel has; it only stops
 // a broken agent from filling the table.
 const maxCapabilities = 64
@@ -121,6 +143,11 @@ func cleanSystemInfo(info protocol.SystemInfo) (protocol.SystemInfo, error) {
 	}
 	for _, field := range fields {
 		if *field.value, err = cleanText(field.name, *field.value, maxReportedLength); err != nil {
+			return protocol.SystemInfo{}, err
+		}
+	}
+	if info.Desktop != nil {
+		if info.Desktop.Reason, err = cleanText("reason", info.Desktop.Reason, maxReportedLength); err != nil {
 			return protocol.SystemInfo{}, err
 		}
 	}

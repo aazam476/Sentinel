@@ -87,6 +87,34 @@ func TestRecordSeen(t *testing.T) {
 	})
 }
 
+func TestSaveDesktopAvailability(t *testing.T) {
+	t.Run("keeps the rest of the machine's details", func(t *testing.T) {
+		h := newHarness(t)
+		agent := h.enroll(t, "nas-01")
+		info := protocol.SystemInfo{Hostname: "nas-01.home", CPUCores: 4, Desktop: &protocol.DesktopAvailability{Reason: "No one is logged in."}}
+		if err := h.service.SaveSystemInfo(t.Context(), agent.ID, info); err != nil {
+			t.Fatal(err)
+		}
+		if err := h.service.SaveDesktopAvailability(t.Context(), agent.ID, protocol.DesktopAvailability{Available: true}); err != nil {
+			t.Fatal(err)
+		}
+		got, err := h.service.GetAgent(t.Context(), h.viewer, agent.PublicID)
+		if err != nil || got.SystemInfo.Desktop == nil || !got.SystemInfo.Desktop.Available || got.SystemInfo.CPUCores != 4 {
+			t.Errorf("got %+v (%v)", got.SystemInfo, err)
+		}
+	})
+
+	t.Run("refuses a reason it won't show", func(t *testing.T) {
+		h := newHarness(t)
+		agent := h.enroll(t, "nas-01")
+		for _, reason := range []string{"bell\x07", strings.Repeat("r", 129)} {
+			if err := h.service.SaveDesktopAvailability(t.Context(), agent.ID, protocol.DesktopAvailability{Reason: reason}); err == nil {
+				t.Errorf("stored %q", reason)
+			}
+		}
+	})
+}
+
 func TestSaveSystemInfo(t *testing.T) {
 	info := protocol.SystemInfo{
 		Hostname: "nas-01.home", OS: "linux", Platform: "debian", PlatformVersion: "13", KernelVersion: "6.12",
@@ -145,6 +173,9 @@ func TestSaveSystemInfo(t *testing.T) {
 		}},
 		{"refuses a reason that is too long", func(info *protocol.SystemInfo) {
 			info.Capabilities = []protocol.Capability{{Name: "files", Reason: strings.Repeat("r", 129)}}
+		}},
+		{"refuses a desktop reason that is too long", func(info *protocol.SystemInfo) {
+			info.Desktop = &protocol.DesktopAvailability{Reason: strings.Repeat("r", 129)}
 		}},
 		{"refuses an absurd number of capabilities", func(info *protocol.SystemInfo) {
 			info.Capabilities = make([]protocol.Capability, 65)

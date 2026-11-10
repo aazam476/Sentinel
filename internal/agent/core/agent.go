@@ -108,8 +108,8 @@ type Options struct {
 
 // DesktopProvider finds the desktop to share (internal/agent/desktop).
 type DesktopProvider interface {
-	Availability() protocol.DesktopAvailability
-	Open() (desktop.Source, error)
+	Availability(ctx context.Context) protocol.DesktopAvailability
+	Open(ctx context.Context) (desktop.Source, error)
 }
 
 // Updater updates the agent in place (internal/agent/update).
@@ -184,6 +184,9 @@ const (
 	// EventStorageChecked: storage health was read (and sent if it
 	// changed), and the next check is scheduled.
 	EventStorageChecked Event = "storage-checked"
+	// EventDesktopChecked: the agent looked for a desktop to share (and
+	// told the server if that changed), and the next look is scheduled.
+	EventDesktopChecked Event = "desktop-checked"
 )
 
 func (a *Agent) observe(event Event) {
@@ -266,7 +269,7 @@ func withMachineDefaults(options *Options) {
 		options.Files = files.New(options.Policy.Files.AllowedPaths)
 	}
 	if options.Desktop == nil {
-		options.Desktop = desktop.Provider{TestPattern: options.Policy.Desktop.TestPattern}
+		options.Desktop = desktop.Provider{TestPattern: options.Policy.Desktop.TestPattern, Screen: platformScreen(options.Policy.Desktop)}
 	}
 	if options.Storage == nil {
 		options.Storage = storage.New(storage.Options{GOOS: runtime.GOOS, Runner: runner, Logger: options.Logger})

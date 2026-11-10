@@ -315,8 +315,9 @@ export const worstMachine: AgentDetails = {
   })),
   temperatures: [],
   desktopAvailable: false,
+  // Near the most the server keeps (128 bytes).
   desktopReason:
-    'No graphical session was found: nobody is signed in at the console, and the display server at /run/user/1000/wayland-0 refused the screen-capture portal (org.freedesktop.portal.ScreenCast) because the request was denied by the compositor’s policy.',
+    'Wayland sessions aren’t supported yet; an X11 session (such as “Ubuntu on Xorg”) works. Ask them to switch, please.',
 };
 
 export const worstTokens: EnrollmentToken[] = [

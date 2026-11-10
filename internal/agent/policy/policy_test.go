@@ -131,6 +131,26 @@ func TestParse(t *testing.T) {
 		}
 	})
 
+	t.Run("reads a fixed X display and its Xauthority file", func(t *testing.T) {
+		authority := filepath.Join(t.TempDir(), "Xauthority")
+		parsed, err := policy.Parse(fmt.Sprintf("[desktop]\ndisplay = \":1\"\nxauthority = %q\n", authority))
+		if err != nil || parsed.Desktop.Display != ":1" || parsed.Desktop.XAuthority != authority {
+			t.Errorf("got %+v, %v", parsed.Desktop, err)
+		}
+	})
+
+	t.Run("refuses desktop settings that can't work", func(t *testing.T) {
+		for _, text := range []string{
+			"[desktop]\ndisplay = \"host:0\"\n",
+			"[desktop]\nxauthority = \"/root/.Xauthority\"\n",
+			"[desktop]\ndisplay = \":0\"\nxauthority = \"Xauthority\"\n",
+		} {
+			if _, err := policy.Parse(text); err == nil {
+				t.Errorf("accepted %q", text)
+			}
+		}
+	})
+
 	t.Run("SEC-25 reads the folders the file manager may use, cleaned", func(t *testing.T) {
 		root := filepath.Join(t.TempDir(), "srv")
 		parsed, err := policy.Parse(fmt.Sprintf("[files]\nallowed_paths = [%q, %q]\n", root+string(filepath.Separator), filepath.Join(root, "..", "home")))

@@ -185,8 +185,25 @@ limit the file manager to some folders. It lives in `/etc/sentinel/` on Linux,
 `/Library/Sentinel/etc/` on macOS, and `C:\ProgramData\Sentinel\etc\` on Windows. The machine
 page shows what the policy turns off.
 
-To check remote desktop end to end without sharing a real screen, add this to the policy. The
-Desktop tab then shows a test pattern of colour bars that marks where you click:
+### Remote desktop
+
+On Linux, remote desktop shares the active X11 session, which the agent finds with
+`loginctl`. The Desktop tab appears once someone is logged in, within about 15 seconds, and
+works at a login screen that runs on X11 too. Wayland sessions aren't supported yet: choose an X11 session
+(such as "Ubuntu on Xorg") at the login screen. Windows and macOS are still to come; the tab
+says so.
+
+Where `loginctl` can't find the session (no systemd, or a kiosk started by hand), name the
+display in the policy, with its Xauthority file if the X server checks one:
+
+```toml
+[desktop]
+display = ":0"
+xauthority = "/home/kiosk/.Xauthority"
+```
+
+To check remote desktop end to end without sharing a real screen, use the test pattern
+instead. The Desktop tab then shows colour bars and marks where you click:
 
 ```toml
 [desktop]

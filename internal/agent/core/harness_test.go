@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/aazam476/sentinel/internal/agent/core"
+	"github.com/aazam476/sentinel/internal/agent/desktop"
 	"github.com/aazam476/sentinel/internal/agent/identity"
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/agent/terminal"
@@ -250,6 +251,11 @@ func (s *server) runAgentWith(state identity.State, key ed25519.PrivateKey, loca
 		// Without a fake, the agent would read this machine's disks.
 		s.machine.Storage = &fakeStorage{}
 	}
+	desktopProvider := s.machine.Desktop
+	if desktopProvider == nil {
+		// Never this machine's own screen: only the policy's test pattern.
+		desktopProvider = desktop.Provider{TestPattern: localPolicy.Desktop.TestPattern}
+	}
 	running := &runningAgent{state: state, clock: fakeclock.New(s.clock.Now()), events: make(chan core.Event, 1000)}
 	agent := core.New(core.Options{
 		State: state, Key: key, Policy: localPolicy, Collector: collector, Clock: running.clock,
@@ -258,7 +264,7 @@ func (s *server) runAgentWith(state identity.State, key ed25519.PrivateKey, loca
 		Shells:   s.shells,
 		Services: s.machine.Services, Logs: s.machine.Logs, Processes: s.machine.Processes, Power: s.machine.Power,
 		Docker: s.machine.Docker, Stacks: s.machine.Stacks, Storage: s.machine.Storage, Files: s.machine.Files, Scripts: s.machine.Scripts,
-		Updater: s.machine.Updater, Restart: s.machine.Restart, Desktop: s.machine.Desktop,
+		Updater: s.machine.Updater, Restart: s.machine.Restart, Desktop: desktopProvider,
 	})
 	ctx, cancel := context.WithCancel(s.t.Context())
 	done := make(chan struct{})

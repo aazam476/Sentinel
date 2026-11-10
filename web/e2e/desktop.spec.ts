@@ -8,7 +8,10 @@ import {
   signInAsNewAdmin,
   watchForCSPViolations,
 } from './helpers';
-import { Agent, agentFlags, OwnServer } from './processes';
+import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
+
+import { Agent, agentFlags, OwnServer, XDisplay } from './processes';
 
 /**
  * M8's remote desktop on a real agent sharing its test pattern: the screen
@@ -114,6 +117,103 @@ test('M8: remote desktop on a real machine, direct and through the server', asyn
     throw error;
   } finally {
     agent.stop();
+    await server.stop();
+  }
+});
+
+const x11Ports: Record<string, number> = {
+  desktop: 7580,
+  phone: 7581,
+  'desktop-reduced-motion': 7582,
+  'phone-reduced-motion': 7583,
+};
+
+/** pixel reads the canvas at a point of the machine's screen. */
+function pixel(canvas: Locator, x: number, y: number) {
+  return canvas.evaluate(
+    (element: HTMLCanvasElement, [px, py]) => {
+      const data = element.getContext('2d')?.getImageData(px, py, 1, 1).data;
+      return [data?.[0] ?? -1, data?.[1] ?? -1, data?.[2] ?? -1];
+    },
+    [x, y],
+  );
+}
+
+/** clickAt clicks the canvas where the machine's screen point (x, y) is shown. */
+async function clickAt(page: Page, canvas: Locator, x: number, y: number) {
+  // At 1:1 the screen can be taller than what's left of the window.
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await canvas.boundingBox();
+  const width = await canvas.evaluate((element: HTMLCanvasElement) => element.width);
+  const height = await canvas.evaluate((element: HTMLCanvasElement) => element.height);
+  if (box === null) {
+    throw new Error('the screen isn’t shown');
+  }
+  await page.mouse.click(
+    box.x + ((x + 0.5) * box.width) / width,
+    box.y + ((y + 0.5) * box.height) / height,
+  );
+}
+
+const hasXvfb = spawnSync('Xvfb', ['-help'], { stdio: 'ignore' }).error === undefined;
+
+test('M8: an X11 desktop, seen and clicked on, directly and through the server', async ({
+  page,
+}, testInfo) => {
+  test.skip(!hasXvfb, 'Xvfb isn’t installed');
+  test.setTimeout(120_000);
+  const display = new XDisplay();
+  await display.start(join('test-results', 'e2e-x11', testInfo.project.name));
+  display.paint();
+  const server = new OwnServer(
+    x11Ports[testInfo.project.name] ?? 7584,
+    `x11-${testInfo.project.name}`,
+  );
+  const agent = new Agent(`x11-${testInfo.project.name}`);
+  agent.writePolicy(`[desktop]\ndisplay = "${display.name}"\n`);
+  await server.start();
+  try {
+    await signInAsNewAdmin(page, server);
+    await page.goto(`${server.origin}/machines/add`);
+    await page.getByRole('button', { name: 'Create install command' }).click();
+    agent.enroll(agentFlags(await page.locator('code').first().innerText()));
+    agent.run();
+    await page.goto(`${server.origin}/`);
+    await openOnlineMachine(page);
+
+    await page.getByRole('link', { name: 'Desktop' }).click();
+    const desktop = page.getByRole('region', { name: 'Remote desktop' });
+    await expect(desktop.getByRole('status')).toHaveText(`Direct (WebRTC) · X11 ${display.name}`, {
+      timeout: 20_000,
+    });
+    const canvas = desktop.getByLabel('Screen');
+    await expect(canvas).toHaveJSProperty('width', 800);
+    // The red square xprobe painted, on Xvfb's white background.
+    const isRed = async () => {
+      const [r = 0, g = 255, b = 255] = await pixel(canvas, 130, 130);
+      return r > 240 && g < 20 && b < 20;
+    };
+    await expect.poll(isRed, { timeout: 15_000 }).toBe(true);
+    await clickAt(page, canvas, 400, 300);
+    await expect.poll(() => display.pointer()).toMatchObject({ x: 400, y: 300 });
+
+    await desktop.getByRole('checkbox', { name: 'Relay through the server' }).check();
+    await expect(desktop.getByRole('status')).toHaveText(
+      `Through the server · X11 ${display.name}`,
+      {
+        timeout: 20_000,
+      },
+    );
+    await expect(canvas).toHaveJSProperty('width', 800);
+    await clickAt(page, canvas, 600, 450);
+    await expect.poll(() => display.pointer()).toMatchObject({ x: 600, y: 450 });
+  } catch (error) {
+    await testInfo.attach('agent log', { body: agent.log });
+    console.log(agent.log);
+    throw error;
+  } finally {
+    agent.stop();
+    display.stop();
     await server.stop();
   }
 });

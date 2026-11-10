@@ -14,6 +14,11 @@ import (
 // reach the agent over WebRTC, the screen itself.
 const ActionDesktopSessionStart = "desktop.session.start"
 
+// ActionDesktopAvailability is the event an agent sends when whether its
+// desktop can be shared changes: someone logged in or out. Its payload is
+// a DesktopAvailability.
+const ActionDesktopAvailability = "desktop.availability"
+
 // DesktopStartPayload asks for a session.
 type DesktopStartPayload struct {
 	StreamID StreamID `json:"streamId"`

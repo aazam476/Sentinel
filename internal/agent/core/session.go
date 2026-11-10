@@ -37,6 +37,10 @@ type connection struct {
 	// followers maps the streams of followed container logs to the
 	// function that stops following.
 	followers sync.Map
+	// desktopMutex guards desktopReported: what the server last heard
+	// about sharing the desktop, nil before it asked.
+	desktopMutex    sync.Mutex
+	desktopReported *protocol.DesktopAvailability
 }
 
 // session connects, runs the handshake and serves the connection until it
@@ -115,11 +119,13 @@ func (c *connection) serve(ctx context.Context, pingInterval time.Duration) erro
 	// by the time it reports being connected.
 	clock := c.agent.options.Clock
 	pingTimer, silenceTimer := clock.NewTimer(pingInterval), clock.NewTimer(silenceLimit)
+	desktopTimer := clock.NewTimer(desktopCheckInterval)
 	loops.Go(func() { c.pingForever(ctx, pingTimer, pingInterval); cancel() })
 	loops.Go(func() { c.watchSilence(ctx, silenceTimer); cancel() })
 	loops.Go(func() { c.sendSamples(ctx); cancel() })
 	loops.Go(func() { c.watchStorage(ctx) })
 	loops.Go(func() { c.reportUpdates(ctx) })
+	loops.Go(func() { c.watchDesktop(ctx, desktopTimer) })
 	c.agent.observe(EventConnected)
 	return c.readLoop(ctx)
 }

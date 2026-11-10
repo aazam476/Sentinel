@@ -58,6 +58,12 @@ type DesktopSettings struct {
 	// check that remote desktop connects (directly or through the server)
 	// without showing anything on the machine.
 	TestPattern bool `toml:"test_pattern"`
+	// Display is the X display to share, such as ":0", instead of the
+	// active session's; for machines without loginctl, or kiosks.
+	Display string `toml:"display"`
+	// XAuthority is the Xauthority file with Display's cookie; empty
+	// connects without one.
+	XAuthority string `toml:"xauthority"`
 }
 
 // FilesSettings limit the file manager to some folders (SEC-25). Like the
@@ -150,6 +156,9 @@ func Parse(text string) (Policy, error) {
 	if err != nil {
 		return Policy{}, err
 	}
+	if err := checkDesktop(parsed.Desktop); err != nil {
+		return Policy{}, err
+	}
 	policy := Policy{Docker: parsed.Docker, Files: FilesSettings{AllowedPaths: allowed}, Desktop: parsed.Desktop}
 	for name, allowed := range parsed.Capabilities {
 		if !slices.Contains(Capabilities(), name) {
@@ -174,4 +183,16 @@ func allowedPaths(paths []string) ([]string, error) {
 		cleaned = append(cleaned, filepath.Clean(path))
 	}
 	return cleaned, nil
+}
+
+// checkDesktop checks the desktop settings name a local display, and an
+// Xauthority file only along with it.
+func checkDesktop(settings DesktopSettings) error {
+	if settings.Display != "" && !strings.HasPrefix(settings.Display, ":") {
+		return fmt.Errorf("desktop.display: %q is not a local display such as \":0\"", settings.Display)
+	}
+	if settings.XAuthority != "" && (settings.Display == "" || !filepath.IsAbs(settings.XAuthority)) {
+		return fmt.Errorf("desktop.xauthority: %q needs desktop.display, and must be an absolute path", settings.XAuthority)
+	}
+	return nil
 }

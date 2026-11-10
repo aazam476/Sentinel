@@ -3,10 +3,13 @@
 package core_test
 
 import (
+	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/aazam476/sentinel/internal/agent/core"
 	"github.com/aazam476/sentinel/internal/agent/desktop"
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/protocol"
@@ -16,12 +19,37 @@ import (
 // brokenDesktop says a desktop is there, then fails to open it.
 type brokenDesktop struct{}
 
-func (brokenDesktop) Availability() protocol.DesktopAvailability {
+func (brokenDesktop) Availability(context.Context) protocol.DesktopAvailability {
 	return protocol.DesktopAvailability{Available: true}
 }
 
-func (brokenDesktop) Open() (desktop.Source, error) {
+func (brokenDesktop) Open(context.Context) (desktop.Source, error) {
 	return nil, errors.New("the display server hung up")
+}
+
+// switchingDesktop is a desktop someone can log in to.
+type switchingDesktop struct {
+	mutex     sync.Mutex
+	available bool
+}
+
+func (d *switchingDesktop) set(available bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	d.available = available
+}
+
+func (d *switchingDesktop) Availability(context.Context) protocol.DesktopAvailability {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	if d.available {
+		return protocol.DesktopAvailability{Available: true}
+	}
+	return protocol.DesktopAvailability{Reason: "No one is logged in to a graphical session."}
+}
+
+func (*switchingDesktop) Open(context.Context) (desktop.Source, error) {
+	return nil, desktop.ErrUnavailable
 }
 
 // openDesktop starts a desktop session from the server side, as the web
@@ -90,6 +118,27 @@ func TestDesktop(t *testing.T) {
 			case <-deadline:
 				t.Fatal("no frame over the stream")
 			case <-time.After(10 * time.Millisecond):
+			}
+		}
+	})
+
+	t.Run("tells the server when someone logs in and out", func(t *testing.T) {
+		s := newServer(t)
+		screen := &switchingDesktop{}
+		s.machine.Desktop = screen
+		events := s.subscribe()
+		agent := s.startAgent(policy.Policy{})
+		waitFor(t, events, agent.state.AgentID, hub.EventInfoUpdated)
+		if got := s.desktopAvailability(t, agent.state.AgentID); got == nil || got.Available {
+			t.Fatalf("availability = %+v, want none", got)
+		}
+		for _, available := range []bool{true, false} {
+			screen.set(available)
+			agent.clock.Advance(15 * time.Second)
+			agent.expect(t, core.EventDesktopChecked)
+			waitFor(t, events, agent.state.AgentID, hub.EventInfoUpdated)
+			if got := s.desktopAvailability(t, agent.state.AgentID); got == nil || got.Available != available {
+				t.Errorf("availability = %+v, want available %v", got, available)
 			}
 		}
 	})

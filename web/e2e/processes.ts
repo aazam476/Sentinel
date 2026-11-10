@@ -158,6 +158,76 @@ export class Agent {
 }
 
 /**
+ * XDisplay is a virtual X display (Xvfb) for remote desktop on a real X
+ * server, with xprobe (internal/testutil/xprobe) to paint on it and read
+ * the pointer.
+ */
+export class XDisplay {
+  private server: ChildProcess | undefined;
+  private probe = '';
+  /** name is the display, ":N", once started. */
+  name = '';
+
+  /** start runs Xvfb, which says its display number once it is ready. */
+  async start(folder: string) {
+    mkdirSync(folder, { recursive: true });
+    this.probe = resolve(folder, 'xprobe');
+    const built = spawnSync('go', ['build', '-o', this.probe, './internal/testutil/xprobe'], {
+      cwd: resolve('..'),
+      encoding: 'utf8',
+      env: { ...process.env, CGO_ENABLED: '0' },
+    });
+    if (built.status !== 0) {
+      throw new Error(`building xprobe failed: ${built.stderr}`);
+    }
+    const server = spawn(
+      'Xvfb',
+      ['-displayfd', '3', '-screen', '0', '800x600x24', '-wr', '-noreset', '-nolisten', 'tcp'],
+      {
+        stdio: ['ignore', 'ignore', 'ignore', 'pipe'],
+      },
+    );
+    this.server = server;
+    const number = await new Promise<string>((done, fail) => {
+      let text = '';
+      server.stdio[3]?.on('data', (chunk: Buffer) => {
+        text += chunk.toString();
+        if (text.includes('\n')) {
+          done(text.trim());
+        }
+      });
+      server.on('exit', (code) => {
+        fail(new Error(`Xvfb exited with ${String(code)}`));
+      });
+    });
+    this.name = `:${number}`;
+  }
+
+  /** paint fills a red square at (100, 100), 60 pixels wide. */
+  paint() {
+    this.runProbe('paint');
+  }
+
+  /** pointer is where the pointer is, and the X button mask. */
+  pointer(): { x: number; y: number; buttons: number } {
+    const [x, y, buttons] = this.runProbe('pointer').trim().split(' ').map(Number);
+    return { x, y, buttons };
+  }
+
+  stop() {
+    this.server?.kill('SIGTERM');
+  }
+
+  private runProbe(command: string): string {
+    const result = spawnSync(this.probe, [this.name, command], { encoding: 'utf8' });
+    if (result.status !== 0) {
+      throw new Error(`xprobe ${command} failed: ${result.stderr}`);
+    }
+    return result.stdout;
+  }
+}
+
+/**
  * agentFlags turns the Linux and macOS install command shown in the UI into
  * the agent's flags.
  */

@@ -43,6 +43,7 @@ type Fleet interface {
 	RecordConnected(ctx context.Context, agentID int64, agentVersion string, protocolVersion int) error
 	RecordSeen(ctx context.Context, agentID int64) error
 	SaveSystemInfo(ctx context.Context, agentID int64, info protocol.SystemInfo) error
+	SaveDesktopAvailability(ctx context.Context, agentID int64, desktop protocol.DesktopAvailability) error
 }
 
 // Metrics stores metric samples (internal/server/metrics).

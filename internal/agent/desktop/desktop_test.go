@@ -379,16 +379,39 @@ func TestTestPattern(t *testing.T) {
 }
 
 func TestProvider(t *testing.T) {
-	if availability := (desktop.Provider{TestPattern: true}).Availability(); !availability.Available {
+	if availability := (desktop.Provider{TestPattern: true}).Availability(t.Context()); !availability.Available {
 		t.Errorf("the test pattern isn't available: %+v", availability)
 	}
-	if source, err := (desktop.Provider{TestPattern: true}).Open(); err != nil || source.Name() != "test pattern" {
+	if source, err := (desktop.Provider{TestPattern: true}).Open(t.Context()); err != nil || source.Name() != "test pattern" {
 		t.Errorf("got %v, %v", source, err)
 	}
-	if availability := (desktop.Provider{}).Availability(); availability.Available || availability.Reason == "" {
+	if availability := (desktop.Provider{}).Availability(t.Context()); availability.Available || availability.Reason == "" {
 		t.Errorf("a desktop is available with no display: %+v", availability)
 	}
-	if _, err := (desktop.Provider{}).Open(); !errors.Is(err, desktop.ErrUnavailable) {
+	if _, err := (desktop.Provider{}).Open(t.Context()); !errors.Is(err, desktop.ErrUnavailable) {
 		t.Errorf("got %v", err)
 	}
+	screen := fakeScreen{availability: protocol.DesktopAvailability{Reason: "Nobody is here."}}
+	if got := (desktop.Provider{Screen: screen}).Availability(t.Context()); got != screen.availability {
+		t.Errorf("availability = %+v, want the screen's", got)
+	}
+	if source, err := (desktop.Provider{Screen: screen}).Open(t.Context()); err != nil || source.Name() != "screen" {
+		t.Errorf("got %v, %v, want the screen", source, err)
+	}
+	if source, _ := (desktop.Provider{TestPattern: true, Screen: screen}).Open(t.Context()); source.Name() != "test pattern" {
+		t.Errorf("the policy's test pattern gave way to %s", source.Name())
+	}
 }
+
+// fakeScreen is a platform's desktop.
+type fakeScreen struct {
+	availability protocol.DesktopAvailability
+}
+
+func (s fakeScreen) Availability(context.Context) protocol.DesktopAvailability { return s.availability }
+
+func (fakeScreen) Open(context.Context) (desktop.Source, error) { return namedSource{}, nil }
+
+type namedSource struct{ desktop.Source }
+
+func (namedSource) Name() string { return "screen" }

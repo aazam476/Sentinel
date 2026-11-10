@@ -62,6 +62,9 @@ jobs:
       - name: Install make (Windows)
         if: runner.os == 'Windows'
         run: command -v make || choco install make --no-progress -y
+      - name: Install Xvfb, for the X11 remote desktop tests (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
       - name: Unit tests
         run: make test
       - name: Integration tests (HTTP, protocol, command line)
@@ -85,6 +88,8 @@ jobs:
       - name: Install the Playwright browser
         working-directory: web
         run: npx playwright install --with-deps chromium
+      - name: Install Xvfb, for the X11 remote desktop tests
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
       - name: Playwright (desktop, phone, and reduced motion)
         run: make test-e2e
       - name: Upload the Playwright report
@@ -119,6 +124,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - name: Install Xvfb, for the X11 remote desktop tests
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
       - name: Coverage thresholds
         run: make cover
       - name: Every SEC item in scope has a test

@@ -206,6 +206,12 @@ describe('screenPoint', () => {
       y: 150,
       want: { x: 400, y: 300 },
     },
+    {
+      name: 'takes the pixel a point falls inside, not the nearest edge',
+      x: 200.4,
+      y: 150.9,
+      want: { x: 400, y: 301 },
+    },
     { name: 'keeps the top left corner', x: 0, y: 0, want: { x: 0, y: 0 } },
     {
       name: 'clamps points past the edge to the last pixel',

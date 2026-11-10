@@ -260,7 +260,7 @@ describe('remote desktop', () => {
     {
       name: 'says why the desktop can’t be shared',
       machine: { ...worstMachine, online: true },
-      text: /No graphical session was found/,
+      text: /Wayland sessions aren’t supported yet/,
     },
     {
       name: 'gives a reason when the agent gives none',

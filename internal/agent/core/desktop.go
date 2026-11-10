@@ -5,23 +5,29 @@ package core
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/aazam476/sentinel/internal/agent/desktop"
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/protocol"
+	"github.com/aazam476/sentinel/internal/shared/clock"
 )
 
 // desktopInputBuffer is how many of the browser's messages wait for a
 // session that is busy encoding a frame.
 const desktopInputBuffer = 256
 
+// desktopCheckInterval is how often the agent looks again for a desktop
+// to share, so the Desktop tab appears soon after someone logs in.
+const desktopCheckInterval = 15 * time.Second
+
 // desktopAvailability says whether remote desktop can be used now: the
 // local policy allows it and there is a desktop to share.
-func (a *Agent) desktopAvailability() protocol.DesktopAvailability {
+func (a *Agent) desktopAvailability(ctx context.Context) protocol.DesktopAvailability {
 	if !a.options.Policy.Allows(policy.Desktop) {
 		return protocol.DesktopAvailability{Reason: policy.DisabledReason}
 	}
-	return a.options.Desktop.Availability()
+	return a.options.Desktop.Availability(ctx)
 }
 
 // desktopOutput sends a session's messages on its stream.
@@ -44,7 +50,7 @@ func (c *connection) startDesktop(ctx context.Context, request protocol.Message)
 	if err := protocol.DecodePayload(request, &payload); err != nil {
 		return nil, invalidRequest(err)
 	}
-	source, err := c.agent.options.Desktop.Open()
+	source, err := c.agent.options.Desktop.Open(ctx)
 	if err != nil {
 		if errors.Is(err, desktop.ErrUnavailable) {
 			return nil, &protocol.Error{Code: protocol.ErrorUnsupportedPlatform, Message: "Remote desktop isn't available: " + err.Error() + "."}
@@ -71,4 +77,39 @@ func (c *connection) startDesktop(ctx context.Context, request protocol.Message)
 		return "the session ended"
 	})
 	return protocol.DesktopStartedPayload{Source: source.Name(), Width: width, Height: height}, nil
+}
+
+// reportDesktop records what the server is told about the desktop, in the
+// machine's details; it reports whether that differs from before.
+func (c *connection) reportDesktop(availability protocol.DesktopAvailability) bool {
+	c.desktopMutex.Lock()
+	defer c.desktopMutex.Unlock()
+	changed := c.desktopReported != nil && *c.desktopReported != availability
+	c.desktopReported = &availability
+	return changed
+}
+
+// watchDesktop looks for a desktop to share every desktopCheckInterval
+// and tells the server when that changes, once it has asked about the
+// machine.
+func (c *connection) watchDesktop(ctx context.Context, timer clock.Timer) {
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C():
+		}
+		c.desktopMutex.Lock()
+		asked := c.desktopReported != nil
+		c.desktopMutex.Unlock()
+		if availability := c.agent.desktopAvailability(ctx); asked && c.reportDesktop(availability) {
+			event := protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(c.agent.options.Clock.Now()), Action: protocol.ActionDesktopAvailability}
+			if c.send(ctx, event, availability) != nil {
+				return
+			}
+		}
+		timer.Reset(desktopCheckInterval)
+		c.agent.observe(EventDesktopChecked)
+	}
 }

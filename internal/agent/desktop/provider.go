@@ -3,6 +3,7 @@
 package desktop
 
 import (
+	"context"
 	"errors"
 
 	"github.com/aazam476/sentinel/internal/protocol"
@@ -15,27 +16,46 @@ const (
 )
 
 // ErrUnavailable means there is no desktop to share now.
-var ErrUnavailable = errors.New("no one is logged in to a graphical session")
+var ErrUnavailable = errors.New("there is no desktop to share")
+
+// Screen is the machine's own desktop on one platform (x11, ...).
+type Screen interface {
+	// Availability says whether there's a desktop to share now.
+	Availability(ctx context.Context) protocol.DesktopAvailability
+	// Open connects to it for a session.
+	Open(ctx context.Context) (Source, error)
+}
 
 // Provider finds the desktop to share.
 type Provider struct {
 	// TestPattern shares the test pattern (the policy's
-	// desktop.test_pattern).
+	// desktop.test_pattern) instead of the screen.
 	TestPattern bool
+	// Screen is this platform's desktop; nil where sharing it isn't
+	// supported yet.
+	Screen Screen
 }
 
 // Availability says whether a session can start now.
-func (p Provider) Availability() protocol.DesktopAvailability {
-	if p.TestPattern {
+func (p Provider) Availability(ctx context.Context) protocol.DesktopAvailability {
+	switch {
+	case p.TestPattern:
 		return protocol.DesktopAvailability{Available: true}
+	case p.Screen == nil:
+		return protocol.DesktopAvailability{Reason: "Remote desktop isn’t supported on this operating system yet."}
+	default:
+		return p.Screen.Availability(ctx)
 	}
-	return protocol.DesktopAvailability{Reason: "No one is logged in to a graphical session."}
 }
 
 // Open returns the source a new session shares.
-func (p Provider) Open() (Source, error) {
-	if p.TestPattern {
+func (p Provider) Open(ctx context.Context) (Source, error) {
+	switch {
+	case p.TestPattern:
 		return NewTestPattern(testPatternWidth, testPatternHeight), nil
+	case p.Screen == nil:
+		return nil, ErrUnavailable
+	default:
+		return p.Screen.Open(ctx)
 	}
-	return nil, ErrUnavailable
 }

@@ -85,7 +85,8 @@ func (c *connection) systemInfo(ctx context.Context, _ protocol.Message) (any, *
 		options.Logger.Warn("could not describe this machine", "error", err)
 		return nil, &protocol.Error{Code: protocol.ErrorInternal, Message: "The agent couldn't read this machine's details."}
 	}
-	availability := c.agent.desktopAvailability()
+	availability := c.agent.desktopAvailability(ctx)
+	c.reportDesktop(availability)
 	info.Desktop = &availability
 	return info, nil
 }

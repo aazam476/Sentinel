@@ -83,7 +83,8 @@ export function machineDesktop(agentId: string): string {
 
 /**
  * screenPoint maps a point on the canvas as shown (CSS pixels, from its
- * top left) to the machine's screen pixels.
+ * top left) to the machine's screen pixel under it: the pixel whose square
+ * holds the point, so a point anywhere inside pixel 400 is pixel 400.
  */
 export function screenPoint(
   x: number,
@@ -95,7 +96,7 @@ export function screenPoint(
     return { x: 0, y: 0 };
   }
   const clamp = (value: number, max: number) =>
-    Math.min(Math.max(Math.round(value), 0), Math.max(max - 1, 0));
+    Math.min(Math.max(Math.floor(value), 0), Math.max(max - 1, 0));
   return {
     x: clamp((x * screen.width) / shown.width, screen.width),
     y: clamp((y * screen.height) / shown.height, screen.height),

@@ -99,6 +99,8 @@ func (c *connection) handleEvent(ctx context.Context, message protocol.Message) 
 		c.handleStorageHealth(ctx, message)
 	case protocol.ActionAgentUpdateResult:
 		c.handleUpdateResult(ctx, message)
+	case protocol.ActionDesktopAvailability:
+		c.handleDesktopAvailability(ctx, message)
 	default:
 		c.hub.logger.Debug("agent sent an event this server doesn't handle", "agent", c.agent.PublicID, "action", message.Action)
 	}
@@ -128,6 +130,21 @@ func (c *connection) handleUpdateResult(ctx context.Context, message protocol.Me
 	}
 	if err := c.hub.updates.RecordResult(ctx, c.agent.ID, result); err != nil {
 		c.hub.logger.Error("could not record an update result", "agent", c.agent.PublicID, "error", err)
+		return
+	}
+	c.hub.publish(eventFor(c, EventInfoUpdated))
+}
+
+// handleDesktopAvailability records that the machine's desktop can now be
+// shared, or no longer can, so its page shows or hides the Desktop tab.
+func (c *connection) handleDesktopAvailability(ctx context.Context, message protocol.Message) {
+	var desktop protocol.DesktopAvailability
+	if err := protocol.DecodePayload(message, &desktop); err != nil {
+		c.hub.logger.Warn("agent sent a malformed desktop availability", "agent", c.agent.PublicID, "error", err)
+		return
+	}
+	if err := c.hub.fleet.SaveDesktopAvailability(ctx, c.agent.ID, desktop); err != nil {
+		c.hub.logger.Error("could not record desktop availability", "agent", c.agent.PublicID, "error", err)
 		return
 	}
 	c.hub.publish(eventFor(c, EventInfoUpdated))

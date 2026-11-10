@@ -727,3 +727,42 @@ func contextWithCancel(t *testing.T) (context.Context, context.CancelFunc) {
 	t.Helper()
 	return context.WithCancel(t.Context())
 }
+
+func TestDesktopAvailability(t *testing.T) {
+	t.Run("records that the desktop can now be shared, and announces it", func(t *testing.T) {
+		h := newHarness(t)
+		events := h.subscribe(t)
+		agent := h.online(t)
+		agent.answerSystemInfo(protocol.SystemInfo{Hostname: "nas-01", Desktop: &protocol.DesktopAvailability{Reason: "No one is logged in."}})
+		waitForEvent(t, events, hub.Event{AgentID: h.agentID(t, agent), PublicID: agent.id, Kind: hub.EventInfoUpdated})
+		agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionDesktopAvailability},
+			protocol.DesktopAvailability{Available: true})
+		waitForEvent(t, events, hub.Event{AgentID: h.agentID(t, agent), PublicID: agent.id, Kind: hub.EventInfoUpdated})
+		stored, err := h.fleet.GetAgent(t.Context(), h.admin, agent.id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if desktop := stored.SystemInfo.Desktop; desktop == nil || !desktop.Available || stored.SystemInfo.Hostname != "nas-01" {
+			t.Errorf("stored = %+v", stored.SystemInfo)
+		}
+	})
+
+	t.Run("drops a malformed availability, and one with text it won't store", func(t *testing.T) {
+		h := newHarness(t)
+		events := h.subscribe(t)
+		agent := h.online(t)
+		agent.answerSystemInfo(protocol.SystemInfo{Hostname: "nas-01"})
+		waitForEvent(t, events, hub.Event{AgentID: h.agentID(t, agent), PublicID: agent.id, Kind: hub.EventInfoUpdated})
+		agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionDesktopAvailability}, "not an availability")
+		agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionDesktopAvailability},
+			protocol.DesktopAvailability{Reason: "bell\x07"})
+		// The connection carries on: a later event is still handled.
+		agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionMetricsSample},
+			protocol.MetricsSample{Time: h.clock.Now().UnixMilli(), CPUPercent: 1})
+		waitForEvent(t, events, hub.Event{AgentID: h.agentID(t, agent), PublicID: agent.id, Kind: hub.EventMetrics})
+		stored, err := h.fleet.GetAgent(t.Context(), h.admin, agent.id)
+		if err != nil || stored.SystemInfo.Desktop != nil {
+			t.Errorf("stored = %+v (%v)", stored.SystemInfo.Desktop, err)
+		}
+	})
+}
