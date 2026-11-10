@@ -109,8 +109,13 @@ check-no-prototype: web ## Check the production web build contains no design var
 test: test-go test-web ## Unit tests (white- and black-box) for Go and the web UI
 
 .PHONY: test-go
+# The auth package hashes passwords with the real Argon2id settings (SEC-03),
+# which under the race detector on CI's macOS runners takes close to Go's
+# default 10-minute limit.
+GO_TEST_TIMEOUT ?= 20m
+
 test-go: ## Go unit tests with the race detector
-	$(GO) test -race ./...
+	$(GO) test -race -timeout $(GO_TEST_TIMEOUT) ./...
 
 .PHONY: test-web
 test-web: web/node_modules ## Web UI unit and component tests
@@ -118,7 +123,7 @@ test-web: web/node_modules ## Web UI unit and component tests
 
 .PHONY: test-integration
 test-integration: web ## HTTP, protocol and command-line contract tests
-	$(GO) test -race -tags integration ./...
+	$(GO) test -race -timeout $(GO_TEST_TIMEOUT) -tags integration ./...
 
 .PHONY: test-e2e
 test-e2e: build ## Playwright end-to-end tests against the real server

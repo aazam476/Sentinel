@@ -54,7 +54,7 @@ failures=0
 # A failing test fails this script too, but only after its output is
 # printed: otherwise `set -e` would stop here and hide which test failed.
 test_status=0
-output="$(go test -race -cover ./... 2>&1)" || test_status=$?
+output="$(go test -race -timeout 20m -cover ./... 2>&1)" || test_status=$?
 echo "$output"
 echo
 if [ "$test_status" -ne 0 ]; then
