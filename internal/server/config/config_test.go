@@ -394,3 +394,36 @@ func TestResolveReleaseURL(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveTURN(t *testing.T) {
+	tests := []struct {
+		name    string
+		file    config.TURNFile
+		want    config.TURN
+		wantErr bool
+	}{
+		{name: "listens on 3478 and finds its address by default", want: config.TURN{Listen: ":3478", FirstPort: 49152, LastPort: 49251}},
+		{name: "can be turned off", file: config.TURNFile{Listen: "off"}, want: config.TURN{}},
+		{name: "takes another address, a fixed relay IP and ports", file: config.TURNFile{Listen: "10.0.0.2:5349", RelayIP: "203.0.113.7", RelayPorts: "50000-50009"},
+			want: config.TURN{Listen: "10.0.0.2:5349", RelayIP: netip.MustParseAddr("203.0.113.7"), FirstPort: 50000, LastPort: 50009}},
+		{name: "rejects ports that aren't a range", file: config.TURNFile{RelayPorts: "50000"}, wantErr: true},
+		{name: "rejects a range that runs backwards", file: config.TURNFile{RelayPorts: "50009-50000"}, wantErr: true},
+		{name: "rejects privileged ports", file: config.TURNFile{RelayPorts: "80-90"}, wantErr: true},
+		{name: "rejects ports past 65535", file: config.TURNFile{RelayPorts: "65000-70000"}, wantErr: true},
+		{name: "rejects an address without a port", file: config.TURNFile{Listen: "10.0.0.2"}, wantErr: true},
+		{name: "rejects a relay IP that isn't one", file: config.TURNFile{RelayIP: "turn.example.com"}, wantErr: true},
+		{name: "rejects an IPv6 relay IP", file: config.TURNFile{RelayIP: "2001:db8::1"}, wantErr: true},
+		{name: "rejects an unspecified relay IP", file: config.TURNFile{RelayIP: "0.0.0.0"}, wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resolved, err := config.File{TURN: test.file}.Resolve()
+			if (err != nil) != test.wantErr {
+				t.Fatalf("error = %v, want error %v", err, test.wantErr)
+			}
+			if err == nil && resolved.TURN != test.want {
+				t.Errorf("TURN = %+v, want %+v", resolved.TURN, test.want)
+			}
+		})
+	}
+}

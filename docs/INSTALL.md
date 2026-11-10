@@ -13,10 +13,14 @@ install script check those signatures before installing anything (see
 
 ```bash
 docker run -d --name sentinel --restart unless-stopped \
-  -p 7443:7443 \
+  -p 7443:7443 -p 3478:3478/udp -p 49152-49251:49152-49251/udp \
   -v sentinel-data:/var/lib/sentinel \
-  ghcr.io/aazam476/sentinel-server:latest
+  ghcr.io/aazam476/sentinel-server:latest --relay-ip <this host's IP address>
 ```
+
+The UDP ports are remote desktop's relay, for when a browser can't reach a machine directly.
+`--relay-ip` tells it the address people and agents reach this host at, which a container
+can't see for itself. Without them, remote desktop still works, through the HTTPS port.
 
 ```bash
 docker logs sentinel
@@ -93,6 +97,16 @@ max_size_gb = 10
 # Where agent builds are fetched from; "off" for air-gapped servers, which
 # upload builds on the Updates page instead.
 release_url = "https://github.com/aazam476/sentinel/releases/latest/download/"
+
+[turn]
+# Remote desktop's relay, on UDP, for when a browser can't reach a machine
+# directly; "off" turns it off (sessions then go through the HTTPS port).
+listen = ":3478"
+# The IPv4 address browsers and agents reach this server at. Empty finds the
+# one this machine uses to reach the internet; set it behind NAT or in Docker.
+relay_ip = ""
+# The UDP ports relayed connections use. Open these and 3478 in the firewall.
+relay_ports = "49152-49251"
 ```
 
 With the self-signed certificate, the Add machine page puts the certificate's fingerprint in

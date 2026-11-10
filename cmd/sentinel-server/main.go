@@ -55,6 +55,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	configPath := flags.String("config", config.DefaultPath, "path to server.toml")
 	listen := flags.String("listen", "", "address to listen on, overriding the config file (default \""+config.DefaultListen+"\")")
 	dataDir := flags.String("data-dir", "", "data directory, overriding the config file (default \""+config.DefaultDataDir+"\")")
+	relayIP := flags.String("relay-ip", "", "the address remote desktop's relay is reached at, overriding the config file (in Docker, the host's)")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return exitOK
@@ -68,7 +69,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, nil))
-	settings, err := loadConfig(*configPath, *listen, *dataDir)
+	settings, err := loadConfig(*configPath, overrides{listen: *listen, dataDir: *dataDir, relayIP: *relayIP})
 	if err != nil {
 		logger.Error("invalid configuration", "error", err)
 		return exitFailure
@@ -80,17 +81,25 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return exitOK
 }
 
+// overrides are the settings given on the command line.
+type overrides struct {
+	listen, dataDir, relayIP string
+}
+
 // loadConfig reads the config file and applies command-line overrides.
-func loadConfig(path, listen, dataDir string) (config.Config, error) {
+func loadConfig(path string, given overrides) (config.Config, error) {
 	file, err := config.Load(path)
 	if err != nil {
 		return config.Config{}, err
 	}
-	if listen != "" {
-		file.Listen = listen
+	if given.listen != "" {
+		file.Listen = given.listen
 	}
-	if dataDir != "" {
-		file.DataDir = dataDir
+	if given.dataDir != "" {
+		file.DataDir = given.dataDir
+	}
+	if given.relayIP != "" {
+		file.TURN.RelayIP = given.relayIP
 	}
 	return file.Resolve()
 }

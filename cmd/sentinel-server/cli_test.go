@@ -64,6 +64,18 @@ func TestServerCommandLine(t *testing.T) {
 			wantStderr:   "plain HTTP is only allowed",
 		},
 		{
+			name:         "--relay-ip overrides the config file, and is checked",
+			args:         []string{"--relay-ip", "not-an-ip", "--data-dir", t.TempDir()},
+			wantExitCode: 1,
+			wantStderr:   "turn.relay_ip",
+		},
+		{
+			name:         "-help lists --relay-ip for Docker",
+			args:         []string{"-help"},
+			wantExitCode: 0,
+			wantStderr:   "-relay-ip",
+		},
+		{
 			name:         "a typo in the config file is reported",
 			args:         []string{"--config", typo},
 			wantExitCode: 1,

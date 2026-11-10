@@ -111,9 +111,22 @@ func TestDesktop(t *testing.T) {
 		if start.ViewOnly {
 			t.Error("asked for a view-only session")
 		}
-		kind, ready, err := browser.Read(t.Context())
-		if err != nil || kind != websocket.MessageText || string(ready) != `{"type":"ready","source":"test pattern","width":1280,"height":720}` {
-			t.Fatalf("ready = %s (%v)", ready, err)
+		kind, data, err := browser.Read(t.Context())
+		var ready api.DesktopReady
+		if err != nil || kind != websocket.MessageText || json.Unmarshal(data, &ready) != nil {
+			t.Fatalf("ready = %s (%v)", data, err)
+		}
+		if ready.Type != "ready" || ready.Source != "test pattern" || ready.Width != 1280 || ready.Height != 720 {
+			t.Errorf("ready = %+v", ready)
+		}
+		// The agent and the browser get the same relay, with credentials
+		// made for this session.
+		if len(start.ICEServers) != 1 || !strings.HasPrefix(start.ICEServers[0].URLs[0], "turn:127.0.0.1:") ||
+			start.ICEServers[0].Username == "" || start.ICEServers[0].Credential == "" {
+			t.Errorf("agent's ICE servers = %+v", start.ICEServers)
+		}
+		if len(ready.ICEServers) != 1 || ready.ICEServers[0].Username != start.ICEServers[0].Username {
+			t.Errorf("browser's ICE servers = %+v", ready.ICEServers)
 		}
 
 		// The browser's text goes to the agent as control messages; binary

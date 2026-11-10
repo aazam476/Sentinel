@@ -9,7 +9,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/aazam476/sentinel/internal/server/app"
 	"github.com/aazam476/sentinel/internal/server/config"
@@ -93,7 +96,8 @@ func TestNew(t *testing.T) {
 
 func options(t *testing.T, dataDir string) app.Options {
 	t.Helper()
-	settings, err := config.File{DataDir: dataDir}.Resolve()
+	// The relay is off unless a test turns it on: tests can't share :3478.
+	settings, err := config.File{DataDir: dataDir, TURN: config.TURNFile{Listen: "off"}}.Resolve()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,6 +146,58 @@ func TestStart(t *testing.T) {
 		}
 		if _, err := app.New(t.Context(), options(t, dataDir)); err == nil {
 			t.Error("New returned nil")
+		}
+	})
+}
+
+func TestRelay(t *testing.T) {
+	withRelay := func(t *testing.T, file config.TURNFile) *app.App {
+		t.Helper()
+		settings := options(t, t.TempDir())
+		resolved, err := config.File{DataDir: settings.Settings.DataDir, TURN: file}.Resolve()
+		if err != nil {
+			t.Fatal(err)
+		}
+		settings.Settings = resolved
+		server, err := app.New(t.Context(), settings)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = server.Close() })
+		return server
+	}
+
+	t.Run("is off when the settings say", func(t *testing.T) {
+		if server := newApp(t, t.TempDir()); server.Relay != nil {
+			t.Error("a relay started")
+		}
+	})
+
+	t.Run("starts at the address it is given", func(t *testing.T) {
+		server := withRelay(t, config.TURNFile{Listen: "127.0.0.1:0", RelayIP: "127.0.0.1"})
+		if server.Relay == nil || server.Relay.Port() == 0 {
+			t.Fatal("no relay")
+		}
+		if url := server.Relay.ICEServer(time.Hour).URLs[0]; !strings.HasPrefix(url, "turn:127.0.0.1:") {
+			t.Errorf("relay URL = %s", url)
+		}
+	})
+
+	t.Run("finds its own address when none is given", func(t *testing.T) {
+		server := withRelay(t, config.TURNFile{Listen: "127.0.0.1:0"})
+		if server.Relay == nil {
+			t.Fatal("no relay")
+		}
+		if url := server.Relay.ICEServer(time.Hour).URLs[0]; !strings.HasPrefix(url, "turn:") || strings.Contains(url, "turn:0.0.0.0") {
+			t.Errorf("relay URL = %s", url)
+		}
+	})
+
+	t.Run("runs without a relay whose port is taken", func(t *testing.T) {
+		first := withRelay(t, config.TURNFile{Listen: "127.0.0.1:0", RelayIP: "127.0.0.1"})
+		taken := "127.0.0.1:" + strconv.Itoa(first.Relay.Port())
+		if second := withRelay(t, config.TURNFile{Listen: taken, RelayIP: "127.0.0.1"}); second.Relay != nil {
+			t.Error("two relays on one port")
 		}
 	})
 }

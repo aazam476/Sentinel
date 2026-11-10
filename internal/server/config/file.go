@@ -37,6 +37,22 @@ type File struct {
 	Files FilesFile `toml:"files"`
 	// Updates configures where agent builds come from.
 	Updates UpdatesFile `toml:"updates"`
+	// TURN configures the relay for remote desktop.
+	TURN TURNFile `toml:"turn"`
+}
+
+// TURNFile is the [turn] table of server.toml.
+type TURNFile struct {
+	// Listen is the UDP address of the relay remote desktop uses when the
+	// browser can't reach the machine directly; "off" turns it off. The
+	// default is ":3478".
+	Listen string `toml:"listen"`
+	// RelayIP is the address browsers and agents reach this server at.
+	// Empty finds the address this machine uses to reach the internet.
+	RelayIP string `toml:"relay_ip"`
+	// RelayPorts is the UDP port range relayed connections use, as
+	// "first-last". The default is "49152-49251".
+	RelayPorts string `toml:"relay_ports"`
 }
 
 // UpdatesFile is the [updates] table of server.toml.

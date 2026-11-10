@@ -3,3 +3,8 @@
 # Server settings for the end-to-end tests. Listen address and data directory
 # come from start-server.mjs. Nothing else is set, so the tests run against the
 # defaults a fresh installation gets, including a self-signed certificate.
+
+# Several servers run side by side, so each relay takes a free port rather
+# than all of them trying 3478.
+[turn]
+listen = ":0"

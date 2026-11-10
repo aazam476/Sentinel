@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/alerts"
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
@@ -38,13 +39,15 @@ type handlers struct {
 	updates    *updates.Service
 	// maxFileBytes is the largest file the file manager moves.
 	maxFileBytes int64
-	terminals    *relay.Sessions
-	serverKey    serverkey.Key
-	tlsPin       string
-	logger       *slog.Logger
-	clock        Clock
-	cookiePath   string
-	publicURL    *url.URL
+	// turn is the remote desktop TURN relay; nil when it is off.
+	turn       Relay
+	terminals  *relay.Sessions
+	serverKey  serverkey.Key
+	tlsPin     string
+	logger     *slog.Logger
+	clock      Clock
+	cookiePath string
+	publicURL  *url.URL
 }
 
 // Clock tells the current time and makes timers.
@@ -128,4 +131,10 @@ func (h *handlers) withPermission(permission auth.Permission, next sessionHandle
 
 func (h *handlers) writeError(w http.ResponseWriter, err error) {
 	writeServiceError(w, h.logger, err)
+}
+
+// Relay is the TURN relay remote desktop falls back to when the browser
+// and the agent can't reach each other directly (internal/server/turn).
+type Relay interface {
+	ICEServer(ttl time.Duration) protocol.ICEServer
 }

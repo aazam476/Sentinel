@@ -62,6 +62,7 @@ func newTestServer(t *testing.T) *testServer {
 	settings, err := config.File{
 		DataDir: t.TempDir(), Listen: "127.0.0.1:0", PublicURL: publicOrigin,
 		Updates: config.UpdatesFile{ReleaseURL: releases.URL + "/"},
+		TURN:    config.TURNFile{Listen: "127.0.0.1:0", RelayIP: "127.0.0.1"},
 	}.Resolve()
 	if err != nil {
 		t.Fatal(err)

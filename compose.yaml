@@ -2,7 +2,7 @@
 #
 # Runs the Sentinel server with Docker Compose (§11.1):
 #
-#   docker compose up -d
+#   SENTINEL_RELAY_IP=<this host's IP address> docker compose up -d
 #   docker compose logs sentinel   # shows the one-time setup token
 #
 # Then open https://<this host>:7443. The certificate is self-signed until
@@ -13,10 +13,15 @@ services:
     restart: unless-stopped
     ports:
       - "7443:7443"
+      # Remote desktop's relay (UDP), for browsers that can't reach a
+      # machine directly. Set relay_ip below to this host's address.
+      - "3478:3478/udp"
+      - "49152-49251:49152-49251/udp"
+    command: ["--relay-ip", "${SENTINEL_RELAY_IP:-}"]
     volumes:
       - sentinel-data:/var/lib/sentinel
     # Settings beyond the defaults go in a server.toml, mounted read-only:
-    # command: ["--config", "/etc/sentinel/server.toml"]
+    # command: ["--config", "/etc/sentinel/server.toml", "--relay-ip", "${SENTINEL_RELAY_IP:-}"]
     # volumes:
     #   - ./server.toml:/etc/sentinel/server.toml:ro
 

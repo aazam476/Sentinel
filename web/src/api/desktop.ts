@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { apiRequest, apiURL } from './client';
+import { FrameEnd, FrameScreen, FrameTile, type ICEServer } from './protocol.gen';
 
 /**
  * A remote desktop session (§9.3), outside React: the screen is drawn
@@ -59,7 +60,7 @@ export interface DesktopOptions {
 export interface DesktopDeps {
   preflight: (path: string) => Promise<unknown>;
   createSocket: (url: string) => WebSocket;
-  createPeer: () => RTCPeerConnection;
+  createPeer: (iceServers: RTCIceServer[]) => RTCPeerConnection;
   decodeImage: (jpeg: Uint8Array) => Promise<ImageBitmap>;
   setTimeout: (callback: () => void, ms: number) => number;
   clearTimeout: (id: number) => void;
@@ -68,7 +69,7 @@ export interface DesktopDeps {
 const defaultDeps: DesktopDeps = {
   preflight: (path) => apiRequest(path),
   createSocket: (url) => new WebSocket(url),
-  createPeer: () => new RTCPeerConnection({ iceServers: [] }),
+  createPeer: (iceServers) => new RTCPeerConnection({ iceServers }),
   decodeImage: (jpeg) => createImageBitmap(new Blob([jpeg as BlobPart], { type: 'image/jpeg' })),
   setTimeout: (callback, ms) => window.setTimeout(callback, ms),
   clearTimeout: (id) => {
@@ -103,11 +104,6 @@ export function screenPoint(
   };
 }
 
-// Screen update kinds (protocol.Frame*).
-const frameScreen = 1;
-const frameTile = 2;
-const frameEnd = 3;
-
 interface ControlMessage {
   type: string;
   sdp?: string;
@@ -116,6 +112,8 @@ interface ControlMessage {
   source?: string;
   width?: number;
   height?: number;
+  /** iceServers come with "ready": the server's relay, if it has one. */
+  iceServers?: ICEServer[];
 }
 
 export class DesktopConnection {
@@ -125,6 +123,7 @@ export class DesktopConnection {
   private transport: DesktopTransport | undefined;
   private fallbackTimer: number | undefined;
   private source = '';
+  private iceServers: RTCIceServer[] = [];
   private width = 0;
   private height = 0;
   private pending: Promise<DecodedTile>[] = [];
@@ -209,6 +208,11 @@ export class DesktopConnection {
     switch (message.type) {
       case 'ready':
         this.source = message.source ?? '';
+        this.iceServers = (message.iceServers ?? []).map((server) => ({
+          urls: server.urls,
+          username: server.username,
+          credential: server.credential,
+        }));
         if (this.options.relayOnly) {
           this.fallBack();
         } else {
@@ -233,7 +237,7 @@ export class DesktopConnection {
   private async offer() {
     let peer: RTCPeerConnection;
     try {
-      peer = this.deps.createPeer();
+      peer = this.deps.createPeer(this.iceServers);
     } catch {
       this.fallBack();
       return;
@@ -310,13 +314,13 @@ export class DesktopConnection {
   private handleUpdate(data: Uint8Array, relayed: boolean) {
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
     switch (data[0]) {
-      case frameScreen:
+      case FrameScreen:
         this.width = view.getUint16(1);
         this.height = view.getUint16(3);
         this.callbacks.onResize(this.width, this.height);
         this.announce();
         break;
-      case frameTile: {
+      case FrameTile: {
         const x = view.getUint16(1);
         const y = view.getUint16(3);
         this.pending.push(
@@ -324,7 +328,7 @@ export class DesktopConnection {
         );
         break;
       }
-      case frameEnd: {
+      case FrameEnd: {
         const tiles = this.pending;
         this.pending = [];
         void Promise.all(tiles).then(

@@ -56,7 +56,7 @@ func runAudit(args []string, stdout, stderr io.Writer) int {
 // create a new one: verifying an empty, freshly created log would wrongly
 // report success.
 func openAuditLog(configPath, dataDir string) (*audit.Log, func(), error) {
-	settings, err := loadConfig(configPath, "", dataDir)
+	settings, err := loadConfig(configPath, overrides{dataDir: dataDir})
 	if err != nil {
 		return nil, nil, err
 	}

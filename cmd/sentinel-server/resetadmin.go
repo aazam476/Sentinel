@@ -45,7 +45,7 @@ func runResetAdmin(args []string, stdout, stderr io.Writer) int {
 }
 
 func resetAdmin(configPath, dataDir, username string) (string, error) {
-	settings, err := loadConfig(configPath, "", dataDir)
+	settings, err := loadConfig(configPath, overrides{dataDir: dataDir})
 	if err != nil {
 		return "", err
 	}

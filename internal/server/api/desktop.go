@@ -17,6 +17,10 @@ import (
 	"github.com/aazam476/sentinel/internal/server/relay"
 )
 
+// relayCredentialLifetime is how long a session's relay credentials work:
+// a working day, after which a session goes on but can't reconnect.
+const relayCredentialLifetime = 8 * time.Hour
+
 // errorCodeDesktopUnavailable: the machine has no desktop to share now.
 const errorCodeDesktopUnavailable = "desktop_unavailable"
 
@@ -82,8 +86,9 @@ func desktopAvailability(agent fleet.Agent) (bool, string) {
 // start and the end (SEC-40).
 func (h *handlers) runDesktop(ctx context.Context, conn *websocket.Conn, session auth.Session, agent fleet.Agent, viewOnly bool, client auth.RequestInfo) {
 	var started protocol.DesktopStartedPayload
+	iceServers := h.iceServers()
 	stream, err := h.hub.OpenStream(ctx, agent.ID, protocol.ActionDesktopSessionStart, func(id protocol.StreamID) any {
-		return protocol.DesktopStartPayload{StreamID: id, ViewOnly: viewOnly}
+		return protocol.DesktopStartPayload{StreamID: id, ViewOnly: viewOnly, ICEServers: iceServers}
 	}, &started)
 	if err != nil {
 		h.auditMachine(ctx, session, agent, client, "desktop.open", outcomeOf(err), map[string]any{"error": err.Error()})
@@ -93,7 +98,7 @@ func (h *handlers) runDesktop(ctx context.Context, conn *websocket.Conn, session
 	h.auditMachine(ctx, session, agent, client, "desktop.open", audit.OutcomeStarted, map[string]any{
 		"source": started.Source, "viewOnly": viewOnly,
 	})
-	ready, _ := encodeDesktopReady(started) // a struct of strings and numbers always encodes
+	ready, _ := encodeDesktopReady(started, iceServers) // a struct of strings and numbers always encodes
 	if err := conn.Write(ctx, websocket.MessageText, ready); err != nil {
 		stream.Close(context.WithoutCancel(ctx), "the viewer left")
 		return
@@ -115,8 +120,20 @@ type DesktopReady struct {
 	Source string `json:"source"`
 	Width  int    `json:"width"`
 	Height int    `json:"height"`
+	// ICEServers are the relays the browser may use; the agent has the
+	// same.
+	ICEServers []protocol.ICEServer `json:"iceServers"`
 }
 
-func encodeDesktopReady(started protocol.DesktopStartedPayload) ([]byte, error) {
-	return json.Marshal(DesktopReady{Type: "ready", Source: started.Source, Width: started.Width, Height: started.Height})
+func encodeDesktopReady(started protocol.DesktopStartedPayload, iceServers []protocol.ICEServer) ([]byte, error) {
+	return json.Marshal(DesktopReady{Type: "ready", Source: started.Source, Width: started.Width, Height: started.Height, ICEServers: iceServers})
+}
+
+// iceServers is the session's relay, with credentials of its own: none
+// when the relay is off.
+func (h *handlers) iceServers() []protocol.ICEServer {
+	if h.turn == nil {
+		return []protocol.ICEServer{}
+	}
+	return []protocol.ICEServer{h.turn.ICEServer(relayCredentialLifetime)}
 }

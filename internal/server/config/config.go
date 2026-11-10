@@ -4,9 +4,12 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"net/netip"
 	"net/url"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // Defaults for settings that the configuration file leaves out.
@@ -51,7 +54,26 @@ type Config struct {
 	// ReleaseURL is where agent builds are fetched from; "" when fetching
 	// is off.
 	ReleaseURL string
+	// TURN is the remote desktop relay.
+	TURN TURN
 }
+
+// TURN is the validated [turn] table.
+type TURN struct {
+	// Listen is the relay's UDP address; "" when the relay is off.
+	Listen string
+	// RelayIP is the address it is reached at; invalid means find it.
+	RelayIP netip.Addr
+	// FirstPort and LastPort bound the UDP ports relayed connections use.
+	FirstPort, LastPort uint16
+}
+
+// DefaultTURNListen is where the relay listens unless the config says.
+const DefaultTURNListen = ":3478"
+
+// DefaultRelayPorts are the relay's ports for relayed connections: 100,
+// for about 50 sessions relayed at both ends.
+const DefaultRelayPorts = "49152-49251"
 
 // DefaultMaxFileGB is the file manager's size limit when none is set.
 const DefaultMaxFileGB = 10
@@ -99,6 +121,9 @@ func (file File) Resolve() (Config, error) {
 	if config.ReleaseURL, err = releaseURL(file.Updates.ReleaseURL); err != nil {
 		return Config{}, err
 	}
+	if config.TURN, err = turnSettings(file.TURN); err != nil {
+		return Config{}, err
+	}
 
 	return config, nil
 }
@@ -138,4 +163,43 @@ func releaseURL(value string) (string, error) {
 		return "", fmt.Errorf("updates.release_url: %q isn't an http or https address", value)
 	}
 	return value, nil
+}
+
+// turnSettings checks the [turn] table.
+func turnSettings(file TURNFile) (TURN, error) {
+	var settings TURN
+	var err error
+	switch file.Listen {
+	case "":
+		settings.Listen = DefaultTURNListen
+	case "off":
+		return TURN{}, nil
+	default:
+		if _, port, err := net.SplitHostPort(file.Listen); err != nil || port == "" {
+			return TURN{}, fmt.Errorf("turn.listen: %q isn't host:port", file.Listen)
+		}
+		settings.Listen = file.Listen
+	}
+	if settings.FirstPort, settings.LastPort, err = portRange(valueOrDefault(file.RelayPorts, DefaultRelayPorts)); err != nil {
+		return TURN{}, err
+	}
+	if file.RelayIP != "" {
+		address, err := netip.ParseAddr(file.RelayIP)
+		if err != nil || !address.Is4() || address.IsUnspecified() {
+			return TURN{}, fmt.Errorf("turn.relay_ip: %q isn't an IPv4 address", file.RelayIP)
+		}
+		settings.RelayIP = address
+	}
+	return settings, nil
+}
+
+// portRange reads turn.relay_ports, "first-last".
+func portRange(value string) (uint16, uint16, error) {
+	first, last, ok := strings.Cut(value, "-")
+	low, lowErr := strconv.ParseUint(first, 10, 16)
+	high, highErr := strconv.ParseUint(last, 10, 16)
+	if !ok || lowErr != nil || highErr != nil || low < 1024 || low > high {
+		return 0, 0, fmt.Errorf("turn.relay_ports: %q isn't a range of ports such as \"49152-49251\"", value)
+	}
+	return uint16(low), uint16(high), nil
 }

@@ -109,6 +109,7 @@ interface HarnessOptions extends Partial<DesktopOptions> {
 function harness(options: HarnessOptions = {}) {
   const sockets: FakeSocket[] = [];
   const peers: FakePeer[] = [];
+  const peerServers: RTCIceServer[][] = [];
   const states: DesktopState[] = [];
   const frames: DecodedTile[][] = [];
   const sizes: [number, number][] = [];
@@ -126,7 +127,8 @@ function harness(options: HarnessOptions = {}) {
       sockets.push(socket);
       return socket as unknown as WebSocket;
     },
-    createPeer: () => {
+    createPeer: (iceServers) => {
+      peerServers.push(iceServers);
       if (options.noPeer === true) {
         throw new Error('WebRTC is turned off');
       }
@@ -170,6 +172,7 @@ function harness(options: HarnessOptions = {}) {
     sockets,
     socket,
     peers,
+    peerServers,
     peer,
     states,
     frames,
@@ -264,6 +267,29 @@ describe('DesktopConnection', () => {
     await started;
     expect(h.sockets).toHaveLength(0);
     expect(h.last()).toEqual({ kind: 'ended', reason: 'You closed the session.' });
+  });
+
+  it('gives WebRTC the server’s relay', async () => {
+    const h = harness();
+    await h.connection.start();
+    h.socket().control({
+      type: 'ready',
+      iceServers: [
+        { urls: ['turn:192.0.2.7:3478?transport=udp'], username: '1:ab', credential: 'pw' },
+      ],
+    });
+    await settle();
+    expect(h.peerServers).toEqual([
+      [{ urls: ['turn:192.0.2.7:3478?transport=udp'], username: '1:ab', credential: 'pw' }],
+    ]);
+  });
+
+  it('uses no relay when the server has none', async () => {
+    const h = harness();
+    await h.connection.start();
+    h.socket().control({ type: 'ready' });
+    await settle();
+    expect(h.peerServers).toEqual([[]]);
   });
 
   it('connects directly over WebRTC and draws frames from the data channel', async () => {

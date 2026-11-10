@@ -19,6 +19,7 @@ packages:
       import type * as protocol from './protocol.gen';
     type_mappings:
       protocol.Image: "protocol.Image"
+      protocol.ICEServer: "protocol.ICEServer"
   # The Docker and storage APIs pass the agent's answers through
   # unchanged, so the browser uses the protocol's types for them.
   - path: "github.com/aazam476/sentinel/internal/protocol"
@@ -27,6 +28,7 @@ packages:
       - "payloads_docker.go"
       - "payloads_storage.go"
       - "payloads_files.go"
+      - "payloads_desktop.go"
     type_mappings:
       json.RawMessage: "unknown"
     frontmatter: |

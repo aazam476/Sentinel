@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sync"
@@ -28,6 +30,7 @@ import (
 	"github.com/aazam476/sentinel/internal/server/secrets"
 	"github.com/aazam476/sentinel/internal/server/serverkey"
 	"github.com/aazam476/sentinel/internal/server/store"
+	"github.com/aazam476/sentinel/internal/server/turn"
 	"github.com/aazam476/sentinel/internal/server/updates"
 	"github.com/aazam476/sentinel/internal/server/web"
 	"github.com/aazam476/sentinel/internal/shared/clock"
@@ -66,9 +69,11 @@ type App struct {
 	Scripts   *scripts.Service
 	Updates   *updates.Service
 	ServerKey serverkey.Key
-	database  *store.Store
-	clock     Clock
-	logger    *slog.Logger
+	// Relay is the remote desktop TURN relay, or nil when it is off.
+	Relay    *turn.Relay
+	database *store.Store
+	clock    Clock
+	logger   *slog.Logger
 	// background runs the scheduler started by Start.
 	background sync.WaitGroup
 }
@@ -85,6 +90,7 @@ type services struct {
 	scripts   *scripts.Service
 	updates   *updates.Service
 	serverKey serverkey.Key
+	relay     *turn.Relay
 }
 
 // New creates the data directory if needed, opens the database and secrets
@@ -102,14 +108,64 @@ func New(ctx context.Context, options Options) (*App, error) {
 	if err != nil {
 		return nil, errors.Join(err, database.Close())
 	}
+	built.relay = startRelay(ctx, options)
 	handler, err := buildHandler(options, built)
 	if err != nil {
-		return nil, errors.Join(err, database.Close())
+		return nil, errors.Join(err, database.Close(), closeRelay(built.relay))
 	}
 	return &App{
 		Handler: handler, Auth: built.auth, AuditLog: built.auditLog, Fleet: built.fleet, Hub: built.hub,
-		Metrics: built.metrics, Registry: built.registry, Alerts: built.alerts, Scripts: built.scripts, Updates: built.updates, ServerKey: built.serverKey, database: database, clock: options.Clock, logger: options.Logger,
+		Metrics: built.metrics, Registry: built.registry, Alerts: built.alerts, Scripts: built.scripts, Updates: built.updates, ServerKey: built.serverKey,
+		Relay: built.relay, database: database, clock: options.Clock, logger: options.Logger,
 	}, nil
+}
+
+// startRelay starts the remote desktop TURN relay the settings ask for. A
+// relay that can't start (its port taken) leaves remote desktop to the
+// direct path and the WebSocket fallback, so it is logged, not fatal.
+func startRelay(ctx context.Context, options Options) *turn.Relay {
+	settings := options.Settings.TURN
+	if settings.Listen == "" {
+		return nil
+	}
+	relayIP := settings.RelayIP
+	if !relayIP.IsValid() {
+		relayIP = outboundIP(ctx)
+	}
+	relay, err := turn.Start(ctx, turn.Options{
+		Listen: settings.Listen, RelayIP: relayIP, FirstPort: settings.FirstPort, LastPort: settings.LastPort,
+		Clock: options.Clock, Logger: options.Logger,
+	})
+	if err != nil {
+		options.Logger.Warn("the remote desktop relay is off", "error", err)
+		return nil
+	}
+	options.Logger.Info("remote desktop relay listening", "address", settings.Listen, "relay_ip", relayIP.String())
+	return relay
+}
+
+// outboundIP is the address this machine uses to reach the internet: the
+// one agents and browsers most likely reach it at. Choosing a route sends
+// nothing. Without one, it is loopback, which only works on this machine.
+func outboundIP(ctx context.Context) netip.Addr {
+	conn, err := (&net.Dialer{}).DialContext(ctx, "udp4", "192.0.2.1:9") // TEST-NET-1: never answered
+	if err != nil {
+		return netip.AddrFrom4([4]byte{127, 0, 0, 1})
+	}
+	defer func() { _ = conn.Close() }() // nothing was sent
+	if address, ok := conn.LocalAddr().(*net.UDPAddr); ok {
+		if ip, ok := netip.AddrFromSlice(address.IP.To4()); ok {
+			return ip
+		}
+	}
+	return netip.AddrFrom4([4]byte{127, 0, 0, 1})
+}
+
+func closeRelay(relay *turn.Relay) error {
+	if relay == nil {
+		return nil
+	}
+	return relay.Close()
 }
 
 func buildServices(database *store.Store, options Options) (services, error) {
@@ -193,7 +249,7 @@ func (a *App) checkImages(ctx context.Context) error {
 func (a *App) Close() error {
 	a.background.Wait()
 	a.Hub.Shutdown()
-	return a.database.Close()
+	return errors.Join(closeRelay(a.Relay), a.database.Close())
 }
 
 // AgentPath is where agents connect, under the base path.
@@ -241,6 +297,7 @@ func buildHandler(options Options, built services) (http.Handler, error) {
 		BasePath:       settings.BasePath,
 		PublicURL:      settings.PublicURL,
 		MaxFileBytes:   settings.MaxFileBytes,
+		Relay:          relayOrNil(built.relay),
 	})
 	handler = middleware.RequireSameOrigin(handler, settings.PublicURL)
 	handler = withAgentEndpoint(handler, built.hub)
@@ -262,4 +319,12 @@ func (l lazyHub) IsOnline(agentID int64) bool { return l.get().IsOnline(agentID)
 
 func (l lazyHub) Request(ctx context.Context, agentID int64, action string, payload, result any) error {
 	return l.get().Request(ctx, agentID, action, payload, result)
+}
+
+// relayOrNil keeps a nil relay a nil interface, so the API sees none.
+func relayOrNil(relay *turn.Relay) api.Relay {
+	if relay == nil {
+		return nil
+	}
+	return relay
 }

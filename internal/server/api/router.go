@@ -51,6 +51,8 @@ type RouterOptions struct {
 	// MaxFileBytes is the largest file the file manager moves; 0 is the
 	// default, 10 GB.
 	MaxFileBytes int64
+	// Relay is the remote desktop TURN relay; nil when it is off.
+	Relay Relay
 }
 
 // NewRouter returns the handler for every URL the server answers.
@@ -73,6 +75,7 @@ func NewRouter(options RouterOptions) http.Handler {
 		cookiePath:   cookiePath(options.BasePath),
 		publicURL:    options.PublicURL,
 		maxFileBytes: maxFileBytes(options.MaxFileBytes),
+		turn:         options.Relay,
 	}
 
 	mux := http.NewServeMux()

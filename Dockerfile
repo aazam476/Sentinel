@@ -29,6 +29,6 @@ LABEL org.opencontainers.image.title="Sentinel server" \
 
 # The database, keys and certificates. Mount a volume here.
 VOLUME /var/lib/sentinel
-EXPOSE 7443
+EXPOSE 7443 3478/udp 49152-49251/udp
 USER nonroot:nonroot
 ENTRYPOINT ["/usr/local/bin/sentinel-server", "--listen", ":7443", "--data-dir", "/var/lib/sentinel"]

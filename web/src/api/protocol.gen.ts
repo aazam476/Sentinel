@@ -7,6 +7,217 @@
 export type StreamID = number;
 
 //////////
+// source: payloads_desktop.go
+
+/**
+ * ActionDesktopSessionStart starts a remote desktop session (§9.3) on a
+ * stream. The agent answers once the session is ready; after that the
+ * stream carries DesktopMessage values in both directions: control
+ * messages (WebRTC signaling, input, settings) and, when the browser can't
+ * reach the agent over WebRTC, the screen itself.
+ */
+export const ActionDesktopSessionStart = "desktop.session.start";
+/**
+ * ActionDesktopAvailability is the event an agent sends when whether its
+ * desktop can be shared changes: someone logged in or out. Its payload is
+ * a DesktopAvailability.
+ */
+export const ActionDesktopAvailability = "desktop.availability";
+/**
+ * DesktopStartPayload asks for a session.
+ */
+export interface DesktopStartPayload {
+  streamId: StreamID;
+  /**
+   * ViewOnly ignores the browser's mouse and keyboard.
+   */
+  viewOnly?: boolean;
+  /**
+   * ICEServers are the STUN and TURN servers the agent may use.
+   */
+  iceServers?: ICEServer[];
+}
+/**
+ * ICEServer is a STUN or TURN server for WebRTC.
+ */
+export interface ICEServer {
+  urls: string[];
+  username?: string;
+  credential?: string;
+}
+/**
+ * DesktopStartedPayload says the session is ready.
+ */
+export interface DesktopStartedPayload {
+  /**
+   * Source names what is shared, e.g. "test pattern" or "X11 :0".
+   */
+  source: string;
+  width: number /* int */;
+  height: number /* int */;
+}
+/**
+ * DesktopControl is followed by a JSON DesktopControlMessage.
+ */
+export const DesktopControl: number /* byte */ = 0x0063 /* 'c' */;
+/**
+ * DesktopFrame is followed by an encoded screen update (EncodeTile...),
+ * sent on the stream only when WebRTC isn't used.
+ */
+export const DesktopFrame: number /* byte */ = 0x0066 /* 'f' */;
+/**
+ * From the browser: a WebRTC offer, an ICE candidate, a request to send
+ * the screen over the stream instead, input, settings, a full frame.
+ */
+export const DesktopOffer = "offer";
+/**
+ * Desktop control message types.
+ */
+export const DesktopCandidate = "candidate";
+/**
+ * Desktop control message types.
+ */
+export const DesktopFallback = "fallback";
+/**
+ * Desktop control message types.
+ */
+export const DesktopInput = "input";
+/**
+ * Desktop control message types.
+ */
+export const DesktopQuality = "quality";
+/**
+ * Desktop control message types.
+ */
+export const DesktopKeyframe = "keyframe";
+/**
+ * DesktopAck says the browser has drawn the last frame sent over the
+ * stream; the agent sends the next only then, so a slow link isn't
+ * flooded.
+ */
+export const DesktopAck = "ack";
+/**
+ * From the agent: the answer, its ICE candidates, problems.
+ */
+export const DesktopAnswer = "answer";
+/**
+ * Desktop control message types.
+ */
+export const DesktopError = "error";
+/**
+ * DesktopControlMessage is a control message on a desktop stream, or on
+ * the session's "input" data channel (input only).
+ */
+export interface DesktopControlMessage {
+  type: string;
+  /**
+   * SDP is an offer or answer.
+   */
+  sdp?: string;
+  /**
+   * Candidate is an ICE candidate as the browser's RTCIceCandidateInit.
+   */
+  candidate?: ICECandidate;
+  /**
+   * Input is a mouse or keyboard event.
+   */
+  input?: DesktopInputEvent;
+  /**
+   * Quality is the JPEG quality, 10 to 95.
+   */
+  quality?: number /* int */;
+  /**
+   * Message says what went wrong, for errors.
+   */
+  message?: string;
+}
+/**
+ * ICECandidate is an ICE candidate in the browser's shape.
+ */
+export interface ICECandidate {
+  candidate: string;
+  sdpMid?: string;
+  sdpMLineIndex?: number /* uint16 */;
+}
+/**
+ * Desktop input event kinds.
+ */
+export const InputMouseMove = "mousemove";
+/**
+ * Desktop input event kinds.
+ */
+export const InputMouseDown = "mousedown";
+/**
+ * Desktop input event kinds.
+ */
+export const InputMouseUp = "mouseup";
+/**
+ * Desktop input event kinds.
+ */
+export const InputWheel = "wheel";
+/**
+ * Desktop input event kinds.
+ */
+export const InputKeyDown = "keydown";
+/**
+ * Desktop input event kinds.
+ */
+export const InputKeyUp = "keyup";
+/**
+ * Desktop input event kinds.
+ */
+export const InputCtrlAltDel = "ctrlaltdel";
+/**
+ * DesktopInputEvent is one mouse or keyboard event, in screen pixels.
+ */
+export interface DesktopInputEvent {
+  kind: string;
+  x?: number /* int */;
+  y?: number /* int */;
+  /**
+   * Button is 0 (left), 1 (middle) or 2 (right).
+   */
+  button?: number /* int */;
+  /**
+   * DeltaX and DeltaY are wheel steps.
+   */
+  deltaX?: number /* int */;
+  deltaY?: number /* int */;
+  /**
+   * Code is the key's KeyboardEvent.code ("KeyA", "Enter"), the same on
+   * every keyboard layout; Key is what it typed, for text.
+   */
+  code?: string;
+  key?: string;
+}
+/**
+ * FrameScreen gives the screen's size: u16 width, u16 height. It comes
+ * first, and whenever the size changes.
+ */
+export const FrameScreen: number /* byte */ = 1;
+/**
+ * FrameTile is a rectangle of the screen: u16 x, y, width, height,
+ * then a JPEG image of that size.
+ */
+export const FrameTile: number /* byte */ = 2;
+/**
+ * FrameEnd marks the end of one screen's worth of tiles, so the
+ * browser can show them together.
+ */
+export const FrameEnd: number /* byte */ = 3;
+/**
+ * ScreenUpdate is a decoded screen update.
+ */
+export interface ScreenUpdate {
+  Kind: number /* byte */;
+  X: number /* int */;
+  Y: number /* int */;
+  Width: number /* int */;
+  Height: number /* int */;
+  JPEG: string /* []byte */;
+}
+
+//////////
 // source: payloads_docker.go
 
 /**

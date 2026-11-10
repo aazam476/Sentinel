@@ -315,6 +315,11 @@ export interface DesktopReady {
   source: string;
   width: number /* int */;
   height: number /* int */;
+  /**
+   * ICEServers are the relays the browser may use; the agent has the
+   * same.
+   */
+  iceServers: protocol.ICEServer[];
 }
 
 //////////

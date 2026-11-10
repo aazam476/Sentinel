@@ -99,7 +99,7 @@ func runBackup(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func writeBackup(options backupFlags, file string, stdin io.Reader) (err error) {
-	settings, err := loadConfig(*options.configPath, "", *options.dataDir)
+	settings, err := loadConfig(*options.configPath, overrides{dataDir: *options.dataDir})
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func runRestore(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 // restoreBackup decrypts the whole backup into a folder beside the data
 // directory, and only once all of it has checked out moves it into place.
 func restoreBackup(options backupFlags, file string, force bool, stdin io.Reader) (keptConfig bool, err error) {
-	settings, err := loadConfig(*options.configPath, "", *options.dataDir)
+	settings, err := loadConfig(*options.configPath, overrides{dataDir: *options.dataDir})
 	if err != nil {
 		return false, err
 	}
