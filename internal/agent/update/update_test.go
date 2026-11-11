@@ -59,6 +59,8 @@ type harness struct {
 	outcome    trialOutcome
 	paused     int
 	resumed    int
+	// hung is called when a trial that never connects starts.
+	hung func()
 }
 
 func newHarness(t *testing.T) *harness {
@@ -98,6 +100,9 @@ func (h *harness) runTrial(ctx context.Context, executable string, args []string
 	case trialExitsQuietly:
 		return nil
 	case trialHangs:
+		if h.hung != nil {
+			h.hung()
+		}
 	}
 	<-ctx.Done()
 	return ctx.Err()
@@ -241,8 +246,10 @@ func TestSEC32_Rollback(t *testing.T) {
 	t.Run("gives up on a trial that never connects", func(t *testing.T) {
 		h := newHarness(t)
 		h.outcome = trialHangs
-		ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
-		defer cancel()
+		// Its five minutes run out the moment it starts.
+		ctx, cancel := context.WithCancelCause(t.Context())
+		defer cancel(nil)
+		h.hung = func() { cancel(context.DeadlineExceeded) }
 		err := h.updater.Update(ctx, h.publish(t, "v1.1.0", "linux", []byte("silent build")), h.pause)
 		if err == nil || !strings.Contains(err.Error(), "didn't connect") {
 			t.Errorf("got %v", err)
