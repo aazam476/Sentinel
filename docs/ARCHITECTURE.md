@@ -89,7 +89,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/servertls/` | Self-signed and ACME certificates | Built |
 | `internal/server/middleware/` | Security headers, trusted proxies, Origin check, base path | Built |
 | `internal/server/app/` | Assembles the database, services, routes and middleware | Built |
-| `internal/server/api/` | HTTP handlers and the router | Setup, sign-in, sessions, users, agent updates, audit log, enrollment, machines, metrics, live events, system tools, Docker, storage, alerts, files and scripts |
+| `internal/server/api/` | HTTP handlers and the router | Setup, sign-in, sessions, users, agent updates, audit log, enrollment, machines, metrics, live events, system tools, terminal, remote desktop, Docker, storage, alerts, files and scripts |
 | `internal/server/httpserver/` | Opens the listening socket and serves HTTP | Built |
 | `internal/server/store/` | SQLite connection, transactions, single writer, migrations | Built |
 | `internal/server/auth/` | Setup token, passwords, TOTP, recovery codes, sessions, rate limiting, roles | Built |
@@ -104,10 +104,10 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/server/serverkey/` | The server's Ed25519 identity key and its fingerprint | Built |
 | `internal/server/fleet/` | Enrollment tokens and the list of managed machines | Built |
 | `internal/server/hub/` | The agents' WebSocket endpoint: handshake, heartbeat, requests, streams, online status | Built |
-| `internal/server/relay/` | Joins a browser's terminal WebSocket to a stream on the agent's connection; who may resume a dropped terminal | Built |
+| `internal/server/relay/` | Joins a browser's terminal or remote desktop WebSocket to a stream on the agent's connection; who may resume a dropped terminal | Built |
 | `internal/server/registry/` | Docker registry logins (encrypted) and the results of image update checks | Built |
 | `internal/server/metrics/` | Stores metric samples, rolls them up and answers chart queries | Built |
-| `internal/server/scheduler/` | Runs periodic jobs (metric rollups and cleanup) | Built |
+| `internal/server/scheduler/` | Runs periodic jobs: metric rollups and cleanup, image checks, scheduled scripts, alert rules, automatic updates | Built |
 | `internal/server/web/` | Embeds the built React app into the server binary | Built |
 | `internal/shared/buildinfo/` | Version string shared by both binaries | Built |
 | `internal/shared/clock/` | The real clock and its timers; tests use `internal/testutil/fakeclock` | Built |
@@ -115,7 +115,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/testutil/` | Helpers used only by tests, including a fault-injecting network proxy | Built |
 | `internal/protocol/` | Message types, frames and handshake signatures shared by server and agent | Built |
 | `internal/server/scripts/` | The script library, runs on one machine, a tag or a set, their output, and cron schedules | Built |
-| `internal/server/alerts/` | Alert rules (metric, offline, storage, failed scheduled script), alerts firing and resolved, acknowledgement, and notifications by email, webhook, ntfy and Discord | Rules, channels, alerts, maintenance |
+| `internal/server/alerts/` | Alert rules (metric, offline, storage, failed scheduled script), alerts firing and resolved, acknowledgement, and notifications by email, webhook, ntfy and Discord; maintenance mode | Built |
 | `internal/agent/update/` | Self-update: fetch, verify (SEC-31), trial run, install, roll back (SEC-32) | Built |
 | `internal/agent/identity/` | The agent's key, ID and saved server key, in a root-only directory | Built |
 | `internal/agent/policy/` | Reads the local policy file that switches capabilities off | Built |
@@ -133,8 +133,13 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/storage/` | ZFS pools, datasets, vdevs and ARC; physical disks with SMART and pool membership; other filesystems. Read-only: zfs and zpool may only list, status and get | Built |
 | `internal/agent/files/` | The file manager: listing, chunked reads, resumable uploads, renames, deletes and text editing, inside the folders the local policy allows | Built |
 | `internal/agent/scripts/` | Runs a script with its interpreter, from a private temporary file, passing its output on and stopping it at its time limit | Built |
-| `internal/agent/<feature>/` | One package per agent feature (desktop, updates, ...) | Planned |
-| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power, files, storage and Docker; scripts with runs and schedules; alerts with rules and channels, users, firing alerts in the fleet and on each machine, maintenance mode |
+| `internal/agent/desktop/` | Remote desktop sessions: WebRTC answer, JPEG tiles, the WebSocket fallback, clipboard, monitors; the test pattern | Built |
+| `internal/agent/desktop/x11/` | Linux X11: finding the session, capture, XTEST input, the clipboard, RandR monitors, the consent prompt and session indicator windows | Built |
+| `internal/agent/desktop/helper/` | The desktop helper's protocol: a desktop served from the user's session over pipes | Built |
+| `internal/agent/desktop/windesktop/` | Windows: starting the helper in the console session; GDI capture, SendInput, SendSAS, clipboard, monitors | Built (untested on real machines) |
+| `internal/agent/desktop/macdesktop/` | macOS: starting the helper with launchctl; screencapture, CGEvent input, permissions, clipboard | Built (untested on real machines) |
+| `internal/server/turn/` | The TURN relay remote desktop falls back to, with per-session credentials | Built |
+| `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power, files, storage, Docker and remote desktop; scripts with runs and schedules; alerts with rules and channels, users, firing alerts in the fleet and on each machine, maintenance mode; updates |
 | `scripts/` | Dev and CI helper scripts | Built |
 | `docs/decisions/` | Why things are the way they are | Ongoing |
 

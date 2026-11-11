@@ -6,6 +6,7 @@ import {
   worstAuditEntries,
   worstContainers,
   worstLogs,
+  longDisplayName,
   worstMachine,
   worstProcesses,
   worstServices,
@@ -112,6 +113,8 @@ const screens: {
   { path: `/machines/${worstMachine.id}/docker/stacks`, ready: 'Stacks', role: 'region' },
   { path: `/machines/${worstMachine.id}/storage`, ready: 'Pools', role: 'region', allowAll: true },
   { path: worstFolderLink, ready: 'Files', role: 'region', allowAll: true },
+  // No desktop to share: the longest reason the server keeps.
+  { path: `/machines/${worstMachine.id}/desktop`, ready: longDisplayName, allowAll: true },
   { path: '/machines/add', ready: 'Add a machine' },
   { path: '/scripts', ready: 'Script library', role: 'region' },
   { path: '/scripts/runs/3', ready: /^Run of /, role: 'region' },

@@ -12,11 +12,13 @@ for terminals, Docker, ZFS-aware storage views and remote desktop.
   override.
 - **Readable code.** A student should be able to open any file and understand it.
 
-> **Status: early development.** The server, first-boot setup, sign-in with mandatory
-> two-factor authentication (TOTP or passkeys), the audit log, and connecting machines
-> (the agent, enrollment, live and historical metrics, tags and revocation) work. Terminal,
-> Docker, storage, files and remote desktop don't yet. The project is being built milestone
-> by milestone towards a single beta release, `v0.1.0-beta.1`.
+> **Status: beta candidate.** Everything planned for `v0.1.0-beta.1` is built: first-boot
+> setup, sign-in with mandatory two-factor authentication (TOTP or passkeys), the audit log,
+> machines with live and historical metrics, the terminal, services, processes, logs and
+> power, Docker and compose stacks, ZFS-aware storage, the file manager, scripts and
+> schedules, alerts and notifications, users, backups, signed self-updating agents, and
+> remote desktop. Remote desktop on Windows and macOS still needs testing on real machines,
+> and Wayland desktops aren't supported yet ([ADR 0036](docs/decisions/0036-desktop-helper-windows-macos.md)).
 
 ## Quick start (development)
 
@@ -42,8 +44,6 @@ bin/sentinel-agent enroll --server http://localhost:5173 --token TOKEN --fingerp
 bin/sentinel-agent run --state-dir .dev/agent/state --config-dir .dev/agent/etc
 ```
 
-Screenshots will be added here once there is a dashboard to show.
-
 ## Documentation
 
 | Document | What's in it |
@@ -53,7 +53,9 @@ Screenshots will be added here once there is a dashboard to show.
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pieces fit together |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | The words we use |
 | [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md) | Every third-party dependency and why it's here |
-| [docs/SECURITY.md](docs/SECURITY.md) | Reporting a vulnerability |
+| [docs/SECURITY.md](docs/SECURITY.md) | Reporting a vulnerability, and what limits a compromised server |
+| [docs/SECURITY-REVIEW.md](docs/SECURITY-REVIEW.md) | Every security requirement, how it is built and how it is tested |
+| [docs/QA-CHECKLIST.md](docs/QA-CHECKLIST.md) | The manual checks before a release |
 | [docs/decisions/](docs/decisions/) | Architecture decision records |
 
 ## License
