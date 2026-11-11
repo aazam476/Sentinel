@@ -30,6 +30,8 @@ const (
 type terminalRequest struct {
 	cols, rows uint16
 	resume     string
+	// user is who opens it, shown in the machine's tray.
+	user string
 }
 
 // shellTarget is what a terminal WebSocket opens: the machine's own shell,
@@ -52,7 +54,7 @@ type shellTarget struct {
 func machineShell() shellTarget {
 	return shellTarget{capability: "terminal", what: "The terminal", action: protocol.ActionTerminalOpen,
 		payload: func(stream protocol.StreamID, request terminalRequest) any {
-			return protocol.TerminalOpenPayload{StreamID: stream, Cols: request.cols, Rows: request.rows, ResumeSessionID: request.resume}
+			return protocol.TerminalOpenPayload{StreamID: stream, Cols: request.cols, Rows: request.rows, ResumeSessionID: request.resume, User: request.user}
 		},
 		auditPrefix: "terminal", details: map[string]any{}}
 }
@@ -62,7 +64,7 @@ func containerShell(container string) shellTarget {
 	return shellTarget{capability: "docker", what: "Docker", action: protocol.ActionDockerContainerExec,
 		payload: func(stream protocol.StreamID, request terminalRequest) any {
 			return protocol.ContainerExecPayload{ID: container, StreamID: stream, Cols: request.cols, Rows: request.rows,
-				ResumeSessionID: request.resume}
+				ResumeSessionID: request.resume, User: request.user}
 		},
 		auditPrefix: "docker.exec", details: map[string]any{"container": container}}
 }
@@ -130,7 +132,7 @@ func (h *handlers) checkTerminal(w http.ResponseWriter, r *http.Request, session
 		return fleet.Agent{}, terminalRequest{}, false
 	}
 	query := r.URL.Query()
-	request := terminalRequest{cols: terminalSize(query.Get("cols"), 80), rows: terminalSize(query.Get("rows"), 24), resume: query.Get("resume")}
+	request := terminalRequest{cols: terminalSize(query.Get("cols"), 80), rows: terminalSize(query.Get("rows"), 24), resume: query.Get("resume"), user: session.Username}
 	if request.resume != "" && !h.terminals.CanResume(request.resume, session.UserID, agent.ID) {
 		writeError(w, http.StatusNotFound, errorCodeNotFound, "That terminal session has ended.")
 		return fleet.Agent{}, terminalRequest{}, false

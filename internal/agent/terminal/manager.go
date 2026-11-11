@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
@@ -105,7 +106,8 @@ func (m *Manager) OpenWith(request protocol.TerminalOpenPayload, out Output, sta
 	if err != nil {
 		return protocol.TerminalOpenedPayload{}, fmt.Errorf("start a shell: %w", err)
 	}
-	s := &session{id: protocol.NewID(m.clock.Now()), shell: shell, manager: m}
+	now := m.clock.Now()
+	s := &session{id: protocol.NewID(now), user: request.User, started: now, shell: shell, manager: m}
 	m.mutex.Lock()
 	m.sessions[s.id] = s
 	m.mutex.Unlock()
@@ -174,6 +176,50 @@ func (m *Manager) StreamClosed(request protocol.StreamClosePayload) {
 	s.end("")
 }
 
+// Info describes a running shell, for the machine's tray.
+type Info struct {
+	ID      string
+	User    string
+	Started time.Time
+}
+
+// Sessions lists the running shells, oldest first.
+func (m *Manager) Sessions() []Info {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	infos := make([]Info, 0, len(m.sessions))
+	for _, s := range m.sessions {
+		infos = append(infos, Info{ID: s.id, User: s.user, Started: s.started})
+	}
+	slices.SortFunc(infos, func(a, b Info) int { return a.Started.Compare(b.Started) })
+	return infos
+}
+
+// End ends the shell with this ID, telling its viewer why. It reports
+// whether there was one.
+func (m *Manager) End(id, reason string) bool {
+	m.mutex.Lock()
+	s, found := m.sessions[id]
+	m.mutex.Unlock()
+	if found {
+		s.end(reason)
+	}
+	return found
+}
+
+// CloseAllFor ends every session, telling each viewer why.
+func (m *Manager) CloseAllFor(reason string) {
+	m.mutex.Lock()
+	sessions := make([]*session, 0, len(m.sessions))
+	for _, s := range m.sessions {
+		sessions = append(sessions, s)
+	}
+	m.mutex.Unlock()
+	for _, s := range sessions {
+		s.end(reason)
+	}
+}
+
 // DetachAll detaches every session, when the agent's connection drops: the
 // streams are gone, but the shells wait to be resumed.
 func (m *Manager) DetachAll() {
@@ -188,15 +234,7 @@ func (m *Manager) DetachAll() {
 
 // CloseAll ends every session, when the agent stops.
 func (m *Manager) CloseAll() {
-	m.mutex.Lock()
-	sessions := make([]*session, 0, len(m.sessions))
-	for _, s := range m.sessions {
-		sessions = append(sessions, s)
-	}
-	m.mutex.Unlock()
-	for _, s := range sessions {
-		s.end("the agent is stopping")
-	}
+	m.CloseAllFor("the agent is stopping")
 }
 
 func (m *Manager) forgetStream(stream protocol.StreamID) {

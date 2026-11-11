@@ -52,10 +52,14 @@ func setupOptions(paths identity.Paths, stdout io.Writer, dryRun bool) setup.Opt
 	if err != nil {
 		installed = unavailableService{err: err}
 	}
-	return setup.Options{
+	options := setup.Options{
 		Paths: paths, Service: installed, Enroll: core.Enroll, Hostname: os.Hostname,
 		Version: buildinfo.Version(), Out: stdout, DryRun: dryRun,
 	}
+	if executable, err := os.Executable(); err == nil {
+		options.Autostart = setup.MachineAutostart(executable)
+	}
+	return options
 }
 
 // runAgent is `sentinel-agent run`: under a service manager it runs as the
@@ -96,6 +100,7 @@ func buildAgent(paths identity.Paths, logger *slog.Logger, stderr io.Writer) (*c
 	if err != nil {
 		return nil, err
 	}
+	options.Tray = traySocket(paths, logger)
 	updater, err := newUpdater(paths, options.State, logger, stderr)
 	if err != nil {
 		logger.Warn("this agent can't update itself", "error", err)

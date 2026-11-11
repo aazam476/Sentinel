@@ -31,6 +31,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/stacks"
 	"github.com/aazam476/sentinel/internal/agent/storage"
 	"github.com/aazam476/sentinel/internal/agent/terminal"
+	"github.com/aazam476/sentinel/internal/agent/tray"
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/shared/clock"
 )
@@ -108,6 +109,11 @@ type Options struct {
 	// are open, when the local policy says to (SEC-23, SEC-24); nil uses
 	// this machine's desktop where there is a way to.
 	Notifier Notifier
+	// Tray, if set, serves the trays of the people signed in at the
+	// machine (internal/agent/tray): it hears the agent's status, asks
+	// before desktop sessions ahead of Notifier, and its commands end
+	// sessions and pause remote access.
+	Tray *tray.Server
 }
 
 // DesktopProvider finds the desktop to share (internal/agent/desktop).
@@ -222,6 +228,11 @@ type Agent struct {
 	sessions      sync.Mutex
 	cancelSession context.CancelFunc
 	paused        chan struct{}
+	// connected is whether a session with the server is up, for the tray.
+	connected atomic.Bool
+	// remotePaused is set while the person at the machine has paused
+	// remote access from the tray.
+	remotePaused atomic.Bool
 }
 
 // New returns an Agent; call Run to connect.
@@ -244,11 +255,14 @@ func New(options Options) *Agent {
 		updateReports: make(chan struct{}, 1),
 	}
 	agent.metricsInterval.Store(int64(defaultMetricsInterval))
-	agent.activity = &activity{logger: options.Logger}
-	if options.Policy.ShowSessionIndicator {
-		agent.activity.notifier = options.Notifier
-		agent.terminals.OnChange(agent.activity.setTerminals)
+	if options.Tray != nil {
+		agent.options.Notifier = tray.WithFallback(options.Tray, options.Notifier)
 	}
+	agent.activity = &activity{logger: options.Logger, changed: agent.publishStatus}
+	if options.Policy.ShowSessionIndicator {
+		agent.activity.notifier = agent.options.Notifier
+	}
+	agent.terminals.OnChange(agent.activity.setTerminals)
 	return agent
 }
 
@@ -294,6 +308,12 @@ func withMachineDefaults(options *Options) {
 func (a *Agent) Run(ctx context.Context) {
 	defer a.activity.close()
 	defer a.terminals.CloseAll()
+	if a.options.Tray != nil {
+		trays := make(chan struct{})
+		go func() { a.options.Tray.Serve(ctx, a); close(trays) }()
+		defer func() { <-trays }()
+		a.publishStatus()
+	}
 	sampling := make(chan struct{})
 	// The timer starts here, not in the goroutine, so the first sample is
 	// due a full interval after Run starts however late the goroutine runs.

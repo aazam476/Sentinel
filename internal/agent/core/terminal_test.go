@@ -72,7 +72,7 @@ func (s *server) openTerminal(t *testing.T, agentID, resume string) (*hub.Stream
 	}
 	var opened protocol.TerminalOpenedPayload
 	stream, err := s.hub.OpenStream(t.Context(), stored.ID, protocol.ActionTerminalOpen, func(id protocol.StreamID) any {
-		return protocol.TerminalOpenPayload{StreamID: id, Cols: 80, Rows: 24, ResumeSessionID: resume}
+		return protocol.TerminalOpenPayload{StreamID: id, Cols: 80, Rows: 24, ResumeSessionID: resume, User: "admin"}
 	}, &opened)
 	return stream, opened, err
 }

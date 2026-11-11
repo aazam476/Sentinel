@@ -1,6 +1,6 @@
 # 0034 — The consent prompt and the session indicator
 
-**Date:** 2026-11-10 · **Status:** Accepted
+**Date:** 2026-11-10 · **Status:** Accepted; Windows and macOS ask and show sessions through the tray (ADR 0038)
 
 ## Context
 

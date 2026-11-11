@@ -95,6 +95,9 @@ func (c *connection) openTerminal(_ context.Context, request protocol.Message) (
 	if refusal := c.refuseUnlessAllowed(policy.Terminal, "The terminal"); refusal != nil {
 		return nil, refusal
 	}
+	if refusal := c.agent.refuseWhilePaused(); refusal != nil {
+		return nil, refusal
+	}
 	var payload protocol.TerminalOpenPayload
 	if err := protocol.DecodePayload(request, &payload); err != nil {
 		return nil, invalidRequest(err)

@@ -263,3 +263,43 @@ func TestManager(t *testing.T) {
 		}
 	})
 }
+
+func TestTheTrayCanListAndEndShells(t *testing.T) {
+	f := newFixture()
+	firstOut := newFakeOutput()
+	opened, err := f.manager.Open(protocol.TerminalOpenPayload{StreamID: 1, Cols: 80, Rows: 24, User: "admin"}, firstOut)
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-f.shells
+	f.clock.Advance(time.Minute)
+	secondOut := newFakeOutput()
+	if _, err := f.manager.Open(protocol.TerminalOpenPayload{StreamID: 2, Cols: 80, Rows: 24, User: "ops"}, secondOut); err != nil {
+		t.Fatal(err)
+	}
+	<-f.shells
+
+	sessions := f.manager.Sessions()
+	if len(sessions) != 2 || sessions[0].ID != opened.SessionID || sessions[0].User != "admin" || sessions[1].User != "ops" ||
+		!sessions[1].Started.After(sessions[0].Started) {
+		t.Fatalf("sessions = %+v, want admin's then ops's", sessions)
+	}
+
+	if !f.manager.End(opened.SessionID, "ended at the machine") {
+		t.Error("End = false for a running shell")
+	}
+	if reason := <-firstOut.closed; reason != "ended at the machine" {
+		t.Errorf("reason = %q", reason)
+	}
+	if f.manager.End(opened.SessionID, "again") {
+		t.Error("End = true for a shell that has ended")
+	}
+
+	f.manager.CloseAllFor("paused")
+	if reason := <-secondOut.closed; reason != "paused" {
+		t.Errorf("reason = %q", reason)
+	}
+	if left := f.manager.Sessions(); len(left) != 0 {
+		t.Errorf("sessions after CloseAllFor = %+v", left)
+	}
+}

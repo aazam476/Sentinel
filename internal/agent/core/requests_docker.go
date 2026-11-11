@@ -115,6 +115,9 @@ func dockerCall[P any](c *connection, run func(ctx context.Context, payload P) (
 }
 
 func (c *connection) dockerError(err error) *protocol.Error {
+	if errors.Is(err, errRemoteAccessPaused) {
+		return &protocol.Error{Code: protocol.ErrorPolicyDenied, Message: pausedMessage}
+	}
 	switch {
 	case errors.Is(err, docker.ErrUnavailable), errors.Is(err, stacks.ErrUnavailable):
 		return &protocol.Error{Code: protocol.ErrorDockerUnavailable, Message: "Docker wasn’t found on this machine: " + err.Error()}
@@ -134,12 +137,15 @@ func (c *connection) dockerError(err error) *protocol.Error {
 // terminal session like any other, so input, resizes, closing and resuming
 // use the terminal's stream handling.
 func (c *connection) execInContainer(request protocol.ContainerExecPayload) (any, error) {
+	if c.agent.remotePaused.Load() {
+		return nil, errRemoteAccessPaused
+	}
 	start, err := c.agent.options.Docker.ExecStarter(request.ID, request.Command)
 	if err != nil {
 		return nil, err
 	}
 	open := protocol.TerminalOpenPayload{StreamID: request.StreamID, Cols: request.Cols, Rows: request.Rows,
-		ResumeSessionID: request.ResumeSessionID}
+		ResumeSessionID: request.ResumeSessionID, User: request.User}
 	opened, err := c.agent.terminals.OpenWith(open, streamOutput{conn: c}, start)
 	if errors.Is(err, terminal.ErrSessionEnded) {
 		return nil, fmt.Errorf("%w: that terminal session has ended", docker.ErrNotFound)

@@ -60,7 +60,7 @@ func (c *connection) handleStreamClose(message protocol.Message) {
 // follow runs run for a stream until it returns, the server closes the
 // stream, or the connection ends. run's reason, if it ends by itself, is
 // sent to the server as the stream's close reason.
-func (c *connection) follow(connected context.Context, stream protocol.StreamID, run func(ctx context.Context) (reason string)) {
+func (c *connection) follow(connected context.Context, stream protocol.StreamID, run func(ctx context.Context) (reason string)) (stop context.CancelFunc) {
 	ctx, stop := context.WithCancel(connected)
 	c.followers.Store(stream, stop)
 	go func() {
@@ -71,4 +71,5 @@ func (c *connection) follow(connected context.Context, stream protocol.StreamID,
 			streamOutput{conn: c}.CloseStream(connected, stream, reason)
 		}
 	}()
+	return stop
 }

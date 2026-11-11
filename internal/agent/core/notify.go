@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -73,54 +74,91 @@ func consentQuestion(request protocol.DesktopStartPayload) string {
 	return fmt.Sprintf("%s wants to %s this screen through Sentinel. Allow it?", who, doing)
 }
 
-// activity keeps the session indicator (SEC-24) in step with the remote
-// sessions open: shells and desktop sessions.
+// activity keeps the session indicator (SEC-24) and the tray in step with
+// the remote sessions open: shells and desktop sessions.
 type activity struct {
+	// notifier shows the indicator; nil when the local policy doesn't.
 	notifier Notifier
 	logger   *slog.Logger
+	// changed is told after every change, without the lock held.
+	changed func()
 
 	mutex     sync.Mutex
 	terminals int
-	desktops  []string
+	desktops  []desktopSession
 	shown     io.Closer
+}
+
+// desktopSession is a remote desktop session in progress.
+type desktopSession struct {
+	id    string
+	user  string
+	since time.Time
+	// stop ends it, telling the viewer why.
+	stop func(reason string)
 }
 
 // setTerminals records how many shells run.
 func (a *activity) setTerminals(running int) {
 	a.mutex.Lock()
-	defer a.mutex.Unlock()
 	a.terminals = running
 	a.update()
+	a.mutex.Unlock()
+	a.changed()
 }
 
-// beginDesktop records a desktop session by user, until end is called.
-func (a *activity) beginDesktop(user string) (end func()) {
+// beginDesktop records a desktop session until end is called.
+func (a *activity) beginDesktop(session desktopSession) (end func()) {
 	a.mutex.Lock()
-	defer a.mutex.Unlock()
-	a.desktops = append(a.desktops, user)
+	a.desktops = append(a.desktops, session)
 	a.update()
+	a.mutex.Unlock()
+	a.changed()
 	var once sync.Once
 	return func() {
 		once.Do(func() {
 			a.mutex.Lock()
-			defer a.mutex.Unlock()
-			for i, name := range a.desktops {
-				if name == user {
-					a.desktops = append(a.desktops[:i], a.desktops[i+1:]...)
-					break
-				}
-			}
+			a.desktops = slices.DeleteFunc(a.desktops, func(open desktopSession) bool { return open.id == session.id })
 			a.update()
+			a.mutex.Unlock()
+			a.changed()
 		})
+	}
+}
+
+// desktopSessions lists the desktop sessions in progress.
+func (a *activity) desktopSessions() []desktopSession {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+	return slices.Clone(a.desktops)
+}
+
+// endDesktop ends the desktop session with this ID; it reports whether
+// there was one.
+func (a *activity) endDesktop(id, reason string) bool {
+	for _, session := range a.desktopSessions() {
+		if session.id == id {
+			session.stop(reason)
+			return true
+		}
+	}
+	return false
+}
+
+// endDesktops ends every desktop session.
+func (a *activity) endDesktops(reason string) {
+	for _, session := range a.desktopSessions() {
+		session.stop(reason)
 	}
 }
 
 // close takes the indicator away.
 func (a *activity) close() {
 	a.mutex.Lock()
-	defer a.mutex.Unlock()
 	a.terminals, a.desktops = 0, nil
 	a.update()
+	a.mutex.Unlock()
+	a.changed()
 }
 
 // update shows the indicator with what is open now, or takes it away.
@@ -130,7 +168,11 @@ func (a *activity) update() {
 		_ = a.shown.Close() // replaced or gone either way
 		a.shown = nil
 	}
-	text := activityText(a.terminals, a.desktops)
+	users := make([]string, 0, len(a.desktops))
+	for _, session := range a.desktops {
+		users = append(users, session.user)
+	}
+	text := activityText(a.terminals, users)
 	if text == "" || a.notifier == nil {
 		return
 	}

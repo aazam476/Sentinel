@@ -6,6 +6,7 @@
 //	sentinel-agent enroll    (the same flags; enrolls without installing the service)
 //	sentinel-agent run       (what the service runs; also works in a terminal)
 //	sentinel-agent uninstall [--dry-run]
+//	sentinel-agent tray      (the menu bar or notification area icon; Windows and macOS)
 //	sentinel-agent version
 //
 // This file only parses arguments and wires things together. The logic
@@ -58,6 +59,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runAgent(args[1:], stderr)
 	case "desktop-helper":
 		return runDesktopHelper(stderr)
+	case "tray":
+		return runTray(args[1:], stderr)
 	default:
 		_, _ = fmt.Fprintf(stderr, "sentinel-agent: unknown command %q\n\n", args[0])
 		printUsage(stderr)
@@ -136,6 +139,7 @@ func printUsage(output io.Writer) {
 		"  sentinel-agent run          connect and serve (what the service runs)",
 		"  sentinel-agent uninstall [--dry-run]",
 		"                              remove the service and the agent's files",
+		"  sentinel-agent tray         show the agent in the menu bar or notification area",
 		"  sentinel-agent version      print the version and exit",
 		"  sentinel-agent help         show this help",
 	}

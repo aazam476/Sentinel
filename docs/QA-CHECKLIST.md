@@ -12,6 +12,15 @@ Record each run as: **pass/fail · OS and version · date · tester · notes**.
 - [ ] Screen Recording permission prompt appears and remote desktop works after granting it
 - [ ] Accessibility permission prompt appears and remote input works after granting it
 - [ ] After denying a permission, the UI explains how to re-enable it, and re-enabling works
+- [ ] After install, the Sentinel icon appears in the menu bar for the user at the screen, and
+      for another user at their next sign-in; only one appears per user
+- [ ] The menu names the server, lists an open terminal and desktop session with who opened
+      them, and **End** closes each; the browser says the person at the machine ended it
+- [ ] **Pause remote access** ends open sessions, refuses new ones, survives a restart of the
+      agent, and **Resume** allows them again
+- [ ] With `desktop_requires_consent`, the dialog appears, Don't Allow is the default, and
+      Allow starts the session; with the tray quit, the session is refused
+- [ ] The icon reads well in light and dark menu bars and on a Retina screen
 
 ## Windows
 
@@ -19,6 +28,14 @@ Record each run as: **pass/fail · OS and version · date · tester · notes**.
 - [ ] Defender behavior on install and first run
 - [ ] A UAC prompt is visible and usable over remote desktop
 - [ ] The login screen is reachable over remote desktop
+- [ ] After install and sign-in, the Sentinel icon appears in the notification area (also
+      after Explorer restarts); only one per user, also with fast user switching
+- [ ] The menu, **End**, **Pause** and **Resume** work as on macOS; a balloon announces a new
+      session
+- [ ] With `desktop_requires_consent`, the dialog is in front of other windows, No is the
+      default, and it closes by itself when the question times out
+- [ ] A standard (non-administrator) user can use the tray; a user connected over Remote
+      Desktop can't open the tray socket
 
 ## Linux Wayland
 

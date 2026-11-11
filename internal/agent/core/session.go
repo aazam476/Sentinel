@@ -70,6 +70,9 @@ func (a *Agent) session(ctx context.Context) (welcomed bool, err error) {
 	if welcome.HeartbeatSeconds > 0 {
 		pingInterval = time.Duration(welcome.HeartbeatSeconds) * time.Second
 	}
+	a.connected.Store(true)
+	a.publishStatus()
+	defer func() { a.connected.Store(false); a.publishStatus() }()
 	c := &connection{agent: a, conn: conn}
 	c.lastActivity.Store(a.options.Clock.Now().UnixMilli())
 	return true, c.serve(ctx, pingInterval)

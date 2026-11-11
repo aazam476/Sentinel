@@ -17,8 +17,10 @@ for terminals, Docker, ZFS-aware storage views and remote desktop.
 > machines with live and historical metrics, the terminal, services, processes, logs and
 > power, Docker and compose stacks, ZFS-aware storage, the file manager, scripts and
 > schedules, alerts and notifications, users, backups, signed self-updating agents, and
-> remote desktop. Remote desktop on Windows and macOS still needs testing on real machines,
-> and Wayland desktops aren't supported yet ([ADR 0036](docs/decisions/0036-desktop-helper-windows-macos.md)).
+> remote desktop, and a Sentinel icon in the Windows notification area and the macOS menu bar
+> for the person at the machine ([ADR 0038](docs/decisions/0038-tray.md)). Remote desktop and
+> the tray on Windows and macOS still need testing on real machines, and Wayland desktops
+> aren't supported yet ([ADR 0036](docs/decisions/0036-desktop-helper-windows-macos.md)).
 
 ## Quick start (development)
 

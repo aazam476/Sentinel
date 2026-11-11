@@ -145,8 +145,8 @@ func TestTerminal(t *testing.T) {
 			t.Fatal(err)
 		}
 		open := f.acceptOpen(t, "s1", false)
-		if open.Cols != 132 || open.Rows != 43 {
-			t.Errorf("agent was asked for %dx%d", open.Cols, open.Rows)
+		if open.Cols != 132 || open.Rows != 43 || open.User != "admin" {
+			t.Errorf("agent was asked for %dx%d for %q, want admin's", open.Cols, open.Rows, open.User)
 		}
 		if status := browserStatus(t, browser); status.Type != "opened" || status.SessionID != "s1" {
 			t.Errorf("status = %+v", status)

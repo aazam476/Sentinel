@@ -18,6 +18,8 @@ const sendTimeout = 10 * time.Second
 // session is one shell and whoever is watching it.
 type session struct {
 	id      string
+	user    string
+	started time.Time
 	shell   Shell
 	manager *Manager
 

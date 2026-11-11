@@ -131,6 +131,8 @@ type ContainerExecPayload struct {
 	// ResumeSessionID reattaches to a session whose viewer dropped, as for
 	// terminal.open; the answer is a TerminalOpenedPayload.
 	ResumeSessionID string `json:"resumeSessionId,omitempty"`
+	// User is who opened it, as for terminal.open.
+	User string `json:"user,omitempty"`
 }
 
 // Image is one image on the machine.

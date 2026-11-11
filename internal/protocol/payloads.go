@@ -112,6 +112,8 @@ type TerminalOpenPayload struct {
 	Rows     uint16   `json:"rows"`
 	// ResumeSessionID reattaches to that session instead of starting one.
 	ResumeSessionID string `json:"resumeSessionId,omitempty"`
+	// User is who opened it, for the tray on the machine (ADR 0038).
+	User string `json:"user,omitempty"`
 }
 
 // TerminalOpenedPayload answers terminal.open.

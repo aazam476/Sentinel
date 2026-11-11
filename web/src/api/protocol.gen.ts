@@ -499,6 +499,10 @@ export interface ContainerExecPayload {
    * terminal.open; the answer is a TerminalOpenedPayload.
    */
   resumeSessionId?: string;
+  /**
+   * User is who opened it, as for terminal.open.
+   */
+  user?: string;
 }
 /**
  * Image is one image on the machine.

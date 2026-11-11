@@ -126,17 +126,27 @@ core and API tests.
 **SEC-23 Desktop consent.** With `desktop_requires_consent = true`, the logged-in user is shown
 who asks and must click Allow; Deny, 25 seconds without an answer, or no one to ask refuses the
 session (`internal/agent/core/notify.go`, `internal/agent/desktop/x11/notify.go`, ADR 0034).
+On Windows and macOS the question goes to every connected Sentinel tray and the first answer
+decides (`internal/agent/tray/server.go`, ADR 0038).
 *Tests:* `TestSEC23_TheConsentPrompt` (clicking Allow and Deny on a real Xvfb),
-`TestSEC23_NoOneToAsk`, `TestSEC23_ThePersonAtTheMachineAllowsRemoteDesktop`.
-*Limits:* the prompt exists on Linux X11 only; on Windows, macOS and Wayland the setting
-refuses every desktop session (fails closed).
+`TestSEC23_NoOneToAsk`, `TestSEC23_ThePersonAtTheMachineAllowsRemoteDesktop`,
+`TestSEC23_TheFirstTrayToAnswerDecides`, `TestSEC23_AnUnansweredQuestionGivesUp`,
+`TestSEC23_TheTrayAsksBeforeRemoteDesktop`.
+*Limits:* with no tray running on Windows or macOS, and on Wayland, the setting refuses every
+desktop session (fails closed). Anyone signed in at a Windows machine can answer, not only
+the user whose screen is shared. The Windows and macOS dialogs haven't been tried on real
+machines.
 
 **SEC-24 Session indicator.** With `show_session_indicator = true`, a bar at the top of the
 screen names who is on the desktop and how many terminals are open, while any are.
+On Windows and macOS the tray lists the open sessions, with who opened each, turns its icon
+red with a dot and announces each session; the person at the machine can end any of them or
+pause remote access.
 *Tests:* `TestSEC24_TheSessionIndicator` (on Xvfb, and in the agent core following a desktop
-session and a terminal).
-*Limits:* Linux X11 only; elsewhere, and on machines with no one logged in, the agent logs that
-it couldn't show it.
+session and a terminal), `TestSEC24_TheTrayListsSessionsAndEndsThem`, `TestSEC24_ShowNeedsATray`,
+`TestTheTrayPausesRemoteAccess`.
+*Limits:* where no one is logged in, or no tray is running, the agent logs that it couldn't
+show it.
 
 **SEC-25 File paths.** The policy's `allowed_paths` confine the file manager; paths are cleaned
 and checked after resolving symlinks, so `..` and links can't leave them
@@ -145,9 +155,11 @@ and checked after resolving symlinks, so `..` and links can't leave them
 
 **SEC-26 No listening port.** The agent only dials out. The Windows and macOS desktop helper
 talks to the agent over the child process's pipes, and remote desktop's WebRTC connections are
-answered, not listened for.
-*Tests:* `TestSEC26_TheAgentNeverListensOnANetworkPort` (inspects the agent's open sockets while
-connected), the helper protocol tests over pipes.
+answered, not listened for. The tray's socket is a local Unix socket, which only users signed
+in at the machine (Windows) or the console user and root (macOS) may use; Linux opens none.
+*Tests:* `TestSEC26_TheAgentNeverListensOnANetworkPort` (scans the agent's source: the one
+listener allowed is the tray's, and it must be `"unix"`), the helper protocol tests over pipes,
+`TestListenOnlyServesPermittedUsers`.
 
 ## Updates and supply chain
 

@@ -5,6 +5,8 @@ package core
 import (
 	"context"
 	"errors"
+	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/aazam476/sentinel/internal/agent/desktop"
@@ -27,6 +29,9 @@ func (a *Agent) desktopAvailability(ctx context.Context) protocol.DesktopAvailab
 	if !a.options.Policy.Allows(policy.Desktop) {
 		return protocol.DesktopAvailability{Reason: policy.DisabledReason}
 	}
+	if a.remotePaused.Load() {
+		return protocol.DesktopAvailability{Reason: pausedMessage}
+	}
 	return a.options.Desktop.Availability(ctx)
 }
 
@@ -44,6 +49,9 @@ func (o desktopOutput) Send(ctx context.Context, data []byte) error {
 // runs until the server closes the stream or the connection ends.
 func (c *connection) startDesktop(ctx context.Context, request protocol.Message) (any, *protocol.Error) {
 	if refusal := c.refuseUnlessAllowed(policy.Desktop, "Remote desktop"); refusal != nil {
+		return nil, refusal
+	}
+	if refusal := c.agent.refuseWhilePaused(); refusal != nil {
 		return nil, refusal
 	}
 	var payload protocol.DesktopStartPayload
@@ -71,17 +79,37 @@ func (c *connection) startDesktop(ctx context.Context, request protocol.Message)
 		ViewOnly: payload.ViewOnly, ICEServers: payload.ICEServers, Clock: c.agent.options.Clock, Logger: c.agent.options.Logger,
 	})
 	width, height := source.Size()
-	endActivity := c.agent.activity.beginDesktop(payload.User)
-	c.follow(ctx, payload.StreamID, func(ctx context.Context) string {
+	c.runDesktop(ctx, payload, source, func(ctx context.Context) error {
+		return session.Run(ctx, inbound, desktopOutput{conn: c, stream: payload.StreamID})
+	})
+	return protocol.DesktopStartedPayload{Source: source.Name(), Width: width, Height: height}, nil
+}
+
+// runDesktop runs a started session on its stream until it ends, listed
+// for the indicator and the tray, which can stop it.
+func (c *connection) runDesktop(ctx context.Context, payload protocol.DesktopStartPayload, source desktop.Source, run func(context.Context) error) {
+	var stoppedBecause atomic.Pointer[string]
+	var endActivity func()
+	listed := make(chan struct{})
+	stop := c.follow(ctx, payload.StreamID, func(ctx context.Context) string {
+		<-listed
 		defer endActivity()
 		defer c.agent.desktopInputs.Delete(payload.StreamID)
 		defer func() { _ = source.Close() }() // the session is over either way
-		if err := session.Run(ctx, inbound, desktopOutput{conn: c, stream: payload.StreamID}); err != nil {
+		err := run(ctx)
+		if reason := stoppedBecause.Load(); reason != nil {
+			return *reason
+		}
+		if err != nil {
 			return err.Error()
 		}
 		return "the session ended"
 	})
-	return protocol.DesktopStartedPayload{Source: source.Name(), Width: width, Height: height}, nil
+	endActivity = c.agent.activity.beginDesktop(desktopSession{
+		id: "desktop-" + strconv.FormatUint(uint64(payload.StreamID), 10), user: payload.User, since: c.agent.options.Clock.Now(),
+		stop: func(reason string) { stoppedBecause.Store(&reason); stop() },
+	})
+	close(listed)
 }
 
 // reportDesktop records what the server is told about the desktop, in the

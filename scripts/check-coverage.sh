@@ -17,7 +17,8 @@ module="$(go list -m)"
 
 # Packages whose bugs would weaken security: authentication of users and
 # agents (the handshake lives in protocol, hub and agent/core), enrollment, keys,
-# secrets, the audit log, the agent's policy and updates.
+# secrets, the audit log, the agent's policy and updates, and the tray's
+# socket, which asks for desktop consent and pauses remote access.
 security_critical=(
   "$module/internal/server/secrets"
   "$module/internal/server/backup"
@@ -33,6 +34,7 @@ security_critical=(
   "$module/internal/agent/identity"
   "$module/internal/agent/policy"
   "$module/internal/agent/update"
+  "$module/internal/agent/tray"
 )
 
 is_security_critical() {

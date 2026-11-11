@@ -32,9 +32,19 @@ type Options struct {
 	// Hostname is os.Hostname; tests replace it.
 	Hostname func() (string, error)
 	Version  string
+	// Autostart starts the tray for everyone who signs in; nil on systems
+	// without one.
+	Autostart Autostart
 	// Out receives a line for every step.
 	Out    io.Writer
 	DryRun bool
+}
+
+// Autostart starts `sentinel-agent tray` for each person who signs in at
+// the machine (ADR 0038): a Run entry on Windows, a launch agent on macOS.
+type Autostart interface {
+	Install() error
+	Uninstall() error
 }
 
 // Server is what the install command says about the server.
@@ -101,6 +111,9 @@ func Install(ctx context.Context, options Options, server Server) error {
 	}
 	if options.DryRun {
 		options.say("Would install the Sentinel Agent service and start it")
+		if options.Autostart != nil {
+			options.say("Would start the Sentinel tray for everyone who signs in")
+		}
 		return nil
 	}
 	if err := options.Service.Install(); err != nil {
@@ -110,7 +123,21 @@ func Install(ctx context.Context, options Options, server Server) error {
 		return fmt.Errorf("start the service: %w", err)
 	}
 	options.say("Installed and started the Sentinel Agent service")
+	options.installAutostart()
 	return nil
+}
+
+// installAutostart starts the tray at sign-in. The agent works without
+// it, so a failure is reported, not returned.
+func (options Options) installAutostart() {
+	if options.Autostart == nil {
+		return
+	}
+	if err := options.Autostart.Install(); err != nil {
+		options.say("The Sentinel tray won't start at sign-in (%v); run `sentinel-agent tray` to show it", err)
+		return
+	}
+	options.say("The Sentinel icon will show in the menu bar or notification area for everyone who signs in")
 }
 
 // Uninstall stops and removes the service and deletes the agent's state
@@ -127,6 +154,13 @@ func Uninstall(options Options) error {
 		options.say("The service wasn't removed (%v); it may not have been installed", err)
 	} else {
 		options.say("Removed the Sentinel Agent service")
+	}
+	if options.Autostart != nil {
+		if err := options.Autostart.Uninstall(); err != nil {
+			options.say("The tray's sign-in entry wasn't removed (%v)", err)
+		} else {
+			options.say("The Sentinel tray no longer starts at sign-in")
+		}
 	}
 	for _, dir := range []string{options.Paths.StateDir, options.Paths.ConfigDir} {
 		if err := os.RemoveAll(dir); err != nil {

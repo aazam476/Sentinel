@@ -44,6 +44,7 @@ Traefik, Cloudflare Tunnel, Tailscale and so on.
 | `sentinel-server` | An unprivileged `sentinel` user | It only serves the UI and API and relays traffic |
 | `sentinel-agent` | root (Linux, macOS) or SYSTEM (Windows) | Storage, Docker, services, packages, power and files need it |
 | `sentinel-agent desktop-helper` | Inside the logged-in user's GUI session | Screen capture and input have to happen there |
+| `sentinel-agent tray` | Each signed-in user's session, Windows and macOS | Shows the person at the machine the agent's status and sessions, asks for consent, pauses remote access; talks to the service over a local Unix socket |
 
 A **policy file** on each machine, owned by root, can switch off any capability. The server
 can't change it, which limits what a compromised server can do.
@@ -138,6 +139,9 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/desktop/helper/` | The desktop helper's protocol: a desktop served from the user's session over pipes | Built |
 | `internal/agent/desktop/windesktop/` | Windows: starting the helper in the console session; GDI capture, SendInput, SendSAS, clipboard, monitors | Built (untested on real machines) |
 | `internal/agent/desktop/macdesktop/` | macOS: starting the helper with launchctl; screencapture, CGEvent input, permissions, clipboard | Built (untested on real machines) |
+| `internal/agent/tray/` | The tray's socket and messages: the agent's status, consent questions, ending sessions and pausing (ADR 0038) | Built |
+| `internal/agent/tray/winui/` | Windows: the notification area icon, its menu, balloons and the consent dialog | Built (untested on real machines) |
+| `internal/agent/tray/macui/` | macOS: the menu bar item, its menu, notifications and the consent dialog | Built (untested on real machines) |
 | `internal/server/turn/` | The TURN relay remote desktop falls back to, with per-session credentials | Built |
 | `web/` | The React web UI | Setup, sign-in, account, audit log, fleet, add machine, machine view with terminal, services, processes, logs, power, files, storage, Docker and remote desktop; scripts with runs and schedules; alerts with rules and channels, users, firing alerts in the fleet and on each machine, maintenance mode; updates |
 | `scripts/` | Dev and CI helper scripts | Built |

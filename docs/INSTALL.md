@@ -222,7 +222,9 @@ xauthority = "/home/kiosk/.Xauthority"
 ```
 
 To be asked before each remote desktop session, and to see a notice while anyone is
-connected, add these at the top of the policy (see [SECURITY.md](SECURITY.md)):
+connected, add these at the top of the policy (see [SECURITY.md](SECURITY.md)). On Linux the
+question and the notice appear on the X11 screen; on Windows and macOS they come from the
+Sentinel tray (below):
 
 ```toml
 desktop_requires_consent = true
@@ -236,6 +238,31 @@ instead. The Desktop tab then shows colour bars and marks where you click:
 [desktop]
 test_pattern = true
 ```
+
+### The Sentinel tray (Windows and macOS)
+
+On Windows and macOS, `sentinel-agent install` also starts the Sentinel icon for everyone who
+signs in: in the notification area by the clock on Windows, in the menu bar on macOS. On a Mac
+it appears straight away for whoever is at the screen; on Windows, at the next sign-in, or run
+`"C:\Program Files\Sentinel\sentinel-agent.exe" tray` to show it now. Its colour and shape say
+what the agent is doing: grey and hollow when it isn't connected, green when it is, red with a
+dot while someone is connected to the machine, amber with two bars when remote access is
+paused. Its menu shows:
+
+- which server the agent is connected to, or that it is retrying;
+- every terminal and remote desktop session open now, with who opened it and when, each with
+  **End** to close it (when the policy sets `show_session_indicator`);
+- **Pause remote access**, which ends every open terminal and desktop session and refuses new
+  ones until you choose **Resume remote access**. Monitoring, alerts and everything else carry
+  on, and the machine page says remote access is paused. A pause lasts through restarts.
+
+When the policy sets `desktop_requires_consent`, the tray asks before each remote desktop
+session, naming who asks and whether they want to see or also control the screen. Don't Allow
+is the default; no answer within 25 seconds refuses. With no tray running, the session is
+refused. Anyone signed in at the machine can answer and pause.
+
+The tray talks to the agent over a local socket that only people signed in at the machine can
+open, never a network port (ADR 0038). `sentinel-agent uninstall` removes it.
 
 ### Updates
 

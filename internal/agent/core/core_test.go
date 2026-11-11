@@ -335,9 +335,12 @@ func TestConnectURL(t *testing.T) {
 
 // TestSEC26_TheAgentNeverListensOnANetworkPort checks the agent's source:
 // no code under internal/agent or cmd/sentinel-agent opens a listening
-// socket. The agent only dials out.
+// socket, except the tray's local Unix socket (ADR 0038), which must say
+// so. The agent only dials out to the network.
 func TestSEC26_TheAgentNeverListensOnANetworkPort(t *testing.T) {
-	listening := regexp.MustCompile(`net\.Listen|ListenConfig|ListenPacket|ListenAndServe|net\.ListenTCP|net\.ListenUDP|httptest\.`)
+	listening := regexp.MustCompile(`net\.Listen(TCP|UDP|Unix|Packet)?\(|ListenConfig|ListenPacket|ListenAndServe|httptest\.`)
+	// The one place allowed to listen, and the call it must make there.
+	const traySocket, trayCall = "agent/tray/listen.go", `config.Listen(context.Background(), "unix", path)`
 	for _, root := range []string{"../../agent", "../../../cmd/sentinel-agent"} {
 		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 			if err != nil || entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
@@ -346,6 +349,12 @@ func TestSEC26_TheAgentNeverListensOnANetworkPort(t *testing.T) {
 			source, err := os.ReadFile(path) //nolint:gosec // G304: walking this repository's own source
 			if err != nil {
 				return err
+			}
+			if filepath.ToSlash(path) == "../../"+traySocket {
+				if len(listening.FindAll(source, -1)) != 1 || !strings.Contains(string(source), trayCall) {
+					t.Errorf("%s may only listen on a Unix socket, with %s", path, trayCall)
+				}
+				return nil
 			}
 			if match := listening.Find(source); match != nil {
 				t.Errorf("%s calls %s; the agent must never listen", path, match)

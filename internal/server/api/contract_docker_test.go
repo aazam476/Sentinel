@@ -133,7 +133,7 @@ func TestDockerContainers(t *testing.T) {
 		}
 		open := f.agentRead(t, protocol.TypeRequest)
 		var payload protocol.ContainerExecPayload
-		if err := protocol.DecodePayload(open, &payload); err != nil || open.Action != protocol.ActionDockerContainerExec || payload.ID != "web" {
+		if err := protocol.DecodePayload(open, &payload); err != nil || open.Action != protocol.ActionDockerContainerExec || payload.ID != "web" || payload.User != "admin" {
 			t.Fatalf("agent got %s %+v (%v)", open.Action, payload, err)
 		}
 		if err := protocol.WriteMessage(t.Context(), f.agent, protocol.Message{Type: protocol.TypeResponse, ID: open.ID},
