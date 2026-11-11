@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("sentinel-signature v1\nname: sentinel-agent\nversion: v1.2.0\nos: linux\narch: amd64\nsha256: 2460483C62fd5d8008B54103e278f9d5630B1e6C3C29882dB335BB8C4224C4e5\nsignature: Y32rHAK5pS2Tlula9HIVShuJc1p+0qDCrRKFUZaO726LSMppT5JYjTi8+V7SgKATjApqjxcthv3AVNqtc8L2B0==")

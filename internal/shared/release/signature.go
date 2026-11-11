@@ -102,12 +102,14 @@ func ParseSignature(file []byte, keys []ed25519.PublicKey) (Manifest, error) {
 	}
 	manifest := Manifest{Name: fields["name"], Version: fields["version"], OS: fields["os"], Arch: fields["arch"]}
 	digest, err := hex.DecodeString(fields["sha256"])
-	if err != nil || len(digest) != sha256.Size {
+	// Only the canonical encodings are accepted, so one manifest has exactly
+	// one signature file (lowercase hex, padded base64 with zero spare bits).
+	if err != nil || len(digest) != sha256.Size || hex.EncodeToString(digest) != fields["sha256"] {
 		return Manifest{}, ErrBadSignature
 	}
 	copy(manifest.SHA256[:], digest)
-	signature, err := base64.StdEncoding.DecodeString(fields["signature"])
-	if err != nil || manifest.validate() != nil {
+	signature, err := base64.StdEncoding.Strict().DecodeString(fields["signature"])
+	if err != nil || base64.StdEncoding.EncodeToString(signature) != fields["signature"] || manifest.validate() != nil {
 		return Manifest{}, ErrBadSignature
 	}
 	signed := manifest.signed()
