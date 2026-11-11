@@ -56,6 +56,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runUninstall(args[1:], stdout, stderr)
 	case "run":
 		return runAgent(args[1:], stderr)
+	case "desktop-helper":
+		return runDesktopHelper(stderr)
 	default:
 		_, _ = fmt.Fprintf(stderr, "sentinel-agent: unknown command %q\n\n", args[0])
 		printUsage(stderr)

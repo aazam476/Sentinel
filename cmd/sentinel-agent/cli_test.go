@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -136,4 +137,14 @@ func TestAgentSetupCommands(t *testing.T) {
 			t.Errorf("exit %d, stderr %q", result.ExitCode, result.Stderr)
 		}
 	})
+}
+
+func TestDesktopHelperOnLinux(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("on Linux the agent needs no helper; elsewhere the helper needs a desktop session")
+	}
+	result := clitest.Run(t, clitest.Build(t, "github.com/aazam476/sentinel/cmd/sentinel-agent"), "desktop-helper")
+	if result.ExitCode != 1 || !strings.Contains(result.Stderr, "the desktop helper is for Windows and macOS") {
+		t.Errorf("desktop-helper = %d, %q", result.ExitCode, result.Stderr)
+	}
 }

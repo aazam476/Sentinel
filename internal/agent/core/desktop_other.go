@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//go:build !linux
+//go:build !linux && !windows && !darwin
 
 package core
 

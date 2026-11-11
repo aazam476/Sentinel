@@ -201,11 +201,16 @@ page shows what the policy turns off.
 
 ### Remote desktop
 
+On Windows, remote desktop shares whoever is at the console, including the login screen and
+UAC prompts, and has a Ctrl+Alt+Del button. On macOS it shares the logged-in user's screen once
+they allow `sentinel-agent` under System Settings, Privacy & Security, both **Screen
+Recording** and **Accessibility**; until then the machine page says permission is needed. The
+Mac's picture updates a few times a second.
+
 On Linux, remote desktop shares the active X11 session, which the agent finds with
 `loginctl`. The Desktop tab appears once someone is logged in, within about 15 seconds, and
 works at a login screen that runs on X11 too. Wayland sessions aren't supported yet: choose an X11 session
-(such as "Ubuntu on Xorg") at the login screen. Windows and macOS are still to come; the tab
-says so.
+(such as "Ubuntu on Xorg") at the login screen.
 
 Ctrl+V on the remote screen pastes what is on your own computer's clipboard there, and text
 copied on the machine lands on your clipboard (up to 64 KiB of text, not in view-only

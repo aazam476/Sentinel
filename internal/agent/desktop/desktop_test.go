@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -522,6 +523,18 @@ func TestMonitors(t *testing.T) {
 		return view.image.Bounds().Size()
 	}
 
+	// The session takes messages and frame ticks in whatever order they
+	// come, so the view changes within a few frames, not on a set one.
+	waitForSize := func(want image.Point, what string) {
+		t.Helper()
+		for range 20 {
+			if size() == want {
+				return
+			}
+			nextFrame()
+		}
+		t.Errorf("%s is %v, want %v", what, size(), want)
+	}
 	inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopFallback})
 	nextFrame()
 	nextFrame()
@@ -529,17 +542,11 @@ func TestMonitors(t *testing.T) {
 	if !ok || len(listed.Monitors) != 2 || listed.Monitor == nil || *listed.Monitor != -1 {
 		t.Fatalf("monitors = %+v", listed)
 	}
-	if got := size(); got != image.Pt(200, 150) {
-		t.Errorf("the whole desktop is %v, want 200x150", got)
-	}
+	waitForSize(image.Pt(200, 150), "the whole desktop")
 
 	right := 1
 	inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopMonitor, Monitor: &right})
-	nextFrame()
-	nextFrame()
-	if got := size(); got != image.Pt(100, 150) {
-		t.Errorf("the right monitor is %v, want 100x150", got)
-	}
+	waitForSize(image.Pt(100, 150), "the right monitor")
 	// A click on the right monitor lands that far right on the desktop.
 	inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopInput, Input: &protocol.DesktopInputEvent{Kind: protocol.InputMouseDown, X: 10, Y: 20}})
 	inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopInput, Input: &protocol.DesktopInputEvent{Kind: protocol.InputKeyDown, Code: "KeyA"}})
@@ -552,12 +559,12 @@ func TestMonitors(t *testing.T) {
 	}
 
 	// -1, or a monitor the machine doesn't have, is the whole desktop again.
-	for _, index := range []int{-1, 7} {
+	for _, index := range []int{-1, 1, 7} {
 		inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopMonitor, Monitor: &index})
-		nextFrame()
-		nextFrame()
-		if got := size(); got != image.Pt(200, 150) {
-			t.Errorf("after %d the view is %v, want the whole desktop", index, got)
+		want := image.Pt(200, 150)
+		if index == 1 {
+			want = image.Pt(100, 150)
 		}
+		waitForSize(want, fmt.Sprintf("the view after %d", index))
 	}
 }
