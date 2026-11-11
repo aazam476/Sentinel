@@ -4,6 +4,7 @@ package release
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
@@ -12,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -102,17 +104,21 @@ func ParseSignature(file []byte, keys []ed25519.PublicKey) (Manifest, error) {
 	}
 	manifest := Manifest{Name: fields["name"], Version: fields["version"], OS: fields["os"], Arch: fields["arch"]}
 	digest, err := hex.DecodeString(fields["sha256"])
-	// Only the canonical encodings are accepted, so one manifest has exactly
-	// one signature file (lowercase hex, padded base64 with zero spare bits).
-	if err != nil || len(digest) != sha256.Size || hex.EncodeToString(digest) != fields["sha256"] {
+	if err != nil || len(digest) != sha256.Size {
 		return Manifest{}, ErrBadSignature
 	}
 	copy(manifest.SHA256[:], digest)
-	signature, err := base64.StdEncoding.Strict().DecodeString(fields["signature"])
-	if err != nil || base64.StdEncoding.EncodeToString(signature) != fields["signature"] || manifest.validate() != nil {
+	signature, err := base64.StdEncoding.DecodeString(fields["signature"])
+	if err != nil || manifest.validate() != nil {
 		return Manifest{}, ErrBadSignature
 	}
 	signed := manifest.signed()
+	// Only the exact file Sign writes is accepted, so one manifest has one
+	// signature file: lower-case hex, canonical base64, a final newline.
+	canonical := append(slices.Clone(signed), "signature: "+base64.StdEncoding.EncodeToString(signature)+"\n"...)
+	if !bytes.Equal(file, canonical) {
+		return Manifest{}, ErrBadSignature
+	}
 	for _, key := range keys {
 		if ed25519.Verify(key, signed, signature) {
 			return manifest, nil
