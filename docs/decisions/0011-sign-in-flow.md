@@ -1,6 +1,6 @@
 # 0011 — Sign-in flow, sessions and login rate limiting
 
-**Date:** 2026-11-07 · **Status:** Accepted
+**Date:** 2026-11-07 · **Status:** Accepted; the setup token was dropped by ADR 0037
 
 ## Context
 

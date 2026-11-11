@@ -5,8 +5,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -24,8 +22,8 @@ import (
 )
 
 // serve runs the server until the process receives an interrupt or
-// terminate signal. stdout receives the setup token on a fresh install.
-func serve(logger *slog.Logger, stdout io.Writer, settings config.Config) error {
+// terminate signal.
+func serve(logger *slog.Logger, settings config.Config) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -41,7 +39,7 @@ func serve(logger *slog.Logger, stdout io.Writer, settings config.Config) error 
 	}
 	defer closeApp(logger, server)
 
-	if err := announceSetupToken(ctx, server.Auth, stdout, logger); err != nil {
+	if err := announceSetup(ctx, server.Auth, logger); err != nil {
 		return err
 	}
 	server.Start(ctx)
@@ -84,19 +82,20 @@ func listenAndServe(ctx context.Context, logger *slog.Logger, settings config.Co
 	return nil
 }
 
-// announceSetupToken prints the setup token while no admin exists (SEC-01),
-// so the person installing Sentinel can find it in the terminal or in
-// `docker logs`. It is also in <data dir>/setup-token.
-func announceSetupToken(ctx context.Context, authService *auth.Service, stdout io.Writer, logger *slog.Logger) error {
-	token, err := authService.PrepareSetupToken(ctx)
+// announceSetup says, while no admin exists, that the web UI is waiting
+// for one to be created. It also removes a setup-token file an older
+// server left (ADR 0037).
+func announceSetup(ctx context.Context, authService *auth.Service, logger *slog.Logger) error {
+	if err := authService.RemoveLeftoverSetupToken(); err != nil {
+		return err
+	}
+	required, err := authService.SetupRequired(ctx)
 	if err != nil {
 		return err
 	}
-	if token == "" {
-		return nil
+	if required {
+		logger.Info("no admin exists yet; open the web UI to create one")
 	}
-	logger.Info("no admin exists yet; open the web UI and enter the setup token printed below")
-	_, _ = fmt.Fprintf(stdout, "\nSentinel setup token: %s\n\n", token) // nothing more to do if stdout is gone
 	return nil
 }
 

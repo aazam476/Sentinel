@@ -22,22 +22,18 @@ The UDP ports are remote desktop's relay, for when a browser can't reach a machi
 `--relay-ip` tells it the address people and agents reach this host at, which a container
 can't see for itself. Without them, remote desktop still works, through the HTTPS port.
 
-```bash
-docker logs sentinel
-```
+Open `https://<this host>:7443`, accept the self-signed certificate, and create the first
+admin. You set up two-factor authentication as part of it.
 
-The log shows a one-time **setup token**. Open `https://<this host>:7443`, accept the
-self-signed certificate, and enter the token to create the first admin. You set up two-factor
-authentication as part of it.
+**Do this straight away, before anyone else can reach the server.** Until the first admin
+exists, whoever opens the page first can create it and own the server. Keep the port off the
+internet (a firewall rule, or a private network or VPN) until you've done it. If someone else
+got there first, stop the server, delete the data directory or volume, and start again.
 
 With Docker Compose, use [`compose.yaml`](../compose.yaml) from the repository:
 
 ```bash
 docker compose up -d
-```
-
-```bash
-docker compose logs sentinel
 ```
 
 The image holds only the release's signed binary, on a distroless base, and runs as a
@@ -53,8 +49,8 @@ curl -fsSL https://github.com/aazam476/sentinel/releases/latest/download/install
 The script downloads the server for this machine and checks its signature with `openssl`. It
 then creates a `sentinel` system user and installs `/usr/local/bin/sentinel-server`. It writes
 `/etc/sentinel/server.toml` (unless you already have one), creates `/var/lib/sentinel` with
-mode 0700, and starts a hardened systemd service. At the end it prints the address and the
-setup token. It needs systemd, `curl` and OpenSSL 1.1.1 or later. Add `--dry-run` to check the
+mode 0700, and starts a hardened systemd service. At the end it prints the address to open to create the
+first admin, which you should do straight away. It needs systemd, `curl` and OpenSSL 1.1.1 or later. Add `--dry-run` to check the
 download without installing anything.
 
 To install by hand, download `sentinel-server_<version>_linux_<arch>` and its `.sig` from the

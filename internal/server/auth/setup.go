@@ -12,9 +12,8 @@ import (
 
 // BeginSetupInput is the first step of creating the first admin (SEC-02).
 type BeginSetupInput struct {
-	SetupToken string
-	Username   string
-	Password   string
+	Username string
+	Password string
 }
 
 // BeginSetupResult lets the admin add Sentinel to an authenticator app.
@@ -26,9 +25,8 @@ type BeginSetupResult struct {
 
 // CompleteSetupInput is the second step: proving the authenticator works.
 type CompleteSetupInput struct {
-	SetupToken string
-	SetupID    string
-	TOTPCode   string
+	SetupID  string
+	TOTPCode string
 }
 
 // SignedIn is the result of finishing a login, setup or enrollment.
@@ -44,18 +42,11 @@ type SignedIn struct {
 	RemainingRecoveryCodes int
 }
 
-// PrepareSetupToken makes sure a setup token exists while no user does and
-// returns it, so the server can print it at startup (SEC-01). Once a user
-// exists it removes any leftover token file and returns "".
-func (s *Service) PrepareSetupToken(ctx context.Context) (string, error) {
-	required, err := s.SetupRequired(ctx)
-	if err != nil {
-		return "", err
-	}
-	if !required {
-		return "", removeSetupToken(s.setupTokenPath)
-	}
-	return readOrCreateSetupToken(s.setupTokenPath)
+// RemoveLeftoverSetupToken deletes the setup-token file servers before
+// v0.1.0-beta.1 kept in the data directory: setup no longer asks for one
+// (ADR 0037).
+func (s *Service) RemoveLeftoverSetupToken() error {
+	return removeSetupToken(s.setupTokenPath)
 }
 
 // SetupRequired reports whether the first admin still has to be created.
@@ -69,10 +60,11 @@ func (s *Service) SetupRequired(ctx context.Context) (bool, error) {
 	return count == 0, err
 }
 
-// BeginSetup checks the setup token and the admin's chosen username and
-// password, and returns a TOTP secret to enroll. Nothing is saved yet.
+// BeginSetup checks the admin's chosen username and password, and returns
+// a TOTP secret to enroll. Nothing is saved yet. Whoever opens the web UI
+// first while no user exists may do this (ADR 0037).
 func (s *Service) BeginSetup(ctx context.Context, input BeginSetupInput, request RequestInfo) (BeginSetupResult, error) {
-	if err := s.checkSetupAllowed(ctx, input.SetupToken, request); err != nil {
+	if err := s.checkSetupAllowed(ctx); err != nil {
 		return BeginSetupResult{}, err
 	}
 
@@ -98,9 +90,8 @@ func (s *Service) BeginSetup(ctx context.Context, input BeginSetupInput, request
 
 // CompleteSetup checks the TOTP code and then, in one transaction, creates
 // the admin with confirmed TOTP and ten recovery codes, and signs them in.
-// The setup token is deleted afterwards (SEC-01).
 func (s *Service) CompleteSetup(ctx context.Context, input CompleteSetupInput, request RequestInfo) (SignedIn, error) {
-	if err := s.checkSetupAllowed(ctx, input.SetupToken, request); err != nil {
+	if err := s.checkSetupAllowed(ctx); err != nil {
 		return SignedIn{}, err
 	}
 	setup, found := s.pendingSetups.Get(input.SetupID)
@@ -165,10 +156,8 @@ func (s *Service) createFirstAdmin(ctx context.Context, tx *sql.Tx, setup pendin
 	return SignedIn{SessionToken: token, RecoveryCodes: codes}, nil
 }
 
-// checkSetupAllowed makes sure setup isn't done yet, the client isn't being
-// rate limited, and the setup token is right. Wrong tokens are audited and
-// count against the client's IP address.
-func (s *Service) checkSetupAllowed(ctx context.Context, setupToken string, request RequestInfo) error {
+// checkSetupAllowed allows setup only while no user exists.
+func (s *Service) checkSetupAllowed(ctx context.Context) error {
 	required, err := s.SetupRequired(ctx)
 	if err != nil {
 		return err
@@ -176,18 +165,7 @@ func (s *Service) checkSetupAllowed(ctx context.Context, setupToken string, requ
 	if !required {
 		return ErrSetupNotAvailable
 	}
-	if wait := s.ipLimiter.RetryAfter(ipKey(request.IP)); wait > 0 {
-		return &TooManyAttemptsError{RetryAfter: wait}
-	}
-	if setupTokenMatches(s.setupTokenPath, setupToken) {
-		return nil
-	}
-
-	s.ipLimiter.RecordFailure(ipKey(request.IP))
-	if err := s.audit.Record(ctx, auditEntry(request, "setup", audit.OutcomeFailure, map[string]any{"reason": "invalid_setup_token"})); err != nil {
-		return err
-	}
-	return ErrInvalidSetupToken
+	return nil
 }
 
 // startSession creates a session for userID and returns its token.

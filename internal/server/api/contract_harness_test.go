@@ -219,18 +219,14 @@ type admin struct {
 // admin's browser.
 func (s *testServer) setUpAdmin() admin {
 	s.t.Helper()
-	token, err := s.app.Auth.PrepareSetupToken(s.t.Context())
-	if err != nil {
-		s.t.Fatal(err)
-	}
 	browser := s.newBrowser()
-	begun := browser.do(http.MethodPost, "/api/setup/begin", api.BeginSetupRequest{SetupToken: token, Username: "admin", Password: strongPassword})
+	begun := browser.do(http.MethodPost, "/api/setup/begin", api.BeginSetupRequest{Username: "admin", Password: strongPassword})
 	expect(s.t, begun, http.StatusOK, "")
 	var setup api.BeginSetupResponse
 	begun.decode(s.t, &setup)
 
 	completed := browser.do(http.MethodPost, "/api/setup/complete", api.CompleteSetupRequest{
-		SetupToken: token, SetupID: setup.SetupID, TOTPCode: s.code(setup.TOTP.Secret),
+		SetupID: setup.SetupID, TOTPCode: s.code(setup.TOTP.Secret),
 	})
 	expect(s.t, completed, http.StatusOK, "")
 	var signedIn api.SignedInResponse

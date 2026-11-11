@@ -16,8 +16,6 @@ var (
 	ErrInvalidCredentials = errors.New("the username or password is incorrect")
 	// ErrInvalidCode: a TOTP or recovery code was wrong, expired or already used.
 	ErrInvalidCode = errors.New("the code is incorrect or has already been used")
-	// ErrInvalidSetupToken: the setup token didn't match.
-	ErrInvalidSetupToken = errors.New("the setup token is incorrect")
 	// ErrSetupNotAvailable: setup is already done.
 	ErrSetupNotAvailable = errors.New("setup has already been completed")
 	// ErrSetupExpired: the setup was started too long ago or the server restarted.

@@ -281,49 +281,18 @@ func TestPasswordPolicy(t *testing.T) {
 	}
 }
 
-func TestSetupTokenFile(t *testing.T) {
-	t.Run("reports a token path that can't be read", func(t *testing.T) {
-		directory := filepath.Join(t.TempDir(), "setup-token")
-		if err := os.Mkdir(directory, 0o700); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := readOrCreateSetupToken(directory); err == nil {
-			t.Error("readOrCreateSetupToken returned nil for a directory")
-		}
-		if setupTokenMatches(directory, "anything") {
-			t.Error("a directory matched as a token")
-		}
-	})
-
-	t.Run("reports a token that can't be written", func(t *testing.T) {
-		if _, err := readOrCreateSetupToken(filepath.Join(t.TempDir(), "missing", "setup-token")); err == nil {
-			t.Error("readOrCreateSetupToken returned nil for a missing folder")
-		}
-	})
-
-	t.Run("an empty token file never matches", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), "setup-token")
-		if err := os.WriteFile(path, []byte("\n"), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		if setupTokenMatches(path, "") {
-			t.Error("an empty token matched an empty file")
-		}
-	})
-
-	t.Run("reports a token file that can't be removed", func(t *testing.T) {
-		directory := t.TempDir()
-		path := filepath.Join(directory, "setup-token")
-		if err := os.Mkdir(path, 0o700); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(path, "inside"), nil, 0o600); err != nil {
-			t.Fatal(err)
-		}
-		if err := removeSetupToken(path); err == nil {
-			t.Error("removeSetupToken returned nil for a non-empty directory")
-		}
-	})
+func TestRemoveSetupToken(t *testing.T) {
+	directory := t.TempDir()
+	path := filepath.Join(directory, "setup-token")
+	if err := os.Mkdir(path, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "inside"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeSetupToken(path); err == nil {
+		t.Error("removeSetupToken returned nil for a non-empty directory")
+	}
 }
 
 func TestPendingSetups(t *testing.T) {

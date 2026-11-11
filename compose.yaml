@@ -3,9 +3,9 @@
 # Runs the Sentinel server with Docker Compose (§11.1):
 #
 #   SENTINEL_RELAY_IP=<this host's IP address> docker compose up -d
-#   docker compose logs sentinel   # shows the one-time setup token
 #
-# Then open https://<this host>:7443. The certificate is self-signed until
+# Then open https://<this host>:7443 and create the first admin straight
+# away: until then, anyone who reaches the page can. The certificate is self-signed until
 # you set up ACME or a reverse proxy; see docs/INSTALL.md.
 services:
   sentinel:

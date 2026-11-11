@@ -1,20 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { createHmac } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 import type { BeginSetupResponse } from '../src/api/types.gen';
 import type { OwnServer } from './processes';
-
-/** setupToken reads the token the project's server wrote on first start. */
-export function setupToken(testInfo: TestInfo): string {
-  return readFileSync(
-    join('test-results', 'e2e-data', testInfo.project.name, 'setup-token'),
-    'utf8',
-  ).trim();
-}
 
 /**
  * totpCode computes the current code for a base32 secret, independently of
@@ -76,16 +66,15 @@ export function watchForCSPViolations(page: Page): string[] {
 /** signInAsNewAdmin sets the server up through its API, as the setup page would. */
 export async function signInAsNewAdmin(page: Page, server: OwnServer) {
   const headers = { Origin: server.origin };
-  const setupToken = server.setupToken();
   const begun = await page.request.post(`${server.origin}/api/setup/begin`, {
     headers,
-    data: { setupToken, username: 'admin', password: 'correct horse battery staple' },
+    data: { username: 'admin', password: 'correct horse battery staple' },
   });
   expect(begun.ok()).toBe(true);
   const setup = (await begun.json()) as BeginSetupResponse;
   const completed = await page.request.post(`${server.origin}/api/setup/complete`, {
     headers,
-    data: { setupToken, setupId: setup.setupId, totpCode: totpCode(setup.totp.secret) },
+    data: { setupId: setup.setupId, totpCode: totpCode(setup.totp.secret) },
   });
   expect(completed.ok()).toBe(true);
 }

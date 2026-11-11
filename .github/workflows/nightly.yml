@@ -67,9 +67,10 @@ jobs:
           export SENTINEL_RELEASE_KEY="$(cat testdata/release/development.key)"
           ALLOW_DEVELOPMENT_KEY=1 scripts/release.sh all v0.0.0-nightly linux/amd64
           docker build --build-arg VERSION=v0.0.0-nightly -t sentinel-nightly .
-      - name: Start it and check it serves and prints the setup token
+      - name: Start it and check it serves and waits for the first admin
         run: |
           docker run -d --name sentinel -p 7443:7443 -v sentinel-data:/var/lib/sentinel sentinel-nightly
           for _ in $(seq 1 30); do curl -fsk https://127.0.0.1:7443/healthz && break; sleep 1; done
           curl -fsk https://127.0.0.1:7443/healthz
-          docker logs sentinel 2>&1 | grep "Sentinel setup token:"
+          curl -fsk https://127.0.0.1:7443/api/setup/status | grep '"setupRequired":true'
+          docker logs sentinel 2>&1 | grep "open the web UI to create one"

@@ -34,7 +34,8 @@ type Options struct {
 	Secrets  Encrypter
 	AuditLog AuditRecorder
 	Clock    Clock
-	// DataDir is where the setup token file lives.
+	// DataDir is the data directory, where servers before v0.1.0-beta.1
+	// left a setup token file that is now removed (ADR 0037).
 	DataDir string
 }
 

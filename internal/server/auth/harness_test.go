@@ -87,16 +87,12 @@ type account struct {
 // session token and the recovery codes.
 func (h *harness) setUpAdmin(t *testing.T) (account, string, []string) {
 	t.Helper()
-	token, err := h.service.PrepareSetupToken(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
-	begun, err := h.service.BeginSetup(t.Context(), auth.BeginSetupInput{SetupToken: token, Username: "admin", Password: strongPassword}, testClient())
+	begun, err := h.service.BeginSetup(t.Context(), auth.BeginSetupInput{Username: "admin", Password: strongPassword}, testClient())
 	if err != nil {
 		t.Fatalf("BeginSetup returned %v", err)
 	}
 	signedIn, err := h.service.CompleteSetup(t.Context(), auth.CompleteSetupInput{
-		SetupToken: token, SetupID: begun.SetupID, TOTPCode: h.code(begun.TOTP.Secret),
+		SetupID: begun.SetupID, TOTPCode: h.code(begun.TOTP.Secret),
 	}, testClient())
 	if err != nil {
 		t.Fatalf("CompleteSetup returned %v", err)

@@ -8,7 +8,9 @@ import (
 	"bufio"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -151,32 +153,23 @@ func TestSEC10_ServerUsesTLSByDefault(t *testing.T) {
 	})
 }
 
-func TestSEC01_ServerPrintsTheSetupTokenOnFirstStart(t *testing.T) {
+func TestAFreshServerWaitsForTheFirstAdminWithoutASetupToken(t *testing.T) {
 	binary := clitest.Build(t, serverPackage)
 	dataDir := t.TempDir()
-	_, stdout := startServerWithOutput(t, binary, "--config", filepath.Join(dataDir, "missing.toml"),
-		"--data-dir", dataDir, "--listen", "127.0.0.1:0")
-
-	saved, err := os.ReadFile(filepath.Join(dataDir, "setup-token"))
-	if err != nil {
-		t.Fatalf("setup-token: %v", err)
+	leftover := filepath.Join(dataDir, "setup-token")
+	if err := os.WriteFile(leftover, []byte("OLD-TOKEN\n"), 0o600); err != nil {
+		t.Fatal(err)
 	}
-	token := strings.TrimSpace(string(saved))
+	configPath := writeFile(t, "server.toml", "[tls]\nmode = \"off\"\n")
+	address := startServer(t, binary, "--config", configPath, "--data-dir", dataDir, "--listen", "127.0.0.1:0")
 
-	// Read stdout line by line until the token line arrives. Reading the
-	// pipe blocks until the server has written it, so this can't race.
-	printed := ""
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
-		if found, ok := strings.CutPrefix(scanner.Text(), "Sentinel setup token: "); ok {
-			printed = found
-			break
-		}
+	response := get(t, http.DefaultClient, "http://"+address+"/api/setup/status")
+
+	if response.status != http.StatusOK || !strings.Contains(response.body, `"setupRequired":true`) {
+		t.Errorf("setup status = %d %q, want setupRequired", response.status, response.body)
 	}
-	go func() { _, _ = io.Copy(io.Discard, stdout) }() // ends when the server exits
-
-	if len(token) != 52 || printed != token {
-		t.Errorf("printed token = %q, want the token from setup-token (%q)", printed, token)
+	if _, err := os.Stat(leftover); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the setup-token file an older server left still exists: %v", err)
 	}
 }
 

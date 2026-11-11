@@ -26,7 +26,6 @@ const (
 	errorCodeInvalidInput       = "invalid_input"
 	errorCodeInvalidCredentials = "invalid_credentials" //nolint:gosec // G101: an error code, not a credential
 	errorCodeInvalidCode        = "invalid_code"
-	errorCodeInvalidSetupToken  = "invalid_setup_token"
 	errorCodeSetupNotAvailable  = "setup_not_available"
 	errorCodeSetupExpired       = "setup_expired"
 	errorCodeNotAuthenticated   = "not_authenticated"
@@ -89,7 +88,6 @@ func knownErrors() []knownError {
 	return []knownError{
 		{auth.ErrInvalidCredentials, http.StatusUnauthorized, errorCodeInvalidCredentials},
 		{auth.ErrInvalidCode, http.StatusUnauthorized, errorCodeInvalidCode},
-		{auth.ErrInvalidSetupToken, http.StatusForbidden, errorCodeInvalidSetupToken},
 		{auth.ErrSetupNotAvailable, http.StatusConflict, errorCodeSetupNotAvailable},
 		{auth.ErrSetupExpired, http.StatusGone, errorCodeSetupExpired},
 		{auth.ErrNotAuthenticated, http.StatusUnauthorized, errorCodeNotAuthenticated},

@@ -9,12 +9,14 @@ Where something is limited or left to a maintainer, the **Limits** line says so.
 
 ## Authentication
 
-**SEC-01 Setup token.** On first start the server makes a random 32-byte token (base32),
-prints it to the log and writes `<data dir>/setup-token` (0600). Setup refuses without it and
-deletes it once the admin exists (`internal/server/auth/setuptoken.go`, `setup.go`).
-*Tests:* `TestSEC01_SetupTokenGuardsFirstBoot`, `TestSEC01_SetupTokenIsDeletedAfterSetup`,
-`TestSEC01_SetupOverHTTP`, `TestSEC01_ServerPrintsTheSetupTokenOnFirstStart`, Playwright
-"SEC-01 a fresh install can only be set up with the setup token".
+**SEC-01 Setup token (removed).** First-time setup no longer asks for a token (ADR 0037).
+Setup is open only while no user exists; the first admin is created in one transaction with
+their confirmed TOTP secret, after which setup refuses (`internal/server/auth/setup.go`).
+*Tests:* `TestSetupIsOpenOnlyUntilAnAdminExists`, `TestSEC02_SetupOverHTTP`,
+`TestAFreshServerWaitsForTheFirstAdminWithoutASetupToken`, Playwright "a fresh install sends
+every page to setup and signs no one in".
+**Limits:** whoever reaches a fresh server first can create its admin. INSTALL.md says to set
+it up before exposing the port.
 
 **SEC-02 First admin.** Setup takes a username and a password of at least 12 characters not on
 the bundled common-password list, then requires TOTP enrollment and shows 10 one-time recovery

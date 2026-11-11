@@ -73,10 +73,6 @@ export class OwnServer {
       running.kill('SIGTERM');
     });
   }
-
-  setupToken(): string {
-    return readFileSync(join(this.dataDir, 'setup-token'), 'utf8').trim();
-  }
 }
 
 /** Agent runs the real sentinel-agent with its files in a temporary folder. */

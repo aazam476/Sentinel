@@ -11,34 +11,29 @@ import { TOTPSetup } from '../../components/TOTPSetup/TOTPSetup';
 import { SetupDetailsForm, type SetupDetails } from './SetupDetailsForm';
 
 /**
- * SetupPage creates the first admin on a fresh install: setup token,
- * username and password, then an authenticator app, then recovery codes.
+ * SetupPage creates the first admin on a fresh install: username and
+ * password, then an authenticator app, then recovery codes.
  */
 export function SetupPage() {
   const queryClient = useQueryClient();
   const beginSetup = useBeginSetup();
   const completeSetup = useCompleteSetup();
-  const [details, setDetails] = useState<SetupDetails | null>(null);
   const [setup, setSetup] = useState<BeginSetupResponse | null>(null);
   const [signedIn, setSignedIn] = useState<SignedInResponse | null>(null);
 
   const handleDetails = (submitted: SetupDetails) => {
     beginSetup.mutate(submitted, {
       onSuccess: (response) => {
-        setDetails(submitted);
         setSetup(response);
       },
     });
   };
 
   const handleCode = (totpCode: string) => {
-    if (details === null || setup === null) {
+    if (setup === null) {
       return;
     }
-    completeSetup.mutate(
-      { setupToken: details.setupToken, setupId: setup.setupId, totpCode },
-      { onSuccess: setSignedIn },
-    );
+    completeSetup.mutate({ setupId: setup.setupId, totpCode }, { onSuccess: setSignedIn });
   };
 
   // The session is stored only after the codes are saved: storing it sends
@@ -78,8 +73,8 @@ export function SetupPage() {
       title="Set up Sentinel"
       description={
         <p>
-          Create the first admin account. The setup token was printed when the server started, and
-          is in the setup-token file in its data directory.
+          Create the first admin account. Whoever finishes this first owns the server, so do it
+          before anyone else can reach this page.
         </p>
       }
     >

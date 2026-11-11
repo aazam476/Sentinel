@@ -10,7 +10,7 @@
 # (SEC-34), creates the `sentinel` system user, installs the binary to
 # /usr/local/bin, writes /etc/sentinel/server.toml (unless there is one),
 # creates /var/lib/sentinel (0700), installs and starts a systemd unit, and
-# prints the address and the one-time setup token.
+# prints the address to open to create the first admin.
 #
 # Options:
 #   --release-url URL   where the release's files are (default: the latest
@@ -130,15 +130,6 @@ EOF
 systemctl daemon-reload
 systemctl enable --now sentinel-server
 
-# The server writes the one-time setup token on its first start.
-for _ in $(seq 1 30); do
-	[ -f /var/lib/sentinel/setup-token ] && break
-	sleep 1
-done
 address="https://$(hostname -f 2>/dev/null || hostname):7443"
 printf '\nSentinel %s is running at %s\n' "$version" "$address"
-if [ -f /var/lib/sentinel/setup-token ]; then
-	printf 'Open it and enter this setup token: %s\n' "$(cat /var/lib/sentinel/setup-token)"
-else
-	printf 'Find the setup token with: journalctl -u sentinel-server | grep "setup token"\n'
-fi
+printf 'Open it now to create the first admin: until then, anyone who reaches it can.\n'

@@ -859,10 +859,9 @@ export interface SetupStatusResponse {
   setupRequired: boolean;
 }
 /**
- * BeginSetupRequest is the first setup step (SEC-01, SEC-02).
+ * BeginSetupRequest is the first setup step (SEC-02).
  */
 export interface BeginSetupRequest {
-  setupToken: string;
   username: string;
   password: string;
 }
@@ -894,7 +893,6 @@ export interface BeginSetupResponse {
  * CompleteSetupRequest proves the authenticator app works.
  */
 export interface CompleteSetupRequest {
-  setupToken: string;
   setupId: string;
   totpCode: string;
 }

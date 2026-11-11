@@ -74,11 +74,6 @@ func TestDatabaseFailuresAreReported(t *testing.T) {
 			_, err := h.service.SetupRequired(t.Context())
 			return err
 		}},
-		{name: "preparing the setup token", fault: failReads, run: func(t *testing.T, h *harness, _ fixture, inject func()) error {
-			inject()
-			_, err := h.service.PrepareSetupToken(t.Context())
-			return err
-		}},
 		{name: "login user lookup", fault: failReads, run: adminPasswordLogin},
 		{name: "login session creation", fault: failing("INSERT", "sessions"), run: adminPasswordLogin},
 		{name: "login audit entry", fault: failing("INSERT", "audit_log"), run: adminPasswordLogin},
@@ -379,15 +374,12 @@ func TestSetupDatabaseFailuresAreReported(t *testing.T) {
 	tests := []struct {
 		name  string
 		fault func(t *testing.T, h *harness)
-		// wrongToken uses an incorrect setup token, to reach the failure audit.
-		wrongToken bool
 		// atBegin injects the fault before BeginSetup instead of before
 		// CompleteSetup.
 		atBegin bool
 	}{
 		{name: "the user count at the start", fault: failReads, atBegin: true},
 		{name: "the user count query", fault: failReadOf("users"), atBegin: true},
-		{name: "the audit of a wrong token", fault: failing("INSERT", "audit_log"), wrongToken: true, atBegin: true},
 		{name: "creating the admin", fault: failing("INSERT", "users")},
 		{name: "saving the TOTP secret", fault: failing("INSERT", "totp_secrets")},
 		{name: "recording the used TOTP step", fault: failing("UPDATE", "totp_secrets")},
@@ -400,24 +392,17 @@ func TestSetupDatabaseFailuresAreReported(t *testing.T) {
 		t.Run("reports a failure in "+test.name, func(t *testing.T) {
 			t.Parallel()
 			h := newHarness(t)
-			token, err := h.service.PrepareSetupToken(t.Context())
-			if err != nil {
-				t.Fatal(err)
-			}
-			if test.wrongToken {
-				token = "WRONG"
-			}
 			if test.atBegin {
 				test.fault(t, h)
 			}
 
-			err = runSetup(t, h, token, func() {
+			err := runSetup(t, h, func() {
 				if !test.atBegin {
 					test.fault(t, h)
 				}
 			})
 
-			if err == nil || errors.Is(err, auth.ErrInvalidSetupToken) {
+			if err == nil {
 				t.Errorf("setup error = %v, want the database failure", err)
 			}
 		})
@@ -425,12 +410,12 @@ func TestSetupDatabaseFailuresAreReported(t *testing.T) {
 }
 
 // runSetup does both setup steps, calling inject between them.
-func runSetup(t *testing.T, h *harness, token string, inject func()) error {
-	begun, err := h.service.BeginSetup(t.Context(), auth.BeginSetupInput{SetupToken: token, Username: "admin", Password: strongPassword}, testClient())
+func runSetup(t *testing.T, h *harness, inject func()) error {
+	begun, err := h.service.BeginSetup(t.Context(), auth.BeginSetupInput{Username: "admin", Password: strongPassword}, testClient())
 	if err != nil {
 		return err
 	}
 	inject()
-	_, err = h.service.CompleteSetup(t.Context(), auth.CompleteSetupInput{SetupToken: token, SetupID: begun.SetupID, TOTPCode: h.code(begun.TOTP.Secret)}, testClient())
+	_, err = h.service.CompleteSetup(t.Context(), auth.CompleteSetupInput{SetupID: begun.SetupID, TOTPCode: h.code(begun.TOTP.Secret)}, testClient())
 	return err
 }

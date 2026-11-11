@@ -73,12 +73,8 @@ func TestSEC08_ResetAdminCommand(t *testing.T) {
 func setUpAdmin(t *testing.T, dataDir string) {
 	t.Helper()
 	server := openApp(t, dataDir)
-	token, err := server.Auth.PrepareSetupToken(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
 	client := auth.RequestInfo{IP: "127.0.0.1"}
-	begun, err := server.Auth.BeginSetup(t.Context(), auth.BeginSetupInput{SetupToken: token, Username: "admin", Password: "correct horse battery staple"}, client)
+	begun, err := server.Auth.BeginSetup(t.Context(), auth.BeginSetupInput{Username: "admin", Password: "correct horse battery staple"}, client)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +82,7 @@ func setUpAdmin(t *testing.T, dataDir string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := server.Auth.CompleteSetup(t.Context(), auth.CompleteSetupInput{SetupToken: token, SetupID: begun.SetupID, TOTPCode: code}, client); err != nil {
+	if _, err := server.Auth.CompleteSetup(t.Context(), auth.CompleteSetupInput{SetupID: begun.SetupID, TOTPCode: code}, client); err != nil {
 		t.Fatal(err)
 	}
 	if err := server.Close(); err != nil {

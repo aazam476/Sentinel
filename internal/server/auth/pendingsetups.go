@@ -11,7 +11,7 @@ import (
 // their details and confirming their authenticator app.
 const pendingSetupLifetime = 15 * time.Minute
 
-// pendingSetup is a first-admin setup that has passed the setup token,
+// pendingSetup is a first-admin setup that has passed the
 // username and password checks and waits for the TOTP code. Nothing is
 // written to the database until the code is confirmed, so an abandoned
 // setup leaves no half-made admin behind.

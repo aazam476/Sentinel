@@ -35,9 +35,6 @@ function mockSetup() {
     http.post(apiPath('setup/begin'), async ({ request }) => {
       const body = (await request.json()) as BeginSetupRequest;
       requests.begin = body;
-      if (body.setupToken !== 'GOOD-TOKEN') {
-        return apiError(403, 'invalid_setup_token', 'the setup token is incorrect');
-      }
       if (body.password.length < 12) {
         return apiError(400, 'invalid_input', 'the password must be at least 12 characters', {
           field: 'password',
@@ -56,16 +53,15 @@ function mockSetup() {
   return requests;
 }
 
-async function fillDetails(token: string, password: string, confirmation = password) {
+async function fillDetails(password: string, confirmation = password) {
   const user = userEvent.setup();
-  await user.type(await screen.findByLabelText('Setup token'), token);
-  await user.type(screen.getByLabelText('Password'), password);
+  await user.type(await screen.findByLabelText('Password'), password);
   await user.type(screen.getByLabelText('Confirm password'), confirmation);
   await user.click(screen.getByRole('button', { name: 'Continue' }));
   return user;
 }
 
-describe('SEC-01 setup page', () => {
+describe('setup page', () => {
   it('sends a fresh install to setup from any page', async () => {
     signedInAs(null, true);
     renderApp('/account');
@@ -78,20 +74,11 @@ describe('SEC-01 setup page', () => {
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeVisible();
   });
 
-  it('explains a wrong setup token at the token field', async () => {
-    signedInAs(null, true);
-    mockSetup();
-    renderApp('/setup');
-    await fillDetails('WRONG', 'correct horse battery staple');
-    expect(await screen.findByText('This setup token is incorrect.')).toBeVisible();
-    expect(screen.getByLabelText('Setup token')).toHaveAttribute('aria-invalid', 'true');
-  });
-
   it('SEC-02 shows the server’s password rule at the password field', async () => {
     signedInAs(null, true);
     mockSetup();
     renderApp('/setup');
-    await fillDetails('GOOD-TOKEN', 'short');
+    await fillDetails('short');
     expect(await screen.findByText('the password must be at least 12 characters')).toBeVisible();
   });
 
@@ -99,19 +86,18 @@ describe('SEC-01 setup page', () => {
     signedInAs(null, true);
     const requests = mockSetup();
     renderApp('/setup');
-    await fillDetails('GOOD-TOKEN', 'correct horse battery staple', 'something else entirely');
+    await fillDetails('correct horse battery staple', 'something else entirely');
     expect(await screen.findByText('The passwords don’t match.')).toBeVisible();
     expect(requests.begin).toBeUndefined();
   });
 
-  it('SEC-02 walks through the token, TOTP and recovery codes into the app', async () => {
+  it('SEC-02 walks through the login, TOTP and recovery codes into the app', async () => {
     signedInAs(null, true);
     const requests = mockSetup();
     renderApp('/setup');
 
-    const user = await fillDetails('  GOOD-TOKEN ', 'correct horse battery staple');
+    const user = await fillDetails('correct horse battery staple');
     expect(requests.begin).toEqual({
-      setupToken: 'GOOD-TOKEN',
       username: 'admin',
       password: 'correct horse battery staple',
     });
@@ -130,7 +116,6 @@ describe('SEC-01 setup page', () => {
     await user.type(screen.getByLabelText('Authenticator code'), '123456');
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(requests.complete).toEqual({
-      setupToken: 'GOOD-TOKEN',
       setupId: 'setup-1',
       totpCode: '123456',
     });

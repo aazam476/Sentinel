@@ -4,13 +4,12 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   expectAccessible,
   expectNoHorizontalScroll,
-  setupToken,
   totpCode,
   watchForCSPViolations,
 } from './helpers';
 
-// M1 "Done when": a fresh install can't be used without the setup token, and
-// a user can't sign in without 2FA. The tests run in order against one fresh
+// M1 "Done when": a fresh install signs no one in until its first admin is
+// created, and a user can't sign in without 2FA. The tests run in order against one fresh
 // server per project, sharing what the setup created.
 test.describe.configure({ mode: 'serial' });
 
@@ -31,10 +30,7 @@ async function signOut(page: Page) {
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 }
 
-test('SEC-01 a fresh install can only be set up with the setup token', async ({
-  page,
-  request,
-}) => {
+test('a fresh install sends every page to setup and signs no one in', async ({ page, request }) => {
   const cspViolations = watchForCSPViolations(page);
 
   await page.goto('/account');
@@ -51,18 +47,11 @@ test('SEC-01 a fresh install can only be set up with the setup token', async ({
     headers: { Origin: new URL(page.url()).origin },
   });
   expect(login.status()).toBe(401);
-
-  await page.getByLabel('Setup token').fill('NOT-THE-TOKEN');
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByLabel('Confirm password').fill(password);
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByText('This setup token is incorrect.')).toBeVisible();
   expect(cspViolations).toEqual([]);
 });
 
-test('SEC-02 setup creates the admin with TOTP and recovery codes', async ({ page }, testInfo) => {
+test('SEC-02 setup creates the admin with TOTP and recovery codes', async ({ page }) => {
   await page.goto('/setup');
-  await page.getByLabel('Setup token').fill(setupToken(testInfo));
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByLabel('Confirm password').fill(password);
   await page.getByRole('button', { name: 'Continue' }).click();

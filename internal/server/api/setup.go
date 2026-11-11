@@ -13,11 +13,10 @@ type SetupStatusResponse struct {
 	SetupRequired bool `json:"setupRequired"`
 }
 
-// BeginSetupRequest is the first setup step (SEC-01, SEC-02).
+// BeginSetupRequest is the first setup step (SEC-02).
 type BeginSetupRequest struct {
-	SetupToken string `json:"setupToken"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 // TOTPEnrollmentResponse lets a user add Sentinel to an authenticator app.
@@ -38,9 +37,8 @@ type BeginSetupResponse struct {
 
 // CompleteSetupRequest proves the authenticator app works.
 type CompleteSetupRequest struct {
-	SetupToken string `json:"setupToken"`
-	SetupID    string `json:"setupId"`
-	TOTPCode   string `json:"totpCode"`
+	SetupID  string `json:"setupId"`
+	TOTPCode string `json:"totpCode"`
 }
 
 func (h *handlers) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +56,7 @@ func (h *handlers) handleBeginSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := h.auth.BeginSetup(r.Context(), auth.BeginSetupInput{
-		SetupToken: request.SetupToken, Username: request.Username, Password: request.Password,
+		Username: request.Username, Password: request.Password,
 	}, requestInfo(r))
 	if err != nil {
 		h.writeError(w, err)
@@ -73,7 +71,7 @@ func (h *handlers) handleCompleteSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	signedIn, err := h.auth.CompleteSetup(r.Context(), auth.CompleteSetupInput{
-		SetupToken: request.SetupToken, SetupID: request.SetupID, TOTPCode: request.TOTPCode,
+		SetupID: request.SetupID, TOTPCode: request.TOTPCode,
 	}, requestInfo(r))
 	if err != nil {
 		h.writeError(w, err)

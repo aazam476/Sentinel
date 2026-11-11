@@ -8,7 +8,6 @@ import { FormError } from '../../components/FormError/FormError';
 import styles from './SetupDetailsForm.module.css';
 
 export interface SetupDetails {
-  setupToken: string;
   username: string;
   password: string;
 }
@@ -19,9 +18,8 @@ interface SetupDetailsFormProps {
   onSubmit: (details: SetupDetails) => void;
 }
 
-/** SetupDetailsForm collects the setup token and the first admin's login. */
+/** SetupDetailsForm collects the first admin's login. */
 export function SetupDetailsForm({ isBusy, error, onSubmit }: SetupDetailsFormProps) {
-  const [setupToken, setSetupToken] = useState('');
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -30,11 +28,7 @@ export function SetupDetailsForm({ isBusy, error, onSubmit }: SetupDetailsFormPr
   const passwordsDiffer = hasTriedSubmit && password !== confirmation;
   const fieldError = (field: string) =>
     isApiError(error, 'invalid_input') && error.field === field ? error.message : undefined;
-  const tokenError = isApiError(error, 'invalid_setup_token')
-    ? 'This setup token is incorrect.'
-    : undefined;
-  const generalError =
-    isApiError(error, 'invalid_input') || tokenError !== undefined ? null : error;
+  const generalError = isApiError(error, 'invalid_input') ? null : error;
 
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -42,24 +36,11 @@ export function SetupDetailsForm({ isBusy, error, onSubmit }: SetupDetailsFormPr
     if (password !== confirmation) {
       return;
     }
-    onSubmit({ setupToken: setupToken.trim(), username: username.trim(), password });
+    onSubmit({ username: username.trim(), password });
   };
 
   return (
     <form className={styles.form} onSubmit={handleSubmit} noValidate>
-      <Field
-        label="Setup token"
-        value={setupToken}
-        onChange={(event) => {
-          setSetupToken(event.target.value);
-        }}
-        error={tokenError}
-        autoComplete="off"
-        autoCapitalize="none"
-        autoCorrect="off"
-        spellCheck={false}
-        required
-      />
       <Field
         label="Admin username"
         value={username}

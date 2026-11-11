@@ -10,13 +10,9 @@ import (
 	"github.com/aazam476/sentinel/internal/server/api"
 )
 
-func TestSEC01_SetupOverHTTP(t *testing.T) {
+func TestSEC02_SetupOverHTTP(t *testing.T) {
 	t.Parallel()
 	server := newTestServer(t)
-	token, err := server.app.Auth.PrepareSetupToken(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
 	browser := server.newBrowser()
 
 	t.Run("reports that setup is required", func(t *testing.T) {
@@ -28,13 +24,8 @@ func TestSEC01_SetupOverHTTP(t *testing.T) {
 		}
 	})
 
-	t.Run("refuses a wrong setup token", func(t *testing.T) {
-		got := browser.do(http.MethodPost, "/api/setup/begin", api.BeginSetupRequest{SetupToken: "WRONG", Username: "admin", Password: strongPassword})
-		expect(t, got, http.StatusForbidden, "invalid_setup_token")
-	})
-
-	t.Run("SEC-02 refuses a weak password and names the field", func(t *testing.T) {
-		got := browser.do(http.MethodPost, "/api/setup/begin", api.BeginSetupRequest{SetupToken: token, Username: "admin", Password: "password1234"})
+	t.Run("refuses a weak password and names the field", func(t *testing.T) {
+		got := browser.do(http.MethodPost, "/api/setup/begin", api.BeginSetupRequest{Username: "admin", Password: "password1234"})
 		expect(t, got, http.StatusBadRequest, "invalid_input")
 		var body api.ErrorResponse
 		got.decode(t, &body)
@@ -45,7 +36,7 @@ func TestSEC01_SetupOverHTTP(t *testing.T) {
 
 	var setup api.BeginSetupResponse
 	t.Run("returns a TOTP secret and QR code", func(t *testing.T) {
-		got := browser.do(http.MethodPost, "/api/setup/begin", api.BeginSetupRequest{SetupToken: token, Username: "admin", Password: strongPassword})
+		got := browser.do(http.MethodPost, "/api/setup/begin", api.BeginSetupRequest{Username: "admin", Password: strongPassword})
 		expect(t, got, http.StatusOK, "")
 		got.decode(t, &setup)
 		if setup.SetupID == "" || setup.TOTP.Secret == "" || setup.TOTP.QRCode == "" {
@@ -54,18 +45,18 @@ func TestSEC01_SetupOverHTTP(t *testing.T) {
 	})
 
 	t.Run("refuses a wrong TOTP code", func(t *testing.T) {
-		got := browser.do(http.MethodPost, "/api/setup/complete", api.CompleteSetupRequest{SetupToken: token, SetupID: setup.SetupID, TOTPCode: "000000"})
+		got := browser.do(http.MethodPost, "/api/setup/complete", api.CompleteSetupRequest{SetupID: setup.SetupID, TOTPCode: "000000"})
 		expect(t, got, http.StatusUnauthorized, "invalid_code")
 	})
 
 	t.Run("refuses an unknown setup ID", func(t *testing.T) {
-		got := browser.do(http.MethodPost, "/api/setup/complete", api.CompleteSetupRequest{SetupToken: token, SetupID: "nope", TOTPCode: "000000"})
+		got := browser.do(http.MethodPost, "/api/setup/complete", api.CompleteSetupRequest{SetupID: "nope", TOTPCode: "000000"})
 		expect(t, got, http.StatusGone, "setup_expired")
 	})
 
 	t.Run("creates the admin, signs them in and returns recovery codes", func(t *testing.T) {
 		got := browser.do(http.MethodPost, "/api/setup/complete", api.CompleteSetupRequest{
-			SetupToken: token, SetupID: setup.SetupID, TOTPCode: server.code(setup.TOTP.Secret),
+			SetupID: setup.SetupID, TOTPCode: server.code(setup.TOTP.Secret),
 		})
 		expect(t, got, http.StatusOK, "")
 		var signedIn api.SignedInResponse
@@ -82,7 +73,7 @@ func TestSEC01_SetupOverHTTP(t *testing.T) {
 		if status.SetupRequired {
 			t.Error("setup is still required")
 		}
-		got := browser.do(http.MethodPost, "/api/setup/begin", api.BeginSetupRequest{SetupToken: token, Username: "x", Password: strongPassword})
+		got := browser.do(http.MethodPost, "/api/setup/begin", api.BeginSetupRequest{Username: "x", Password: strongPassword})
 		expect(t, got, http.StatusConflict, "setup_not_available")
 	})
 }

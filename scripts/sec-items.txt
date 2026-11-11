@@ -7,7 +7,6 @@
 # Add an ID when you write the first code for it. One ID per line; text after
 # the ID is a reminder of what it covers.
 
-SEC-01  Setup token generated on first start, required by setup, deleted afterwards
 SEC-02  First admin: password rules, forced TOTP enrollment, 10 recovery codes
 SEC-03  Argon2id password hashing
 SEC-04  2FA (TOTP or passkey) mandatory for every user; passkeys can replace TOTP
