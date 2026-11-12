@@ -3,6 +3,7 @@
 package docker_test
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -30,5 +31,17 @@ func TestProblemsAreUnexpectedStopsAndRestartLoops(t *testing.T) {
 	}
 	if got := docker.FindProblems(nil); got == nil || len(got) != 0 {
 		t.Errorf("FindProblems(nil) = %#v, want an empty list", got)
+	}
+}
+
+func TestTheEngineReportsItsProblemContainers(t *testing.T) {
+	// The recorded engine has "finished", which exited with code 3.
+	problems, err := newFakeEngine(t).engine().Problems(t.Context())
+	want := []protocol.ContainerProblem{{Name: "finished", Image: "alpine:3.20", State: "exited", ExitCode: 3}}
+	if err != nil || !reflect.DeepEqual(problems, want) {
+		t.Errorf("Problems = %+v, %v; want %+v", problems, err, want)
+	}
+	if _, err := docker.New("unix:///nonexistent/docker.sock", "linux").Problems(t.Context()); !errors.Is(err, docker.ErrUnavailable) {
+		t.Errorf("without Docker: %v", err)
 	}
 }
