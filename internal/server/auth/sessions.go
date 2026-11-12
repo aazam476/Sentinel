@@ -18,7 +18,9 @@ type Session struct {
 	CreatedAt  int64
 	LastSeenAt int64
 	// SecondFactorAt is when the user last passed a second-factor check in
-	// this session, or nil while only the password step is done.
+	// this session, or nil while only the password step is done. For a
+	// user without a second factor, where none is required, it is when they
+	// last entered their password (ADR 0039).
 	SecondFactorAt *int64
 	IP             string
 	UserAgent      string

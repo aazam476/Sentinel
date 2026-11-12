@@ -45,6 +45,13 @@ function mockSetup() {
     http.post(apiPath('setup/complete'), async ({ request }) => {
       const body = (await request.json()) as CompleteSetupRequest;
       requests.complete = body;
+      if (body.skipTwoFactor === true) {
+        return json({
+          ...signedIn,
+          session: { ...signedIn.session, secondFactors: { totp: false, passkey: false } },
+          recoveryCodes: [],
+        });
+      }
       return body.totpCode === '123456'
         ? json(signedIn)
         : apiError(401, 'invalid_code', 'the code is incorrect or has already been used');
@@ -134,5 +141,15 @@ describe('setup page', () => {
     const { container } = renderApp('/setup');
     await screen.findByRole('heading', { name: 'Set up Sentinel' });
     expect(await findAccessibilityViolations(container)).toEqual([]);
+  });
+
+  it('ADR 0039 can skip 2FA and go straight in', async () => {
+    signedInAs(null, true);
+    const requests = mockSetup();
+    renderApp('/setup');
+    const user = await fillDetails('correct horse battery staple');
+    await user.click(await screen.findByRole('button', { name: 'Skip for now' }));
+    expect(await screen.findByRole('heading', { name: 'Machines' })).toBeVisible();
+    expect(requests.complete).toEqual({ setupId: 'setup-1', totpCode: '', skipTwoFactor: true });
   });
 });

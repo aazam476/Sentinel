@@ -32,6 +32,7 @@ func TestSEC04_PasskeysOverHTTP(t *testing.T) {
 	t.Parallel()
 	server := newTestServer(t)
 	admin := server.setUpAdmin()
+	admin.requireTwoFactor(t)
 	expect(t, admin.browser.do(http.MethodPost, "/api/users", api.CreateUserRequest{Username: "pat", Password: strongPassword, Role: "operator"}), http.StatusCreated, "")
 	authenticator := softauthn.New(server.publicOrigin)
 	pat := server.newBrowser()

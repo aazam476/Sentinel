@@ -31,12 +31,21 @@ doesn't reveal them (`auth/passwords.go`, ADR 0010).
 *Limits:* the tests hash with the full settings, which makes the package slow on CI; the test
 timeout is raised to 20 minutes meanwhile.
 
-**SEC-04 Mandatory 2FA.** No session is issued without TOTP or a passkey; users without a
-second factor must enroll before anything else; passkeys can replace TOTP
-(`auth/enrollment.go`, `passkeys.go`, `passkeyassertion.go`).
-*Tests:* `TestSEC04_TwoFactorIsRequiredToSignIn`, `TestSEC04_UsersWithout2FAMustEnrollFirst`,
-`TestSEC04_PasskeysCanReplaceTOTP`, `TestSEC04_PasskeysOverHTTP`, Playwright sign-in tests
-with a virtual authenticator.
+**SEC-04 Two-factor authentication (changed: optional by default).** Each user chooses whether
+to add TOTP or a passkey, from setup or their account; a user who has one is always asked for
+it. An admin who uses 2FA can turn on **Require it for everyone**: users without a second
+factor are then signed out and must enroll before anything else, and nobody can remove their
+last second factor. Passkeys can replace TOTP (`auth/twofactor.go`, `enrollment.go`,
+`passkeys.go`, `passkeyassertion.go`, ADR 0039).
+*Tests:* `TestSEC04_TwoFactorIsEachUsersChoiceByDefault`, `TestSEC04_AnAdminCanRequireTwoFactor`,
+`TestSEC04_SetupCantSkip2FAWhereItIsRequired`, `TestSEC04_WithoutTheRequirementTheLastPasskeyCanGo`,
+`TestSEC04_TwoFactorIsRequiredToSignIn`, `TestSEC04_UsersWithout2FAMustEnrollFirst`,
+`TestSEC04_PasskeysCanReplaceTOTP`, `TestSEC04_TwoFactorIsOptionalOverHTTP`,
+`TestSEC04_RequiringTwoFactorOverHTTP`, `TestSEC04_PasskeysOverHTTP`, Playwright sign-in tests
+with a virtual authenticator and "M6: an admin adds a user, requires 2FA of them, and disables
+them".
+*Limits:* until an admin requires it, an account without 2FA is protected by its password
+alone (still Argon2id-hashed, rate-limited and step-up-checked).
 
 **SEC-05 Rate limiting.** Per IP and per username, exponential backoff, a 15-minute lock after
 10 failures, every failure audited; unknown usernames are limited too (`auth/ratelimit.go`,
@@ -51,11 +60,14 @@ stored only as hashes; 12-hour idle and 7-day absolute timeouts; users list and 
 `TestSEC06_UsersCanListAndRevokeTheirSessions`, `TestSEC06_SessionsOverHTTP`.
 
 **SEC-07 Step-up.** Opening a terminal or a desktop session, running a script on more than one
-machine, and changing users or roles need a second factor checked within 15 minutes; the UI
-asks for it in place and retries.
+machine, changing users, roles or the 2FA requirement, and adding or removing a second factor
+need a second factor checked within 15 minutes (or, for a user without one, the password
+re-entered); the UI asks for it in place and retries (`auth/stepup.go`, `twofactor.go`).
 *Tests:* `TestSEC07_OpeningATerminalNeedsARecentSecondFactor`,
 `TestSEC07_OpeningADesktopNeedsARecentSecondFactor`, `TestSEC07_ChangingUsersNeedsARecentSecondFactor`,
-`TestSEC07_StepUpOverHTTP`, component tests of the step-up dialog in each place.
+`TestSEC07_StepUpOverHTTP`, the password step-up in `TestSEC04_TwoFactorIsEachUsersChoiceByDefault`
+and `TestSEC04_TwoFactorIsOptionalOverHTTP`, `TestSEC05_PasswordStepUpIsRateLimited`, component
+tests of the step-up dialog in each place.
 
 **SEC-08 Local recovery.** `sentinel-server reset-admin` works only as root or the data
 directory's owner, and the admin must set up 2FA again (`cmd/sentinel-server/resetadmin.go`,

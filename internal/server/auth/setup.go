@@ -25,8 +25,11 @@ type BeginSetupResult struct {
 
 // CompleteSetupInput is the second step: proving the authenticator works.
 type CompleteSetupInput struct {
-	SetupID  string
-	TOTPCode string
+	// SkipTwoFactor creates the admin without 2FA, which they can add later
+	// from their account (ADR 0039). TOTPCode is then ignored.
+	SkipTwoFactor bool
+	SetupID       string
+	TOTPCode      string
 }
 
 // SignedIn is the result of finishing a login, setup or enrollment.
@@ -90,6 +93,7 @@ func (s *Service) BeginSetup(ctx context.Context, input BeginSetupInput, request
 
 // CompleteSetup checks the TOTP code and then, in one transaction, creates
 // the admin with confirmed TOTP and ten recovery codes, and signs them in.
+// With SkipTwoFactor it creates the admin without either.
 func (s *Service) CompleteSetup(ctx context.Context, input CompleteSetupInput, request RequestInfo) (SignedIn, error) {
 	if err := s.checkSetupAllowed(ctx); err != nil {
 		return SignedIn{}, err
@@ -99,7 +103,9 @@ func (s *Service) CompleteSetup(ctx context.Context, input CompleteSetupInput, r
 		return SignedIn{}, ErrSetupExpired
 	}
 	step, valid := verifyTOTP(setup.totpSecret, input.TOTPCode, s.clock.Now(), 0)
-	if !valid {
+	if input.SkipTwoFactor {
+		setup.totpSecret, step = "", 0
+	} else if !valid {
 		return SignedIn{}, ErrInvalidCode
 	}
 
@@ -134,14 +140,8 @@ func (s *Service) createFirstAdmin(ctx context.Context, tx *sql.Tx, setup pendin
 	if err != nil {
 		return SignedIn{}, err
 	}
-	if err := s.saveTOTPSecret(ctx, tx, userID, setup.totpSecret, &now); err != nil {
-		return SignedIn{}, err
-	}
-	if err := recordTOTPStep(ctx, tx, userID, step); err != nil {
-		return SignedIn{}, err
-	}
-	codes, hashes := newRecoveryCodes()
-	if err := replaceRecoveryCodes(ctx, tx, userID, hashes); err != nil {
+	codes, err := s.enrollFirstAdmin(ctx, tx, userID, setup, step)
+	if err != nil {
 		return SignedIn{}, err
 	}
 	token, err := s.startSession(ctx, tx, userID, &now, request)
@@ -149,11 +149,36 @@ func (s *Service) createFirstAdmin(ctx context.Context, tx *sql.Tx, setup pendin
 		return SignedIn{}, err
 	}
 
-	entry := forUser(auditEntry(request, "setup.complete", audit.OutcomeSuccess, map[string]any{"role": RoleAdmin}), userID, setup.username)
+	details := map[string]any{"role": RoleAdmin, "twoFactor": setup.totpSecret != ""}
+	entry := forUser(auditEntry(request, "setup.complete", audit.OutcomeSuccess, details), userID, setup.username)
 	if err := s.audit.RecordInTx(ctx, tx, entry); err != nil {
 		return SignedIn{}, err
 	}
 	return SignedIn{SessionToken: token, RecoveryCodes: codes}, nil
+}
+
+// enrollFirstAdmin saves the admin's confirmed TOTP secret and returns
+// their recovery codes; with no secret (2FA skipped) it saves nothing.
+func (s *Service) enrollFirstAdmin(ctx context.Context, tx *sql.Tx, userID int64, setup pendingSetup, step int64) ([]string, error) {
+	if setup.totpSecret == "" {
+		required, err := twoFactorRequired(ctx, tx)
+		if err != nil {
+			return nil, err
+		}
+		if required {
+			return nil, ErrTwoFactorRequired
+		}
+		return []string{}, nil
+	}
+	now := s.now()
+	if err := s.saveTOTPSecret(ctx, tx, userID, setup.totpSecret, &now); err != nil {
+		return nil, err
+	}
+	if err := recordTOTPStep(ctx, tx, userID, step); err != nil {
+		return nil, err
+	}
+	codes, hashes := newRecoveryCodes()
+	return codes, replaceRecoveryCodes(ctx, tx, userID, hashes)
 }
 
 // checkSetupAllowed allows setup only while no user exists.

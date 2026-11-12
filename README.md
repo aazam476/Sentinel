@@ -7,13 +7,13 @@ for terminals, Docker, ZFS-aware storage views and remote desktop.
 - **Agents connect outbound** to the server, so managed machines need no open ports and
   work behind NAT.
 - **Linux, macOS and Windows** agents; the server runs anywhere Docker or Linux runs.
-- **Secure by default:** TLS, mandatory two-factor authentication, a tamper-evident audit
+- **Secure by default:** TLS, two-factor authentication (optional, or required by an admin), a tamper-evident audit
   log, signed updates, and a local policy file on every machine that the server can't
   override.
 - **Readable code.** A student should be able to open any file and understand it.
 
 > **Status: beta candidate.** Everything planned for `v0.1.0-beta.1` is built: first-boot
-> setup, sign-in with mandatory two-factor authentication (TOTP or passkeys), the audit log,
+> setup, sign-in with two-factor authentication (TOTP or passkeys) that admins can require, the audit log,
 > machines with live and historical metrics, the terminal, services, processes, logs and
 > power, Docker and compose stacks, ZFS-aware storage, the file manager, scripts and
 > schedules, alerts and notifications, users, backups, signed self-updating agents, and

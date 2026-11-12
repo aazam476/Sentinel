@@ -16,6 +16,7 @@ import alertStyles from '../Alerts/Alerts.module.css';
 import systemStyles from '../Machine/SystemTab.module.css';
 import styles from '../Scripts/Scripts.module.css';
 import { AddUserDialog } from './AddUserDialog';
+import { TwoFactorSetting } from './TwoFactorSetting';
 import { roles } from './roles';
 
 /**
@@ -62,6 +63,12 @@ export function UsersPage() {
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Users</h1>
+      <TwoFactorSetting
+        withoutTwoFactor={
+          users.data?.users.filter((user) => !user.twoFactor && !user.disabled).length ?? 0
+        }
+        onStepUp={stepUp.handleError}
+      />
       <section className={styles.section} aria-label="Users">
         <div className={systemStyles.toolbar}>
           <Button
@@ -84,6 +91,7 @@ export function UsersPage() {
                     <span className={styles.name}>{user.username}</span>
                     {isMe && <span className={systemStyles.badge}>You</span>}
                     {user.disabled && <span className={systemStyles.badge}>Disabled</span>}
+                    {!user.twoFactor && <span className={systemStyles.badge}>No 2FA</span>}
                   </span>
                   <span className={systemStyles.meta}>
                     <span>Added {formatDateTime(user.createdAt)}</span>

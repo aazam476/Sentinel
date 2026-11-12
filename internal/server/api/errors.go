@@ -38,6 +38,8 @@ const (
 	errorCodeInternal           = "internal"
 	errorCodePasskeyFailed      = "passkey_failed"
 	errorCodeLastSecondFactor   = "last_second_factor"
+	errorCodeOwnSecondFactor    = "own_second_factor_needed"
+	errorCodeTwoFactorRequired  = "two_factor_required"
 )
 
 // ErrorResponse is the JSON body of every failed API request.
@@ -99,6 +101,8 @@ func knownErrors() []knownError {
 		{auth.ErrLastAdmin, http.StatusConflict, errorCodeLastAdmin},
 		{auth.ErrPasskeyFailed, http.StatusUnauthorized, errorCodePasskeyFailed},
 		{auth.ErrLastSecondFactor, http.StatusConflict, errorCodeLastSecondFactor},
+		{auth.ErrOwnSecondFactorNeeded, http.StatusConflict, errorCodeOwnSecondFactor},
+		{auth.ErrTwoFactorRequired, http.StatusConflict, errorCodeTwoFactorRequired},
 		{scripts.ErrNotFound, http.StatusNotFound, errorCodeNotFound},
 		{scripts.ErrExists, http.StatusConflict, errorCodeConflict},
 		{alerts.ErrNotFound, http.StatusNotFound, errorCodeNotFound},

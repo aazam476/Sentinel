@@ -155,7 +155,8 @@ func (s *Service) ListPasskeys(ctx context.Context, session Session) ([]Passkey,
 }
 
 // DeletePasskey removes one of the signed-in user's passkeys. It needs a
-// recent second-factor check and refuses to remove the last second factor.
+// recent second-factor check and, where 2FA is required, refuses to remove
+// the last second factor.
 func (s *Service) DeletePasskey(ctx context.Context, session Session, passkeyID int64, request RequestInfo) error {
 	if err := s.RequireRecentSecondFactor(session); err != nil {
 		return err
@@ -172,8 +173,17 @@ func (s *Service) DeletePasskey(ctx context.Context, session Session, passkeyID 
 		if err != nil {
 			return err
 		}
-		if !remaining {
+		required, err := twoFactorRequired(ctx, tx)
+		if err != nil {
+			return err
+		}
+		if !remaining && required {
 			return ErrLastSecondFactor
+		}
+		if !remaining {
+			if err := replaceRecoveryCodes(ctx, tx, session.UserID, nil); err != nil {
+				return err
+			}
 		}
 		return s.audit.RecordInTx(ctx, tx, forUser(auditEntry(request, "auth.passkey.remove", audit.OutcomeSuccess,
 			map[string]any{"passkeyId": passkeyID}), session.UserID, session.Username))

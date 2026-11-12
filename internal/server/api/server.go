@@ -105,8 +105,9 @@ func (h *handlers) anySession(next sessionHandler) http.HandlerFunc {
 	}
 }
 
-// signedIn runs next only for a session that has passed both login steps
-// (SEC-04).
+// signedIn runs next only for a session that has finished signing in: both
+// steps, or the password alone for a user without 2FA where none is
+// required (SEC-04, ADR 0039).
 func (h *handlers) signedIn(next sessionHandler) http.HandlerFunc {
 	return h.anySession(func(w http.ResponseWriter, r *http.Request, session auth.Session) {
 		if !session.IsSignedIn() {

@@ -14,12 +14,15 @@ import (
 // NextStep says what a session must do after the password step.
 type NextStep string
 
-// The steps after a correct password (SEC-04: 2FA is never optional).
+// The steps after a correct password (SEC-04, ADR 0039).
 const (
+	// NextStepNone: the user has no second factor and the server doesn't
+	// require one, so the password signed them in.
+	NextStepNone NextStep = "signed_in"
 	// NextStepSecondFactor: enter a TOTP or recovery code.
 	NextStepSecondFactor NextStep = "second_factor"
-	// NextStepEnrollSecondFactor: the user has no 2FA yet and must set it up
-	// before they can do anything else.
+	// NextStepEnrollSecondFactor: the user has no 2FA yet, the server
+	// requires it, and they must set it up before they can do anything else.
 	NextStepEnrollSecondFactor NextStep = "enroll_second_factor"
 )
 
@@ -43,7 +46,8 @@ type SecondFactorInput struct {
 
 // Login checks a username and password (SEC-04, SEC-05). On success it
 // starts a session that can only complete the login: it has no access to
-// anything else until the second factor is done.
+// anything else until the second factor is done. A user without a second
+// factor, on a server that doesn't require one, is signed in at once.
 func (s *Service) Login(ctx context.Context, input LoginInput, request RequestInfo) (LoginResult, error) {
 	username := strings.TrimSpace(input.Username)
 	if err := s.checkRateLimit(ctx, username, request); err != nil {
@@ -73,23 +77,40 @@ func (s *Service) Login(ctx context.Context, input LoginInput, request RequestIn
 func (s *Service) startPasswordSession(ctx context.Context, user User, request RequestInfo) (LoginResult, error) {
 	var result LoginResult
 	err := s.database.Write(ctx, func(tx *sql.Tx) error {
-		token, err := s.startSession(ctx, tx, user.ID, nil, request)
+		next, err := nextLoginStep(ctx, tx, user.ID)
 		if err != nil {
 			return err
 		}
-		result.SessionToken = token
-		secondFactorReady, err := hasSecondFactor(ctx, tx, user.ID)
-		if err != nil {
+		var signedInAt *int64
+		action := "auth.login.password"
+		if next == NextStepNone {
+			now := s.now()
+			signedInAt, action = &now, "auth.login"
+		}
+		result.NextStep = next
+		if result.SessionToken, err = s.startSession(ctx, tx, user.ID, signedInAt, request); err != nil {
 			return err
 		}
-		result.NextStep = NextStepSecondFactor
-		if !secondFactorReady {
-			result.NextStep = NextStepEnrollSecondFactor
-		}
-		entry := forUser(auditEntry(request, "auth.login.password", audit.OutcomeSuccess, nil), user.ID, user.Username)
+		entry := forUser(auditEntry(request, action, audit.OutcomeSuccess, map[string]any{"method": "password"}), user.ID, user.Username)
 		return s.audit.RecordInTx(ctx, tx, entry)
 	})
+	if err == nil && result.NextStep == NextStepNone {
+		s.resetRateLimit(user.Username)
+	}
 	return result, err
+}
+
+// nextLoginStep is what a user must do after their password.
+func nextLoginStep(ctx context.Context, tx *sql.Tx, userID int64) (NextStep, error) {
+	ready, err := hasSecondFactor(ctx, tx, userID)
+	if err != nil || ready {
+		return NextStepSecondFactor, err
+	}
+	required, err := twoFactorRequired(ctx, tx)
+	if err != nil || required {
+		return NextStepEnrollSecondFactor, err
+	}
+	return NextStepNone, nil
 }
 
 // VerifySecondFactor completes a login with a TOTP code or a recovery code.

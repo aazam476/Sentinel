@@ -12,12 +12,14 @@ import (
 )
 
 // BeginTOTPEnrollment creates a new TOTP secret for a user who signed in
-// with their password but has no second factor yet (SEC-04: such a user can
-// do nothing else until they set one up). Calling it again replaces the
+// with their password but has no second factor yet, where the server
+// requires one (SEC-04: such a user can do nothing else until they set one
+// up), or for a signed-in user adding an authenticator app from their
+// account after a recent check (SEC-07). Calling it again replaces the
 // unconfirmed secret.
 func (s *Service) BeginTOTPEnrollment(ctx context.Context, session Session) (TOTPEnrollment, error) {
-	if session.IsSignedIn() || session.HasSecondFactor {
-		return TOTPEnrollment{}, ErrWrongLoginStep
+	if err := s.canEnrollTOTP(session); err != nil {
+		return TOTPEnrollment{}, err
 	}
 	enrollment, err := newTOTPEnrollment(session.Username)
 	if err != nil {
@@ -36,8 +38,8 @@ func (s *Service) BeginTOTPEnrollment(ctx context.Context, session Session) (TOT
 // ConfirmTOTPEnrollment checks a code from the newly added authenticator,
 // confirms the secret, issues ten recovery codes and signs the user in.
 func (s *Service) ConfirmTOTPEnrollment(ctx context.Context, session Session, code string, request RequestInfo) (SignedIn, error) {
-	if session.IsSignedIn() || session.HasSecondFactor {
-		return SignedIn{}, ErrWrongLoginStep
+	if err := s.canEnrollTOTP(session); err != nil {
+		return SignedIn{}, err
 	}
 	if err := s.checkRateLimit(ctx, session.Username, request); err != nil {
 		return SignedIn{}, err
@@ -63,6 +65,22 @@ func (s *Service) ConfirmTOTPEnrollment(ctx context.Context, session Session, co
 	}
 	s.resetRateLimit(session.Username)
 	return signedIn, nil
+}
+
+// canEnrollTOTP allows adding an authenticator app while signing in
+// without any second factor, or when signed in without one recently
+// checked.
+func (s *Service) canEnrollTOTP(session Session) error {
+	if !session.IsSignedIn() {
+		if session.HasSecondFactor {
+			return ErrWrongLoginStep
+		}
+		return nil
+	}
+	if session.HasTOTP {
+		return ErrWrongLoginStep
+	}
+	return s.RequireRecentSecondFactor(session)
 }
 
 // checkEnrollmentCode verifies code against the user's unconfirmed secret.

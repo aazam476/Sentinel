@@ -262,3 +262,10 @@ func (s *testServer) code(secret string) string {
 	}
 	return code
 }
+
+// requireTwoFactor turns on the requirement as the admin, the way the
+// Users page does (ADR 0039).
+func (a admin) requireTwoFactor(t *testing.T) {
+	t.Helper()
+	expect(t, a.browser.do(http.MethodPut, "/api/settings/security", api.SecuritySettings{RequireTwoFactor: true}), http.StatusOK, "")
+}

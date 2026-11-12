@@ -8,6 +8,7 @@ import type {
   SecondFactorRequest,
   SessionResponse,
   SignedInResponse,
+  StepUpRequest,
   TOTPEnrollmentResponse,
 } from './types.gen';
 
@@ -81,14 +82,24 @@ export function useConfirmTOTPEnrollment() {
   });
 }
 
+/** useStepUp confirms it's you: a TOTP code, or the password for a user without 2FA. */
 export function useStepUp() {
   const setSession = useSessionUpdater();
   return useMutation({
-    mutationFn: (totpCode: string) =>
-      apiRequest<SessionResponse>('api/auth/step-up', { method: 'POST', body: { totpCode } }),
+    mutationFn: (request: StepUpRequest) =>
+      apiRequest<SessionResponse>('api/auth/step-up', { method: 'POST', body: request }),
     onSuccess: (session) => {
       setSession(session);
     },
+  });
+}
+
+/** useRemoveTOTP removes the signed-in user's authenticator app. */
+export function useRemoveTOTP() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiRequest<undefined>('api/auth/totp', { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: sessionQueryKey }),
   });
 }
 

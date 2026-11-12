@@ -95,6 +95,7 @@ func TestSEC04_NewUsersEnrollOverHTTP(t *testing.T) {
 	t.Parallel()
 	server := newTestServer(t)
 	admin := server.setUpAdmin()
+	admin.requireTwoFactor(t)
 	expect(t, admin.browser.do(http.MethodPost, "/api/users", api.CreateUserRequest{Username: "bob", Password: strongPassword, Role: "viewer"}), http.StatusCreated, "")
 	bob := server.newBrowser()
 

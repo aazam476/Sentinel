@@ -25,7 +25,7 @@ func TestSEC08_ResetAdminCommand(t *testing.T) {
 	binary := clitest.Build(t, serverPackage)
 	missingConfig := filepath.Join(t.TempDir(), "missing.toml")
 
-	t.Run("gives the admin a new password and requires 2FA enrollment again", func(t *testing.T) {
+	t.Run("gives the admin a new password and removes their 2FA", func(t *testing.T) {
 		dataDir := t.TempDir()
 		setUpAdmin(t, dataDir)
 
@@ -40,8 +40,10 @@ func TestSEC08_ResetAdminCommand(t *testing.T) {
 		}
 		server := openApp(t, dataDir)
 		login, err := server.Auth.Login(t.Context(), auth.LoginInput{Username: "admin", Password: match[1]}, auth.RequestInfo{IP: "127.0.0.1"})
-		if err != nil || login.NextStep != auth.NextStepEnrollSecondFactor {
-			t.Errorf("Login with the new password = %+v, %v; want enrollment next", login, err)
+		// The old second factor is gone: on a server that doesn't require 2FA
+		// (ADR 0039) the new password alone signs in.
+		if err != nil || login.NextStep != auth.NextStepNone {
+			t.Errorf("Login with the new password = %+v, %v; want signed in without the old 2FA", login, err)
 		}
 	})
 

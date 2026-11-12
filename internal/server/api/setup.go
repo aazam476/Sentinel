@@ -35,10 +35,13 @@ type BeginSetupResponse struct {
 	TOTP    TOTPEnrollmentResponse `json:"totp"`
 }
 
-// CompleteSetupRequest proves the authenticator app works.
+// CompleteSetupRequest proves the authenticator app works, or skips 2FA
+// for now (ADR 0039).
 type CompleteSetupRequest struct {
 	SetupID  string `json:"setupId"`
 	TOTPCode string `json:"totpCode"`
+	// SkipTwoFactor creates the admin without 2FA; TOTPCode is ignored.
+	SkipTwoFactor bool `json:"skipTwoFactor,omitempty"`
 }
 
 func (h *handlers) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +74,7 @@ func (h *handlers) handleCompleteSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	signedIn, err := h.auth.CompleteSetup(r.Context(), auth.CompleteSetupInput{
-		SetupID: request.SetupID, TOTPCode: request.TOTPCode,
+		SetupID: request.SetupID, TOTPCode: request.TOTPCode, SkipTwoFactor: request.SkipTwoFactor,
 	}, requestInfo(r))
 	if err != nil {
 		h.writeError(w, err)

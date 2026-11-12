@@ -21,8 +21,9 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-// LoginResponse says what the browser must do next: "second_factor" or
-// "enroll_second_factor".
+// LoginResponse says what the browser must do next: "second_factor",
+// "enroll_second_factor", or "signed_in" for a user without 2FA where none
+// is required.
 type LoginResponse struct {
 	NextStep string `json:"nextStep"`
 }
@@ -33,9 +34,16 @@ type SecondFactorRequest struct {
 	RecoveryCode string `json:"recoveryCode,omitempty"`
 }
 
-// TOTPCodeRequest carries a TOTP code, for enrollment and step-up.
+// TOTPCodeRequest carries a TOTP code, for enrollment.
 type TOTPCodeRequest struct {
 	TOTPCode string `json:"totpCode"`
+}
+
+// StepUpRequest confirms it's you: with a TOTP code, or with the password
+// for a user who has no second factor.
+type StepUpRequest struct {
+	TOTPCode string `json:"totpCode,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 // SessionResponse describes the current session.
@@ -125,15 +133,28 @@ func (h *handlers) handleConfirmEnrollment(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *handlers) handleStepUp(w http.ResponseWriter, r *http.Request, session auth.Session) {
-	var request TOTPCodeRequest
+	var request StepUpRequest
 	if !decodeJSON(w, r, &request) {
 		return
 	}
-	if err := h.auth.StepUp(r.Context(), session, request.TOTPCode, requestInfo(r)); err != nil {
+	stepUp := func() error { return h.auth.StepUp(r.Context(), session, request.TOTPCode, requestInfo(r)) }
+	if request.Password != "" {
+		stepUp = func() error { return h.auth.StepUpWithPassword(r.Context(), session, request.Password, requestInfo(r)) }
+	}
+	if err := stepUp(); err != nil {
 		h.writeError(w, err)
 		return
 	}
 	h.handleSession(w, r, session)
+}
+
+// handleRemoveTOTP removes the user's authenticator app (ADR 0039).
+func (h *handlers) handleRemoveTOTP(w http.ResponseWriter, r *http.Request, session auth.Session) {
+	if err := h.auth.RemoveTOTP(r.Context(), session, requestInfo(r)); err != nil {
+		h.writeError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handlers) handleLogout(w http.ResponseWriter, r *http.Request, session auth.Session) {

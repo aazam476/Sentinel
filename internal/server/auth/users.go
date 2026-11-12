@@ -11,24 +11,29 @@ import (
 
 // User is a user account.
 type User struct {
-	ID           int64  `json:"id"`
-	Username     string `json:"username"`
-	Role         Role   `json:"role"`
-	CreatedAt    int64  `json:"createdAt"`
-	DisabledAt   *int64 `json:"disabledAt"`
-	passwordHash string
-	lockedUntil  *int64
+	ID         int64  `json:"id"`
+	Username   string `json:"username"`
+	Role       Role   `json:"role"`
+	CreatedAt  int64  `json:"createdAt"`
+	DisabledAt *int64 `json:"disabledAt"`
+	// HasSecondFactor is whether they have TOTP or a passkey set up.
+	HasSecondFactor bool `json:"hasSecondFactor"`
+	passwordHash    string
+	lockedUntil     *int64
 }
 
 // errUserNotFound means no user matched. It is never reassigned.
 var errUserNotFound = errors.New("user not found")
 
-const selectUser = `SELECT id, username, password_hash, role, created_at, disabled_at, locked_until FROM users`
+const selectUser = `SELECT id, username, password_hash, role, created_at, disabled_at, locked_until,
+	EXISTS (SELECT 1 FROM totp_secrets t WHERE t.user_id = users.id AND t.confirmed_at IS NOT NULL)
+	OR EXISTS (SELECT 1 FROM passkeys p WHERE p.user_id = users.id)
+	FROM users`
 
 func scanUser(row interface{ Scan(...any) error }) (User, error) {
 	var user User
 	var role string
-	err := row.Scan(&user.ID, &user.Username, &user.passwordHash, &role, &user.CreatedAt, &user.DisabledAt, &user.lockedUntil)
+	err := row.Scan(&user.ID, &user.Username, &user.passwordHash, &role, &user.CreatedAt, &user.DisabledAt, &user.lockedUntil, &user.HasSecondFactor)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, errUserNotFound
 	}

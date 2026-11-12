@@ -32,7 +32,33 @@ type harness struct {
 	dataDir  string
 }
 
+// newHarness is a server that requires 2FA of everyone, as most tests of
+// sign-in assume; newOptionalHarness leaves it to each user (ADR 0039).
 func newHarness(t *testing.T) *harness {
+	t.Helper()
+	h := newOptionalHarness(t)
+	h.setTwoFactorRequired(t, true)
+	return h
+}
+
+// setTwoFactorRequired writes the setting directly, as an admin would.
+func (h *harness) setTwoFactorRequired(t *testing.T, required bool) {
+	t.Helper()
+	value := "false"
+	if required {
+		value = "true"
+	}
+	err := h.database.store.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO settings (key, value_json) VALUES ('auth.require_two_factor', ?)
+			ON CONFLICT (key) DO UPDATE SET value_json = excluded.value_json`, value)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func newOptionalHarness(t *testing.T) *harness {
 	t.Helper()
 	dataDir := t.TempDir()
 	clock := fakeclock.New(time.Date(2026, 11, 7, 12, 0, 0, 0, time.UTC))

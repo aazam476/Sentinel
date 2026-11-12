@@ -15,6 +15,8 @@ type UserResponse struct {
 	Role      string `json:"role"`
 	CreatedAt int64  `json:"createdAt"`
 	Disabled  bool   `json:"disabled"`
+	// TwoFactor is whether the user has TOTP or a passkey set up.
+	TwoFactor bool `json:"twoFactor"`
 }
 
 // UsersResponse lists every user.
@@ -22,7 +24,8 @@ type UsersResponse struct {
 	Users []UserResponse `json:"users"`
 }
 
-// CreateUserRequest adds a user, who sets up 2FA at first sign-in.
+// CreateUserRequest adds a user. Where 2FA is required, they set it up at
+// first sign-in.
 type CreateUserRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -88,6 +91,6 @@ func (h *handlers) handleUpdateUser(w http.ResponseWriter, r *http.Request, sess
 func userResponse(user auth.User) UserResponse {
 	return UserResponse{
 		ID: user.ID, Username: user.Username, Role: string(user.Role), CreatedAt: user.CreatedAt,
-		Disabled: user.DisabledAt != nil,
+		Disabled: user.DisabledAt != nil, TwoFactor: user.HasSecondFactor,
 	}
 }

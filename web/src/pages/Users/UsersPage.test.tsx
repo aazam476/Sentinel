@@ -10,9 +10,30 @@ import { renderApp } from '../../test/renderApp';
 import { apiError, apiPath, json, server, signedInAs } from '../../test/server';
 
 const people: UserResponse[] = [
-  { id: 1, username: 'admin', role: 'admin', createdAt: fixtureNow, disabled: false },
-  { id: 3, username: 'olu', role: 'operator', createdAt: fixtureNow, disabled: false },
-  { id: 4, username: 'gone', role: 'viewer', createdAt: fixtureNow, disabled: true },
+  {
+    id: 1,
+    username: 'admin',
+    role: 'admin',
+    createdAt: fixtureNow,
+    disabled: false,
+    twoFactor: true,
+  },
+  {
+    id: 3,
+    username: 'olu',
+    role: 'operator',
+    createdAt: fixtureNow,
+    disabled: false,
+    twoFactor: false,
+  },
+  {
+    id: 4,
+    username: 'gone',
+    role: 'viewer',
+    createdAt: fixtureNow,
+    disabled: true,
+    twoFactor: false,
+  },
 ];
 
 function withUsers() {
@@ -120,5 +141,56 @@ describe('Users', () => {
     renderApp('/users');
     expect(await screen.findByText('Only admins manage users.')).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Users' })).toBeNull();
+  });
+
+  it('SEC-04 marks users without 2FA and requires it for everyone after confirming', async () => {
+    withUsers();
+    let saved: { requireTwoFactor: boolean } | undefined;
+    server.use(
+      http.put(apiPath('settings/security'), async ({ request }) => {
+        saved = (await request.json()) as { requireTwoFactor: boolean };
+        return json(saved);
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp('/users');
+    const olu = await screen.findByRole('listitem', { name: 'olu' });
+    expect(within(olu).getByText('No 2FA')).toBeVisible();
+    expect(
+      within(screen.getByRole('listitem', { name: 'admin' })).queryByText('No 2FA'),
+    ).toBeNull();
+
+    const toggle = await screen.findByRole('checkbox', { name: 'Require it for everyone' });
+    expect(toggle).not.toBeChecked();
+    await user.click(toggle);
+    const dialog = await screen.findByRole('alertdialog');
+    // Disabled users can't sign in anyway, so only olu is counted.
+    expect(within(dialog).getByText(/1 user without it will be signed out/)).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Require it' }));
+    expect(await screen.findByText('Two-factor authentication is now required')).toBeVisible();
+    expect(saved).toEqual({ requireTwoFactor: true });
+    expect(await screen.findByRole('checkbox', { name: 'Require it for everyone' })).toBeChecked();
+  });
+
+  it('explains why an admin without 2FA can’t require it', async () => {
+    withUsers();
+    server.use(
+      http.put(apiPath('settings/security'), () =>
+        apiError(
+          409,
+          'own_second_factor_needed',
+          'set up two-factor authentication for your own account first',
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderApp('/users');
+    await user.click(await screen.findByRole('checkbox', { name: 'Require it for everyone' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Require it' }),
+    );
+    expect(
+      await screen.findByText(/Set up two-factor authentication for your own account first/i),
+    ).toBeVisible();
   });
 });

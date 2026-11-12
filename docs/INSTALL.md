@@ -23,7 +23,9 @@ The UDP ports are remote desktop's relay, for when a browser can't reach a machi
 can't see for itself. Without them, remote desktop still works, through the HTTPS port.
 
 Open `https://<this host>:7443`, accept the self-signed certificate, and create the first
-admin. You set up two-factor authentication as part of it.
+admin. Setup offers to add an authenticator app; you can skip it and add one, or a passkey,
+later from **Account**. To make everyone use two-factor authentication, turn on **Require it
+for everyone** on the **Users** page.
 
 **Do this straight away, before anyone else can reach the server.** Until the first admin
 exists, whoever opens the page first can create it and own the server. Keep the port off the

@@ -28,7 +28,7 @@ var (
 	ErrWrongLoginStep = errors.New("this step doesn't apply to your session")
 	// ErrStepUpRequired: a sensitive action needs a fresh second-factor check
 	// (SEC-07).
-	ErrStepUpRequired = errors.New("confirm it's you with your authenticator app first")
+	ErrStepUpRequired = errors.New("confirm it's you first")
 	// ErrForbidden: the user's role doesn't allow the action.
 	ErrForbidden = errors.New("your role doesn't allow this")
 	// ErrNotFound: the user or session doesn't exist (or isn't yours).
@@ -37,6 +37,12 @@ var (
 	ErrUsernameTaken = errors.New("that username is already taken")
 	// ErrLastAdmin: the change would leave no active admin.
 	ErrLastAdmin = errors.New("this would leave Sentinel without an active admin")
+	// ErrOwnSecondFactorNeeded: an admin without 2FA tried to make it
+	// mandatory, which would send them to set it up at once.
+	ErrOwnSecondFactorNeeded = errors.New("set up two-factor authentication for your own account first")
+	// ErrTwoFactorRequired: 2FA is mandatory on this server, so it can't be
+	// skipped.
+	ErrTwoFactorRequired = errors.New("two-factor authentication is required on this server")
 )
 
 // TooManyAttemptsError means login attempts are being slowed down or the

@@ -5,8 +5,9 @@ import { expectAccessible, signInAsNewAdmin, watchForCSPViolations } from './hel
 import { OwnServer } from './processes';
 
 /**
- * M6, users: an admin adds an operator in the UI, who must set up
- * two-factor authentication on first sign-in; then the admin disables them.
+ * M6, users: an admin adds an operator in the UI, who signs straight in
+ * while 2FA is optional; the admin then requires 2FA, which signs them out
+ * and sends them to set it up (ADR 0039); then the admin disables them.
  */
 const ports: Record<string, number> = {
   desktop: 7550,
@@ -15,7 +16,7 @@ const ports: Record<string, number> = {
   'phone-reduced-motion': 7553,
 };
 
-test('M6: an admin adds a user, who sets up 2FA first, and disables them', async ({
+test('M6: an admin adds a user, requires 2FA of them, and disables them', async ({
   page,
   browser,
 }, testInfo) => {
@@ -43,13 +44,29 @@ test('M6: an admin adds a user, who sets up 2FA first, and disables them', async
     await expect(olu.getByRole('combobox', { name: 'Role' })).toHaveValue('operator');
     await expectAccessible(page);
 
-    // Their first sign-in goes to two-factor setup.
+    // While 2FA is optional, their password signs them in.
+    await expect(olu.getByText('No 2FA')).toBeVisible();
     const theirs = await browser.newContext({ ignoreHTTPSErrors: true });
     const them = await theirs.newPage();
-    await them.goto(`${server.origin}/login`);
-    await them.getByRole('textbox', { name: 'Username' }).fill('olu');
-    await them.getByLabel('Password').fill('a long first password');
-    await them.getByRole('button', { name: 'Sign in' }).click();
+    const signInAsOlu = async () => {
+      await them.goto(`${server.origin}/login`);
+      await them.getByRole('textbox', { name: 'Username' }).fill('olu');
+      await them.getByLabel('Password').fill('a long first password');
+      await them.getByRole('button', { name: 'Sign in' }).click();
+    };
+    await signInAsOlu();
+    await expect(them.getByRole('heading', { name: 'Machines', exact: true })).toBeVisible();
+
+    // Requiring it signs them out; their next sign-in goes to 2FA setup.
+    await page.getByRole('checkbox', { name: 'Require it for everyone' }).click();
+    const confirm = page.getByRole('alertdialog');
+    await expect(confirm).toContainText('1 user without it will be signed out');
+    await confirm.getByRole('button', { name: 'Require it' }).click();
+    await expect(page.getByText('Two-factor authentication is now required')).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: 'Require it for everyone' })).toBeChecked();
+    await them.reload();
+    await expect(them.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    await signInAsOlu();
     await expect(
       them.getByRole('heading', { name: 'Set up two-factor authentication' }),
     ).toBeVisible();
@@ -58,10 +75,7 @@ test('M6: an admin adds a user, who sets up 2FA first, and disables them', async
     await olu.getByRole('button', { name: 'Disable' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Disable' }).click();
     await expect(olu.getByText('Disabled')).toBeVisible();
-    await them.goto(`${server.origin}/login`);
-    await them.getByRole('textbox', { name: 'Username' }).fill('olu');
-    await them.getByLabel('Password').fill('a long first password');
-    await them.getByRole('button', { name: 'Sign in' }).click();
+    await signInAsOlu();
     await expect(them.getByRole('alert')).toBeVisible();
     await theirs.close();
 
@@ -71,6 +85,7 @@ test('M6: an admin adds a user, who sets up 2FA first, and disables them', async
     );
     expect(actions).toContain('user.create');
     expect(actions).toContain('user.disable');
+    expect(actions).toContain('settings.require_two_factor');
     expect(cspViolations).toEqual([]);
   } finally {
     await server.stop();

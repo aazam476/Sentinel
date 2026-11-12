@@ -6,6 +6,7 @@ import { sessionQueryKey } from '../../api/session';
 import { setupStatusQueryKey, useBeginSetup, useCompleteSetup } from '../../api/setup';
 import type { BeginSetupResponse, SignedInResponse } from '../../api/types.gen';
 import { AuthLayout } from '../../components/AuthLayout/AuthLayout';
+import { Button } from '../../components/Button/Button';
 import { RecoveryCodes } from '../../components/RecoveryCodes/RecoveryCodes';
 import { TOTPSetup } from '../../components/TOTPSetup/TOTPSetup';
 import { SetupDetailsForm, type SetupDetails } from './SetupDetailsForm';
@@ -38,18 +39,31 @@ export function SetupPage() {
 
   // The session is stored only after the codes are saved: storing it sends
   // the browser into the app.
-  const handleCodesSaved = () => {
-    if (signedIn === null) {
+  const enter = (finished: SignedInResponse) => {
+    queryClient.setQueryData(setupStatusQueryKey, { setupRequired: false });
+    queryClient.setQueryData(sessionQueryKey, finished.session);
+  };
+
+  // Without 2FA there are no recovery codes to save: straight in.
+  const handleSkip = () => {
+    if (setup === null) {
       return;
     }
-    queryClient.setQueryData(setupStatusQueryKey, { setupRequired: false });
-    queryClient.setQueryData(sessionQueryKey, signedIn.session);
+    completeSetup.mutate(
+      { setupId: setup.setupId, totpCode: '', skipTwoFactor: true },
+      { onSuccess: enter },
+    );
   };
 
   if (signedIn !== null) {
     return (
       <AuthLayout title="Sentinel is ready">
-        <RecoveryCodes codes={signedIn.recoveryCodes} onDone={handleCodesSaved} />
+        <RecoveryCodes
+          codes={signedIn.recoveryCodes}
+          onDone={() => {
+            enter(signedIn);
+          }}
+        />
       </AuthLayout>
     );
   }
@@ -57,7 +71,12 @@ export function SetupPage() {
     return (
       <AuthLayout
         title="Set up two-factor authentication"
-        description={<p>Every account needs a second factor.</p>}
+        description={
+          <p>
+            Recommended: with an authenticator app, a stolen password alone can’t open Sentinel. You
+            can also add one later from your account.
+          </p>
+        }
       >
         <TOTPSetup
           enrollment={setup.totp}
@@ -65,6 +84,9 @@ export function SetupPage() {
           error={completeSetup.error}
           onConfirm={handleCode}
         />
+        <Button variant="secondary" isFullWidth onClick={handleSkip}>
+          Skip for now
+        </Button>
       </AuthLayout>
     );
   }

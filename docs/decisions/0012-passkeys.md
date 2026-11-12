@@ -1,6 +1,6 @@
 # 0012 — Passkeys as a second factor
 
-**Date:** 2026-11-08 · **Status:** Accepted
+**Date:** 2026-11-08 · **Status:** Accepted; 2FA is optional unless required (ADR 0039)
 
 ## Context
 

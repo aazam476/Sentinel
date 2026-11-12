@@ -515,8 +515,9 @@ export interface LoginRequest {
   password: string;
 }
 /**
- * LoginResponse says what the browser must do next: "second_factor" or
- * "enroll_second_factor".
+ * LoginResponse says what the browser must do next: "second_factor",
+ * "enroll_second_factor", or "signed_in" for a user without 2FA where none
+ * is required.
  */
 export interface LoginResponse {
   nextStep: string;
@@ -529,10 +530,18 @@ export interface SecondFactorRequest {
   recoveryCode?: string;
 }
 /**
- * TOTPCodeRequest carries a TOTP code, for enrollment and step-up.
+ * TOTPCodeRequest carries a TOTP code, for enrollment.
  */
 export interface TOTPCodeRequest {
   totpCode: string;
+}
+/**
+ * StepUpRequest confirms it's you: with a TOTP code, or with the password
+ * for a user who has no second factor.
+ */
+export interface StepUpRequest {
+  totpCode?: string;
+  password?: string;
 }
 /**
  * SessionResponse describes the current session.
@@ -829,6 +838,20 @@ export interface SaveScheduleRequest {
 }
 
 //////////
+// source: security.go
+
+/**
+ * SecuritySettings are the server-wide sign-in rules (ADR 0039).
+ */
+export interface SecuritySettings {
+  /**
+   * RequireTwoFactor makes every user set up TOTP or a passkey. Off,
+   * two-factor authentication is each user's choice.
+   */
+  requireTwoFactor: boolean;
+}
+
+//////////
 // source: sessions.go
 
 /**
@@ -890,11 +913,16 @@ export interface BeginSetupResponse {
   totp: TOTPEnrollmentResponse;
 }
 /**
- * CompleteSetupRequest proves the authenticator app works.
+ * CompleteSetupRequest proves the authenticator app works, or skips 2FA
+ * for now (ADR 0039).
  */
 export interface CompleteSetupRequest {
   setupId: string;
   totpCode: string;
+  /**
+   * SkipTwoFactor creates the admin without 2FA; TOTPCode is ignored.
+   */
+  skipTwoFactor?: boolean;
 }
 
 //////////
@@ -1114,6 +1142,10 @@ export interface UserResponse {
   role: string;
   createdAt: number /* int64 */;
   disabled: boolean;
+  /**
+   * TwoFactor is whether the user has TOTP or a passkey set up.
+   */
+  twoFactor: boolean;
 }
 /**
  * UsersResponse lists every user.
@@ -1122,7 +1154,8 @@ export interface UsersResponse {
   users: UserResponse[];
 }
 /**
- * CreateUserRequest adds a user, who sets up 2FA at first sign-in.
+ * CreateUserRequest adds a user. Where 2FA is required, they set it up at
+ * first sign-in.
  */
 export interface CreateUserRequest {
   username: string;

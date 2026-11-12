@@ -1021,7 +1021,7 @@ export const worstRules: AlertRules = {
   })),
 };
 
-/** worstUsers: 500 users, the longest username first, every role, some disabled. */
+/** worstUsers: 500 users, the longest username first, every role, some disabled, most without 2FA. */
 export function worstUsers(): UsersResponse {
   return {
     users: Array.from({ length: 500 }, (_, index) => ({
@@ -1031,6 +1031,7 @@ export function worstUsers(): UsersResponse {
       role: ['admin', 'operator', 'viewer'][index % 3] ?? 'viewer',
       createdAt: fixtureNow - index * 86_400_000,
       disabled: index % 7 === 3,
+      twoFactor: index % 5 === 0,
     })),
   };
 }

@@ -46,5 +46,7 @@ export function signedInAs(session: SessionResponse | null, setupRequired = fals
     ),
     // The home page lists machines; tests that care add their own list.
     http.get(apiPath('agents'), () => json({ agents: [] })),
+    // 2FA is optional unless a test says otherwise (ADR 0039).
+    http.get(apiPath('settings/security'), () => json({ requireTwoFactor: false })),
   );
 }

@@ -21,8 +21,8 @@ var ErrNotAnAdmin = errors.New("that user is not an admin")
 // `sentinel-server reset-admin` on the server host. It gives the admin a new
 // random password, removes their second factors (TOTP and passkeys) and
 // recovery codes, unlocks
-// and enables the account, and ends their sessions. At the next sign-in they
-// must set up 2FA again, so 2FA stays mandatory.
+// and enables the account, and ends their sessions. Where 2FA is required
+// they set it up again at the next sign-in (ADR 0039).
 //
 // An empty username picks the only admin; with several admins one must be
 // named. The new password is returned for the operator to pass on.

@@ -122,6 +122,9 @@ func (h *handlers) addAccountRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/passkeys/registration/finish", h.anySession(h.handleFinishPasskeyRegistration))
 	mux.HandleFunc("GET /api/auth/passkeys", h.signedIn(h.handleListPasskeys))
 	mux.HandleFunc("DELETE /api/auth/passkeys/{id}", h.signedIn(h.handleDeletePasskey))
+	mux.HandleFunc("DELETE /api/auth/totp", h.signedIn(h.handleRemoveTOTP))
+	mux.HandleFunc("GET /api/settings/security", h.signedIn(h.handleGetSecuritySettings))
+	mux.HandleFunc("PUT /api/settings/security", h.withPermission(auth.PermissionManageSettings, h.handleUpdateSecuritySettings))
 }
 
 // addAdminRoutes adds users, the audit log and enrollment tokens.

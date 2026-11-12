@@ -9,7 +9,7 @@
 
 SEC-02  First admin: password rules, forced TOTP enrollment, 10 recovery codes
 SEC-03  Argon2id password hashing
-SEC-04  2FA (TOTP or passkey) mandatory for every user; passkeys can replace TOTP
+SEC-04  2FA (TOTP or passkey): each user's choice, or required of everyone by an admin; passkeys can replace TOTP
 SEC-05  Login rate limiting: exponential backoff, 15-minute lock after 10 failures, failures logged
 SEC-06  Session tokens: random, hashed, idle and absolute timeouts, list and revoke
 SEC-07  Step-up re-authentication for sensitive actions

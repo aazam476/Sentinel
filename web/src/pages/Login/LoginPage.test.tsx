@@ -18,7 +18,7 @@ import { apiError, apiPath, json, server } from '../../test/server';
  * mockSignIn follows the real server: the session changes as each step
  * succeeds, and the pages move with it.
  */
-function mockSignIn() {
+function mockSignIn(withoutTwoFactor = false) {
   let session: SessionResponse | null = null;
   const secondFactorRequests: SecondFactorRequest[] = [];
   server.use(
@@ -30,6 +30,10 @@ function mockSignIn() {
       const body = (await request.json()) as LoginRequest;
       if (body.password !== 'correct horse battery staple') {
         return apiError(401, 'invalid_credentials', 'the username or password is incorrect');
+      }
+      if (withoutTwoFactor) {
+        session = { ...adminSession, secondFactors: { totp: false, passkey: false } };
+        return json({ nextStep: 'signed_in' });
       }
       session = pendingSession;
       return json({ nextStep: 'second_factor' });
@@ -92,6 +96,13 @@ describe('SEC-04 sign-in', () => {
 
     await user.type(screen.getByLabelText('Authenticator code'), '123456');
     await user.click(screen.getByRole('button', { name: 'Verify' }));
+    expect(await screen.findByRole('heading', { name: 'Machines' })).toBeVisible();
+  });
+
+  it('ADR 0039 opens the app after the password for a user without 2FA', async () => {
+    mockSignIn(true);
+    renderApp('/login');
+    await enterPassword('correct horse battery staple');
     expect(await screen.findByRole('heading', { name: 'Machines' })).toBeVisible();
   });
 

@@ -7,6 +7,7 @@ import { useStepUp } from '../../api/session';
 import type { SecondFactors } from '../../api/types.gen';
 import { Button } from '../Button/Button';
 import { CodeField } from '../Field/CodeField';
+import { Field } from '../Field/Field';
 import { FormError } from '../FormError/FormError';
 import styles from './StepUpDialog.module.css';
 
@@ -38,9 +39,12 @@ export function StepUpDialog({
     onConfirmed();
   };
 
+  const hasSecondFactor = secondFactors.totp || secondFactors.passkey;
+
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    stepUp.mutate(code.trim(), { onSuccess: finish });
+    const request = hasSecondFactor ? { totpCode: code.trim() } : { password: code };
+    stepUp.mutate(request, { onSuccess: finish });
   };
 
   const passkeyError =
@@ -53,7 +57,9 @@ export function StepUpDialog({
         <Dialog.Popup className={styles.popup}>
           <Dialog.Title className={styles.title}>Confirm it’s you</Dialog.Title>
           <Dialog.Description className={styles.description}>
-            This change needs a fresh check of your second factor.
+            {hasSecondFactor
+              ? 'This change needs a fresh check of your second factor.'
+              : 'This change needs your password again.'}
           </Dialog.Description>
           {secondFactors.passkey && (
             <Button
@@ -75,6 +81,25 @@ export function StepUpDialog({
                 onChange={(event) => {
                   setCode(event.target.value);
                 }}
+              />
+              <FormError error={stepUp.error} />
+              <Button type="submit" isFullWidth isBusy={stepUp.isPending}>
+                Confirm
+              </Button>
+            </form>
+          )}
+          {!hasSecondFactor && (
+            <form className={styles.form} onSubmit={handleSubmit}>
+              <Field
+                label="Password"
+                type="password"
+                value={code}
+                onChange={(event) => {
+                  setCode(event.target.value);
+                }}
+                autoComplete="current-password"
+                autoFocus
+                required
               />
               <FormError error={stepUp.error} />
               <Button type="submit" isFullWidth isBusy={stepUp.isPending}>
