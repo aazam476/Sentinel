@@ -5,15 +5,18 @@
 #   1. build: every binary, reproducibly, with the web UI built in.
 #   2. macos: codesigns the macOS binaries and builds the signed, notarized
 #      agent installer (unsigned when the Apple secrets aren't set).
-#   3. publish: signs everything with the release key (SEC-30), writes the
-#      SBOMs and SHA256SUMS (SEC-33), creates the GitHub release, and pushes
-#      the server image to ghcr.io.
+#   3. publish: Authenticode-signs the Windows binaries (only with a code
+#      signing certificate), signs everything with the release key (SEC-30),
+#      writes the SBOMs and SHA256SUMS (SEC-33), creates the GitHub release,
+#      and pushes the server image to ghcr.io.
 #
 # Secrets: SENTINEL_RELEASE_KEY (required: the offline release key; the
-# build must also trust its public half, see ADR 0027), and, for macOS,
-# MACOS_CERTIFICATES_P12 (base64), MACOS_CERTIFICATES_PASSWORD,
+# build must also trust its public half, see ADR 0027). Platform code
+# signing is optional and off until its secrets are set (ADR 0040): for
+# macOS, MACOS_CERTIFICATES_P12 (base64), MACOS_CERTIFICATES_PASSWORD,
 # MACOS_APP_IDENTITY, MACOS_INSTALLER_IDENTITY, MACOS_NOTARY_APPLE_ID,
-# MACOS_NOTARY_TEAM_ID and MACOS_NOTARY_PASSWORD.
+# MACOS_NOTARY_TEAM_ID and MACOS_NOTARY_PASSWORD; for Windows,
+# WINDOWS_CERTIFICATE_PFX (base64) and WINDOWS_CERTIFICATE_PASSWORD.
 name: Release
 
 on:
@@ -122,6 +125,17 @@ jobs:
         with:
           name: macos
           path: dist/
+      # Authenticode changes the binaries, so it comes before the release
+      # key's signatures, which must cover the files as published.
+      - name: Authenticode-sign the Windows binaries, if there is a certificate
+        env:
+          WINDOWS_CERTIFICATE_PFX: ${{ secrets.WINDOWS_CERTIFICATE_PFX }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -n "$WINDOWS_CERTIFICATE_PFX" ]; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq osslsigncode
+          fi
+          scripts/sign-windows.sh dist
       - name: Sign, describe and list the release
         env:
           SENTINEL_RELEASE_KEY: ${{ secrets.SENTINEL_RELEASE_KEY }}

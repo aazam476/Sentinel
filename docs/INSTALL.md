@@ -291,12 +291,21 @@ on its page, so the server stops expecting it.
    `release.key` as the `SENTINEL_RELEASE_KEY` secret, and keep the file itself offline. Until a
    production key is committed, builds trust only the published development key, and the
    release workflow refuses to run.
-2. For a signed and notarized macOS installer, add the Apple secrets listed in
-   `.github/workflows/release.yml`. Without them the installer is unsigned.
+2. Platform code signing is optional (ADR 0040). Releases are unsigned for Apple and Microsoft
+   until you add their secrets, listed in `.github/workflows/release.yml`; nothing else needs
+   to change, and the next tagged release picks them up:
+   - **macOS:** a Developer ID Application and Installer certificate (an Apple Developer
+     account) and a notarization app password. The installer is then signed and notarized, so
+     it opens with a double-click, and Screen Recording and Accessibility permissions survive
+     agent updates.
+   - **Windows:** an Authenticode code signing certificate as a base64 `.pfx` and its
+     password. The `.exe` files are then signed with a timestamp, which quiets SmartScreen once
+     the certificate has built up a reputation.
+   Sentinel's own Ed25519 signatures (step 1) protect every download and update either way.
 3. Tag the commit (`git tag v1.2.3 && git push origin v1.2.3`). The release workflow builds
-   every binary reproducibly, codesigns the macOS ones, signs everything with the release key,
-   writes SBOMs and `SHA256SUMS`, publishes the GitHub release, and pushes the image to
-   `ghcr.io`.
+   every binary reproducibly, codesigns the macOS and Windows ones when it has certificates,
+   signs everything with the release key, writes SBOMs and `SHA256SUMS`, publishes the GitHub
+   release, and pushes the image to `ghcr.io`.
 4. Submit the Windows binaries to Microsoft's false-positive portal (§11.4).
 
 To try a release locally with the development key:
