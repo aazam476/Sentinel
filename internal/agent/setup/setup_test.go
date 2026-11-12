@@ -187,7 +187,7 @@ func TestUninstall(t *testing.T) {
 			t.Fatal(err)
 		}
 		f.service.calls = nil
-		if err := setup.Uninstall(f.options); err != nil {
+		if err := setup.Uninstall(t.Context(), f.options); err != nil {
 			t.Fatal(err)
 		}
 		if !slices.Equal(f.service.calls, []string{"stop", "uninstall"}) {
@@ -203,7 +203,7 @@ func TestUninstall(t *testing.T) {
 	t.Run("carries on when the service was never installed", func(t *testing.T) {
 		f := newFixture(t)
 		f.service.fail = "uninstall"
-		if err := setup.Uninstall(f.options); err != nil {
+		if err := setup.Uninstall(t.Context(), f.options); err != nil {
 			t.Errorf("err = %v", err)
 		}
 		if !strings.Contains(f.output.String(), "may not have been installed") {
@@ -218,7 +218,7 @@ func TestUninstall(t *testing.T) {
 		}
 		f.service.calls = nil
 		f.options.DryRun = true
-		if err := setup.Uninstall(f.options); err != nil {
+		if err := setup.Uninstall(t.Context(), f.options); err != nil {
 			t.Fatal(err)
 		}
 		if len(f.service.calls) != 0 {
@@ -257,4 +257,50 @@ func TestStarterPolicyFitsItsSystem(t *testing.T) {
 	if darwin := setup.StarterPolicy("darwin"); strings.Contains(darwin, "xauthority") {
 		t.Error("the macOS starter policy offers X11 settings")
 	}
+}
+
+func TestUninstallTellsTheServerFirst(t *testing.T) {
+	tests := []struct {
+		name       string
+		report     error
+		wantOutput string
+	}{
+		{name: "says the server was told", wantOutput: "Told the server this machine was removed"},
+		{name: "says how to finish by hand when the server can't be reached", report: errBroken, wantOutput: "revoke it on its page"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			f := newFixture(t)
+			if err := setup.Install(t.Context(), f.options, server()); err != nil {
+				t.Fatal(err)
+			}
+			stateWasThere := false
+			f.options.ReportRemoved = func(context.Context) error {
+				// The key is still there to sign the report with.
+				_, err := os.Stat(f.options.Paths.StateDir)
+				stateWasThere = err == nil
+				return test.report
+			}
+			if err := setup.Uninstall(t.Context(), f.options); err != nil {
+				t.Fatal(err)
+			}
+			if !stateWasThere || !strings.Contains(f.output.String(), test.wantOutput) {
+				t.Errorf("state there when reporting: %v; output = %q", stateWasThere, f.output.String())
+			}
+		})
+	}
+	t.Run("a dry run only says it would", func(t *testing.T) {
+		f := newFixture(t)
+		f.options.DryRun = true
+		f.options.ReportRemoved = func(context.Context) error {
+			t.Error("a dry run told the server")
+			return nil
+		}
+		if err := setup.Uninstall(t.Context(), f.options); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(f.output.String(), "Would tell the server") {
+			t.Errorf("output = %q", f.output.String())
+		}
+	})
 }

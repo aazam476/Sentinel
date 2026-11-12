@@ -56,7 +56,7 @@ func TestTheTrayStartsAtSignInOnceInstalled(t *testing.T) {
 			f := newFixture(t)
 			autostart := &fakeAutostart{fail: fail}
 			f.options.Autostart = autostart
-			if err := setup.Uninstall(f.options); err != nil {
+			if err := setup.Uninstall(t.Context(), f.options); err != nil {
 				t.Fatal(err)
 			}
 			want := "no longer starts at sign-in"

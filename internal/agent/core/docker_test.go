@@ -5,9 +5,12 @@ package core_test
 import (
 	"context"
 	"errors"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/aazam476/sentinel/internal/agent/core"
 	"github.com/aazam476/sentinel/internal/agent/docker"
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/agent/stacks"
@@ -25,6 +28,8 @@ type fakeDocker struct {
 	// container stops; otherwise it runs until the stream is closed.
 	followEnds bool
 	followed   chan struct{}
+	// problems are what Problems reports.
+	problems []protocol.ContainerProblem
 }
 
 func (d *fakeDocker) record(what string) error {
@@ -34,6 +39,12 @@ func (d *fakeDocker) record(what string) error {
 
 func (d *fakeDocker) Containers(context.Context) (protocol.ContainerListPayload, error) {
 	return protocol.ContainerListPayload{Containers: []protocol.Container{{Name: "web"}}}, d.record("containers")
+}
+
+// Problems is the containers the health check would alert about; the
+// fake has none unless problems is set, and doesn't record the call.
+func (d *fakeDocker) Problems(context.Context) ([]protocol.ContainerProblem, error) {
+	return d.problems, d.err
 }
 
 func (d *fakeDocker) DoContainer(_ context.Context, action docker.ContainerAction, r protocol.ContainerPayload) error {
@@ -276,5 +287,32 @@ func TestDockerRequests(t *testing.T) {
 				t.Errorf("err = %v, want %s", err, c.code)
 			}
 		})
+	}
+}
+
+func TestContainerProblemsRaiseAlertsOnTheServer(t *testing.T) {
+	s := newServer(t)
+	s.machine.Docker = &fakeDocker{done: make(chan string, 100), problems: []protocol.ContainerProblem{
+		{Name: "worker", Image: "app:1", State: "exited", ExitCode: 1},
+	}}
+	agent := s.startAgent(policy.Policy{})
+	agent.expect(t, core.EventConnected, core.EventDockerChecked)
+	stored, err := s.fleet.AgentForHandshake(t.Context(), agent.state.AgentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		list, err := s.alerts.ForAgent(t.Context(), stored.ID, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(list) == 1 && list[0].Kind == "container.stopped" && list[0].Subject == "worker" {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("alerts = %+v, want worker's", list)
+		}
+		runtime.Gosched()
 	}
 }

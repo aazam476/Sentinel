@@ -35,6 +35,9 @@ type Options struct {
 	// Autostart starts the tray for everyone who signs in; nil on systems
 	// without one.
 	Autostart Autostart
+	// ReportRemoved tells the server the agent is being uninstalled, so it
+	// marks the machine removed (core.Agent.ReportRemoved); nil skips it.
+	ReportRemoved func(ctx context.Context) error
 	// Out receives a line for every step.
 	Out    io.Writer
 	DryRun bool
@@ -140,12 +143,14 @@ func (options Options) installAutostart() {
 	options.say("The Sentinel icon will show in the menu bar or notification area for everyone who signs in")
 }
 
-// Uninstall stops and removes the service and deletes the agent's state
-// and configuration. Steps that find nothing to do are skipped, so it can
-// be run again after a partial failure.
-func Uninstall(options Options) error {
+// Uninstall stops and removes the service, tells the server the machine is
+// gone if it can be reached, and deletes the agent's state and
+// configuration. Steps that find nothing to do are skipped, so it can be
+// run again after a partial failure.
+func Uninstall(ctx context.Context, options Options) error {
 	if options.DryRun {
 		options.say("Would stop and remove the Sentinel Agent service")
+		options.say("Would tell the server this machine was removed")
 		options.say("Would delete %s and %s", options.Paths.StateDir, options.Paths.ConfigDir)
 		return nil
 	}
@@ -162,6 +167,7 @@ func Uninstall(options Options) error {
 			options.say("The Sentinel tray no longer starts at sign-in")
 		}
 	}
+	options.reportRemoved(ctx)
 	for _, dir := range []string{options.Paths.StateDir, options.Paths.ConfigDir} {
 		if err := os.RemoveAll(dir); err != nil {
 			return fmt.Errorf("delete %s: %w", dir, err)
@@ -169,6 +175,20 @@ func Uninstall(options Options) error {
 		options.say("Deleted %s", dir)
 	}
 	return nil
+}
+
+// reportRemoved tells the server, before the agent's key is deleted. The
+// machine is removed either way, so a server that can't be reached is
+// reported, not returned.
+func (options Options) reportRemoved(ctx context.Context) {
+	if options.ReportRemoved == nil {
+		return
+	}
+	if err := options.ReportRemoved(ctx); err != nil {
+		options.say("Couldn't tell the server this machine was removed (%v); revoke it on its page in Sentinel", err)
+		return
+	}
+	options.say("Told the server this machine was removed")
 }
 
 // starterPolicy is written on first enrollment so admins find the file and

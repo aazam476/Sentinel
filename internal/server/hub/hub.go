@@ -44,6 +44,7 @@ type Fleet interface {
 	RecordSeen(ctx context.Context, agentID int64) error
 	SaveSystemInfo(ctx context.Context, agentID int64, info protocol.SystemInfo) error
 	SaveDesktopAvailability(ctx context.Context, agentID int64, desktop protocol.DesktopAvailability) error
+	MarkRemoved(ctx context.Context, agentID int64) error
 }
 
 // Metrics stores metric samples (internal/server/metrics).
@@ -55,6 +56,7 @@ type Metrics interface {
 // (internal/server/alerts).
 type Alerts interface {
 	RecordStorageHealth(ctx context.Context, agentID int64, health protocol.StorageHealthPayload) (bool, error)
+	RecordDockerHealth(ctx context.Context, agentID int64, health protocol.DockerHealthPayload) (bool, error)
 }
 
 // Updates records how an agent's self-update went (internal/server/updates).

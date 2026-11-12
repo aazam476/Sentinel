@@ -157,10 +157,12 @@ func TestAlertsAPI(t *testing.T) {
 		expect(t, invalid, http.StatusBadRequest, "invalid_input")
 		var rules api.AlertRules
 		f.admin.browser.do(http.MethodGet, "/api/alert-rules", nil).decode(t, &rules)
-		if len(rules.Rules) != 1 || rules.Rules[0].Type != "storage" || rules.Rules[0].Config.CapacityPercent != 80 {
+		// The default rules: containers and storage, by name.
+		if len(rules.Rules) != 2 || rules.Rules[0].Type != "container" || rules.Rules[1].Type != "storage" ||
+			rules.Rules[1].Config.CapacityPercent != 80 {
 			t.Fatalf("rules = %+v", rules)
 		}
-		rulePath := "/api/alert-rules/" + strconv.FormatInt(rules.Rules[0].ID, 10)
+		rulePath := "/api/alert-rules/" + strconv.FormatInt(rules.Rules[1].ID, 10)
 		expect(t, f.admin.browser.do(http.MethodDelete, rulePath, nil), http.StatusNoContent, "")
 		expect(t, f.admin.browser.do(http.MethodDelete, rulePath, nil), http.StatusNotFound, "not_found")
 		expect(t, f.admin.browser.do(http.MethodDelete, goodPath, nil), http.StatusNoContent, "")

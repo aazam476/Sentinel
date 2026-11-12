@@ -115,7 +115,11 @@ func runUninstall(args []string, stdout, stderr io.Writer) int {
 	if err := flags.Parse(args); err != nil {
 		return exitUsageError
 	}
-	return report("uninstall", setup.Uninstall(setupOptions(*paths, stdout, *dryRun)), stderr)
+	options := setupOptions(*paths, stdout, *dryRun)
+	options.ReportRemoved = reportRemoved(*paths)
+	ctx, stop := signalContext()
+	defer stop()
+	return report("uninstall", setup.Uninstall(ctx, options), stderr)
 }
 
 // report prints a failed command's error and turns it into an exit code.

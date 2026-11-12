@@ -235,3 +235,64 @@ func TestDatabaseFailures(t *testing.T) {
 		}
 	})
 }
+
+func TestRecordDockerHealth(t *testing.T) {
+	stopped := protocol.DockerHealthPayload{Problems: []protocol.ContainerProblem{
+		{Name: "worker", Image: "app:1", State: "exited", ExitCode: 137},
+		{Name: "db", Image: "postgres:17", State: "restarting"},
+	}}
+
+	t.Run("raises an alert per problem container and resolves each when it recovers", func(t *testing.T) {
+		h := newHarness(t)
+		if changed, err := h.service.RecordDockerHealth(t.Context(), h.agentID, stopped); err != nil || !changed {
+			t.Fatalf("changed %v, %v", changed, err)
+		}
+		got := states(t, h)
+		slices.Sort(got)
+		if !slices.Equal(got, []string{"firing container.restarting db", "firing container.stopped worker"}) {
+			t.Errorf("got %v", got)
+		}
+		list, _ := h.service.ForAgent(t.Context(), h.agentID, 10)
+		for _, alert := range list {
+			if alert.Subject == "worker" && alert.Message != "Container worker (app:1) stopped unexpectedly with exit code 137." {
+				t.Errorf("message = %q", alert.Message)
+			}
+		}
+		if changed, err := h.service.RecordDockerHealth(t.Context(), h.agentID, stopped); err != nil || changed {
+			t.Errorf("the same problems changed something: %v, %v", changed, err)
+		}
+
+		h.clock.Advance(time.Minute)
+		recovered := protocol.DockerHealthPayload{Problems: stopped.Problems[1:]}
+		if _, err := h.service.RecordDockerHealth(t.Context(), h.agentID, recovered); err != nil {
+			t.Fatal(err)
+		}
+		got = states(t, h)
+		slices.Sort(got)
+		if !slices.Equal(got, []string{"firing container.restarting db", "resolved container.stopped worker"}) {
+			t.Errorf("after worker recovered: %v", got)
+		}
+	})
+
+	t.Run("raises nothing once the rule is switched off", func(t *testing.T) {
+		h := newHarness(t)
+		h.exec(t, `UPDATE alert_rules SET enabled = 0 WHERE type = 'container'`)
+		if changed, err := h.service.RecordDockerHealth(t.Context(), h.agentID, stopped); err != nil || changed {
+			t.Errorf("changed %v, %v", changed, err)
+		}
+	})
+
+	t.Run("ignores a machine it doesn't know", func(t *testing.T) {
+		h := newHarness(t)
+		if changed, err := h.service.RecordDockerHealth(t.Context(), 9999, stopped); err != nil || changed {
+			t.Errorf("changed %v, %v", changed, err)
+		}
+	})
+
+	t.Run("reports a database failure", func(t *testing.T) {
+		service := alerts.NewService(alerts.Options{Database: failingDatabase{}, Clock: fakeclock.New(time.Now())})
+		if _, err := service.RecordDockerHealth(t.Context(), 1, stopped); err == nil {
+			t.Error("err = nil")
+		}
+	})
+}

@@ -5,6 +5,7 @@ package core_test
 import (
 	"crypto/ed25519"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,8 +17,10 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/auth"
+	"github.com/aazam476/sentinel/internal/server/fleet"
 	"github.com/aazam476/sentinel/internal/server/hub"
 	"github.com/aazam476/sentinel/internal/server/metrics"
+	"github.com/aazam476/sentinel/internal/testutil/fakeclock"
 )
 
 func newKey(t *testing.T) ed25519.PrivateKey {
@@ -364,5 +367,30 @@ func TestSEC26_TheAgentNeverListensOnANetworkPort(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestReportRemovedRevokesTheAgentOnTheServer(t *testing.T) {
+	s := newServer(t)
+	_, key, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := core.Enroll(t.Context(), s.enrollOptions(key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	agent := core.New(core.Options{
+		State: state, Key: key, Collector: &fakeCollector{}, Clock: fakeclock.New(s.clock.Now()),
+		Logger: slog.New(slog.DiscardHandler), Version: "v0.1.1", Storage: &fakeStorage{},
+	})
+	if err := agent.ReportRemoved(t.Context()); err != nil {
+		t.Fatalf("ReportRemoved = %v", err)
+	}
+	if _, err := s.fleet.AgentForHandshake(t.Context(), state.AgentID); !errors.Is(err, fleet.ErrAgentRevoked) {
+		t.Errorf("AgentForHandshake = %v, want the uninstalled machine revoked", err)
+	}
+	if err := agent.ReportRemoved(t.Context()); err == nil {
+		t.Error("a revoked agent's report succeeded; the server should refuse its handshake")
 	}
 }

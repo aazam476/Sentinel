@@ -127,6 +127,7 @@ func (c *connection) serve(ctx context.Context, pingInterval time.Duration) erro
 	loops.Go(func() { c.watchSilence(ctx, silenceTimer); cancel() })
 	loops.Go(func() { c.sendSamples(ctx); cancel() })
 	loops.Go(func() { c.watchStorage(ctx) })
+	loops.Go(func() { c.watchContainers(ctx) })
 	loops.Go(func() { c.reportUpdates(ctx) })
 	loops.Go(func() { c.watchDesktop(ctx, desktopTimer) })
 	c.agent.observe(EventConnected)
@@ -224,4 +225,34 @@ func (c *connection) send(ctx context.Context, message protocol.Message, payload
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	return protocol.WriteMessage(ctx, c.conn, message, payload)
+}
+
+// ReportRemoved tells the server this agent is being uninstalled (§11.2)
+// and waits until the server has recorded it, which it shows by closing
+// the connection as for a revoked agent. The server then never accepts this
+// agent again.
+func (a *Agent) ReportRemoved(ctx context.Context) error {
+	ctx, cancel := clock.WithTimeout(ctx, a.options.Clock, handshakeTimeout)
+	defer cancel()
+	conn, err := dial(ctx, a.options.State.ServerURL, a.tlsConfig)
+	if err != nil {
+		return err
+	}
+	defer conn.CloseNow() //nolint:errcheck // done with it either way
+	if _, err := a.handshake(ctx, conn); err != nil {
+		return err
+	}
+	event := protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(a.options.Clock.Now()), Action: protocol.ActionAgentRemoved}
+	if err := protocol.WriteMessage(ctx, conn, event, struct{}{}); err != nil {
+		return err
+	}
+	for {
+		_, _, err := protocol.ReadAny(ctx, conn)
+		if websocket.CloseStatus(err) == protocol.CloseRevoked {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("the server didn't confirm the removal: %w", err)
+		}
+	}
 }

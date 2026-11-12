@@ -8,6 +8,10 @@ const (
 	ActionMetricsSample = "metrics.sample"
 	// ActionSystemInfo asks an agent to describe its machine.
 	ActionSystemInfo = "system.info"
+	// ActionAgentRemoved is an event the agent sends from
+	// `sentinel-agent uninstall`, with no payload: the server marks it
+	// removed, as if revoked, and closes the connection (§11.2).
+	ActionAgentRemoved = "agent.removed"
 )
 
 // MetricsSample is one reading of a machine's vital signs, taken by the

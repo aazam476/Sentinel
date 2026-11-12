@@ -713,6 +713,32 @@ export interface StackSavePayload {
    */
   validateOnly?: boolean;
 }
+/**
+ * ActionDockerHealth is an event the agent sends when its containers'
+ * problems change: which stopped unexpectedly or are restarting in a loop
+ * (§9.9). The server raises and resolves alerts from it.
+ */
+export const ActionDockerHealth = "docker.health";
+/**
+ * DockerHealthPayload lists the containers with a problem now; an empty
+ * list means none.
+ */
+export interface DockerHealthPayload {
+  problems: ContainerProblem[];
+}
+/**
+ * ContainerProblem is one container that stopped unexpectedly or keeps
+ * restarting.
+ */
+export interface ContainerProblem {
+  name: string;
+  image: string;
+  /**
+   * State is "exited" (with a non-zero ExitCode) or "restarting".
+   */
+  state: string;
+  exitCode?: number /* int */;
+}
 
 //////////
 // source: payloads_files.go

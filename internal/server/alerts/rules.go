@@ -23,6 +23,7 @@ const (
 	RuleOffline      = "offline"
 	RuleStorage      = "storage"
 	RuleScriptFailed = "script_failed"
+	RuleContainer    = "container"
 )
 
 // ErrNotFound means no rule, channel or alert has that ID.
@@ -124,10 +125,10 @@ func (r *Rule) validateConfig() error {
 			return &InvalidError{"capacityPercent", "choose a percentage up to 100"}
 		}
 		*c = RuleConfig{CapacityPercent: c.CapacityPercent}
-	case RuleScriptFailed:
+	case RuleScriptFailed, RuleContainer:
 		*c = RuleConfig{}
 	default:
-		return &InvalidError{"type", "choose metric, offline, storage or script_failed"}
+		return &InvalidError{"type", "choose metric, offline, storage, script_failed or container"}
 	}
 	return nil
 }

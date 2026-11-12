@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -109,6 +110,22 @@ func buildAgent(paths identity.Paths, logger *slog.Logger, stderr io.Writer) (*c
 	options.Updater, options.Restart = updater, restartForUpdate
 	options.Observe = watchNewVersion(updater, logger)
 	return core.New(options), nil
+}
+
+// reportRemoved tells the server this agent is being uninstalled, using
+// its identity before uninstall deletes it. An agent that was never
+// enrolled has nothing to report.
+func reportRemoved(paths identity.Paths) func(context.Context) error {
+	return func(ctx context.Context) error {
+		options, err := agentOptions(paths, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		if errors.Is(err, identity.ErrNotEnrolled) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		return core.New(options).ReportRemoved(ctx)
+	}
 }
 
 // agentOptions loads the agent's identity, key and policy.

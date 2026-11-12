@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/aazam476/sentinel/internal/protocol"
+	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
 )
 
@@ -315,4 +316,24 @@ func replaceTags(ctx context.Context, tx *sql.Tx, agentID int64, tags []string) 
 		}
 	}
 	return nil
+}
+
+// MarkRemoved records that the agent was uninstalled from its machine
+// (§11.2): it is revoked, so it can never connect again, and the audit log
+// says the machine itself asked. A revoked agent is left as it is.
+func (s *Service) MarkRemoved(ctx context.Context, agentID int64) error {
+	return s.database.Write(ctx, func(tx *sql.Tx) error {
+		agent, err := findAgent(ctx, tx, "id = ?", agentID)
+		if err != nil {
+			return err
+		}
+		if agent.RevokedAt != nil {
+			return nil
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE agents SET revoked_at = ? WHERE id = ?`, s.now(), agentID); err != nil {
+			return fmt.Errorf("mark agent removed: %w", err)
+		}
+		entry := audit.Entry{Action: "agent.uninstall", Outcome: audit.OutcomeSuccess}
+		return s.audit.RecordInTx(ctx, tx, aboutAgent(entry, agent))
+	})
 }

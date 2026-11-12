@@ -286,3 +286,24 @@ type StackSavePayload struct {
 	// ValidateOnly checks the files without saving them.
 	ValidateOnly bool `json:"validateOnly,omitempty"`
 }
+
+// ActionDockerHealth is an event the agent sends when its containers'
+// problems change: which stopped unexpectedly or are restarting in a loop
+// (§9.9). The server raises and resolves alerts from it.
+const ActionDockerHealth = "docker.health"
+
+// DockerHealthPayload lists the containers with a problem now; an empty
+// list means none.
+type DockerHealthPayload struct {
+	Problems []ContainerProblem `json:"problems"`
+}
+
+// ContainerProblem is one container that stopped unexpectedly or keeps
+// restarting.
+type ContainerProblem struct {
+	Name  string `json:"name"`
+	Image string `json:"image"`
+	// State is "exited" (with a non-zero ExitCode) or "restarting".
+	State    string `json:"state"`
+	ExitCode int    `json:"exitCode,omitempty"`
+}

@@ -1000,7 +1000,7 @@ export const worstChannels: NotificationChannels = {
 
 /** worstRules: a 100-character name per type, a tag target, every channel notified. */
 export const worstRules: AlertRules = {
-  rules: ['metric', 'offline', 'storage', 'script_failed'].map((type, index) => ({
+  rules: ['metric', 'offline', 'storage', 'script_failed', 'container'].map((type, index) => ({
     id: index + 1,
     type,
     name: worstScriptName,

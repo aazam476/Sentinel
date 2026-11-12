@@ -7,6 +7,7 @@ export const ruleTypes = [
   { value: 'offline', label: 'Machine offline' },
   { value: 'storage', label: 'Storage health' },
   { value: 'script_failed', label: 'Failed scheduled script' },
+  { value: 'container', label: 'Container stopped' },
 ] as const;
 
 /** watchableMetrics are the metrics a metric rule can watch. */
@@ -48,6 +49,8 @@ export function describeCondition(rule: Pick<AlertRule, 'type' | 'config'>): str
       return `Pool or disk problems, or more than ${String(config.capacityPercent ?? 80)}% full`;
     case 'script_failed':
       return 'A scheduled script fails';
+    case 'container':
+      return 'A container stops with an error or keeps restarting';
   }
   return rule.type;
 }

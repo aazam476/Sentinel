@@ -147,6 +147,9 @@ type Processes interface {
 // (internal/agent/docker).
 type Docker interface {
 	Containers(ctx context.Context) (protocol.ContainerListPayload, error)
+	// Problems lists the containers that stopped unexpectedly or keep
+	// restarting, for container alerts (§9.9).
+	Problems(ctx context.Context) ([]protocol.ContainerProblem, error)
 	DoContainer(ctx context.Context, action docker.ContainerAction, request protocol.ContainerPayload) error
 	Inspect(ctx context.Context, id string) (protocol.ContainerInspectPayload, error)
 	Logs(ctx context.Context, request protocol.ContainerLogsPayload) (protocol.ContainerLogsResultPayload, error)
@@ -194,6 +197,9 @@ const (
 	// EventStorageChecked: storage health was read (and sent if it
 	// changed), and the next check is scheduled.
 	EventStorageChecked Event = "storage-checked"
+	// EventDockerChecked: the agent looked for container problems (and
+	// told the server if they changed), and the next look is scheduled.
+	EventDockerChecked Event = "docker-checked"
 	// EventDesktopChecked: the agent looked for a desktop to share (and
 	// told the server if that changed), and the next look is scheduled.
 	EventDesktopChecked Event = "desktop-checked"

@@ -255,6 +255,7 @@ describe('alert text', () => {
     [{ type: 'offline', config: { minutes: 10 } }, 'Offline for more than 10 minutes'],
     [{ type: 'storage', config: {} }, 'Pool or disk problems, or more than 80% full'],
     [{ type: 'script_failed', config: {} }, 'A scheduled script fails'],
+    [{ type: 'container', config: {} }, 'A container stops with an error or keeps restarting'],
     [{ type: 'weather', config: {} }, 'weather'],
   ])('describes %j as "%s"', (rule, want) => {
     expect(describeCondition(rule)).toBe(want);

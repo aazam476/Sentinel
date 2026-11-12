@@ -5,6 +5,7 @@ package hub_test
 import (
 	"context"
 	"crypto/ed25519"
+	"database/sql"
 	"errors"
 	"net/http"
 	"testing"
@@ -130,6 +131,31 @@ func TestSEC21_RevocationClosesTheLiveConnectionImmediately(t *testing.T) {
 		t.Errorf("close status = %d, want CloseRevoked", got)
 	}
 
+	again := h.reconnect(t, agent)
+	again.send(protocol.Message{Type: protocol.TypeHello}, protocol.HelloPayload{
+		AgentID: agent.id, AgentVersion: "v1", ProtocolVersion: protocol.CurrentVersion, AgentNonce: protocol.NewNonce(),
+	})
+	if got := again.closeStatus(); got != protocol.CloseRevoked {
+		t.Errorf("reconnect close status = %d, want CloseRevoked", got)
+	}
+}
+
+func TestAnUninstalledAgentIsMarkedRemoved(t *testing.T) {
+	h := newHarness(t)
+	events := h.subscribe(t)
+	agent := h.online(t)
+	id := h.agentID(t, agent)
+	waitForEvent(t, events, hub.Event{AgentID: id, Kind: hub.EventOnline})
+
+	agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionAgentRemoved}, struct{}{})
+
+	if got := agent.closeStatus(); got != protocol.CloseRevoked {
+		t.Errorf("close status = %d, want CloseRevoked: the agent's sign it was heard", got)
+	}
+	waitForEvent(t, events, hub.Event{AgentID: id, Kind: hub.EventOffline})
+	if revoked, err := h.fleet.IsRevoked(t.Context(), id); err != nil || !revoked {
+		t.Errorf("IsRevoked = %v, %v; want the removed machine revoked", revoked, err)
+	}
 	again := h.reconnect(t, agent)
 	again.send(protocol.Message{Type: protocol.TypeHello}, protocol.HelloPayload{
 		AgentID: agent.id, AgentVersion: "v1", ProtocolVersion: protocol.CurrentVersion, AgentNonce: protocol.NewNonce(),
@@ -412,6 +438,52 @@ func TestConnection(t *testing.T) {
 		waitForEvent(t, events, hub.Event{AgentID: id, PublicID: agent.id, Kind: hub.EventAlerts})
 		if counts, err := h.alerts.FiringCounts(t.Context()); err != nil || counts[id] != 1 {
 			t.Errorf("counts %v, %v", counts, err)
+		}
+	})
+
+	t.Run("raises container alerts from container health, and ignores malformed health", func(t *testing.T) {
+		h := newHarness(t)
+		events := h.subscribe(t)
+		agent := h.online(t)
+		id := h.agentID(t, agent)
+		agent.answerSystemInfo(protocol.SystemInfo{Hostname: "nas-01"})
+		event := protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionDockerHealth}
+		agent.send(event, map[string]string{"problems": "many"})
+		agent.send(event, protocol.DockerHealthPayload{Problems: []protocol.ContainerProblem{{Name: "worker", Image: "app", State: "exited", ExitCode: 1}}})
+		waitForEvent(t, events, hub.Event{AgentID: id, PublicID: agent.id, Kind: hub.EventAlerts})
+		if counts, err := h.alerts.FiringCounts(t.Context()); err != nil || counts[id] != 1 {
+			t.Errorf("counts %v, %v", counts, err)
+		}
+	})
+
+	t.Run("keeps an agent connected when its health can't be recorded", func(t *testing.T) {
+		h := newHarness(t)
+		agent := h.online(t)
+		agent.answerSystemInfo(protocol.SystemInfo{Hostname: "nas-01"})
+		if err := h.database.Write(t.Context(), func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(t.Context(), `ALTER TABLE alert_rules RENAME TO alert_rules_hidden`)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		for _, action := range []string{protocol.ActionDockerHealth, protocol.ActionStorageHealth} {
+			agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: action}, struct{}{})
+		}
+		agent.send(protocol.Message{Type: protocol.TypePing}, nil)
+		if pong := agent.read(); pong.Type != protocol.TypePong {
+			t.Errorf("got %s, want the connection still working", pong.Type)
+		}
+	})
+
+	t.Run("keeps an agent connected when its removal can't be recorded", func(t *testing.T) {
+		h := newHarness(t)
+		agent := h.online(t)
+		agent.answerSystemInfo(protocol.SystemInfo{Hostname: "nas-01"})
+		h.faults.breakMethod("MarkRemoved")
+		agent.send(protocol.Message{Type: protocol.TypeEvent, ID: protocol.NewID(h.clock.Now()), Action: protocol.ActionAgentRemoved}, struct{}{})
+		agent.send(protocol.Message{Type: protocol.TypePing}, nil)
+		if pong := agent.read(); pong.Type != protocol.TypePong {
+			t.Errorf("got %s, want the connection still working, so the agent can tell the removal wasn't heard", pong.Type)
 		}
 	})
 

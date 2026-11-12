@@ -101,9 +101,24 @@ func (c *connection) handleEvent(ctx context.Context, message protocol.Message) 
 		c.handleUpdateResult(ctx, message)
 	case protocol.ActionDesktopAvailability:
 		c.handleDesktopAvailability(ctx, message)
+	case protocol.ActionDockerHealth:
+		c.handleDockerHealth(ctx, message)
+	case protocol.ActionAgentRemoved:
+		c.handleRemoved(ctx)
 	default:
 		c.hub.logger.Debug("agent sent an event this server doesn't handle", "agent", c.agent.PublicID, "action", message.Action)
 	}
+}
+
+// handleRemoved marks an uninstalled agent removed and disconnects it,
+// which is how the agent knows it was heard.
+func (c *connection) handleRemoved(ctx context.Context) {
+	if err := c.hub.fleet.MarkRemoved(ctx, c.agent.ID); err != nil {
+		c.hub.logger.Error("could not mark an uninstalled agent removed", "agent", c.agent.PublicID, "error", err)
+		return
+	}
+	c.hub.logger.Info("an agent was uninstalled from its machine", "agent", c.agent.PublicID)
+	go c.hub.Disconnect(c.agent.ID) // not from the read loop, which Disconnect waits on
 }
 
 func (c *connection) handleStorageHealth(ctx context.Context, message protocol.Message) {
@@ -115,6 +130,22 @@ func (c *connection) handleStorageHealth(ctx context.Context, message protocol.M
 	changed, err := c.hub.alerts.RecordStorageHealth(ctx, c.agent.ID, health)
 	if err != nil {
 		c.hub.logger.Error("could not record storage health", "agent", c.agent.PublicID, "error", err)
+		return
+	}
+	if changed {
+		c.hub.publish(eventFor(c, EventAlerts))
+	}
+}
+
+func (c *connection) handleDockerHealth(ctx context.Context, message protocol.Message) {
+	var health protocol.DockerHealthPayload
+	if err := protocol.DecodePayload(message, &health); err != nil {
+		c.hub.logger.Warn("agent sent malformed container health", "agent", c.agent.PublicID, "error", err)
+		return
+	}
+	changed, err := c.hub.alerts.RecordDockerHealth(ctx, c.agent.ID, health)
+	if err != nil {
+		c.hub.logger.Error("could not record container health", "agent", c.agent.PublicID, "error", err)
 		return
 	}
 	if changed {

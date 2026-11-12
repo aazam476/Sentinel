@@ -44,6 +44,8 @@ type harness struct {
 	key     serverkey.Key
 	url     string
 	admin   auth.Session
+	// database lets a test break the tables the services use.
+	database *store.Store
 }
 
 func newHarness(t testing.TB) *harness {
@@ -66,6 +68,8 @@ func newHarness(t testing.TB) *harness {
 		clock:   clock,
 		key:     serverkey.FromPrivateKey(private),
 		admin:   addAdmin(t, database),
+
+		database: database,
 	}
 	h.faults = &faultyFleet{Fleet: h.fleet}
 	h.updates = &fakeUpdates{results: make(chan protocol.AgentUpdateResultPayload, 10)}
@@ -346,6 +350,13 @@ func (f *faultyFleet) SaveSystemInfo(ctx context.Context, agentID int64, info pr
 		return errInjected
 	}
 	return f.Fleet.SaveSystemInfo(ctx, agentID, info)
+}
+
+func (f *faultyFleet) MarkRemoved(ctx context.Context, agentID int64) error {
+	if f.failing("MarkRemoved") {
+		return errInjected
+	}
+	return f.Fleet.MarkRemoved(ctx, agentID)
 }
 
 // rejectedStatus is the HTTP status of a request the endpoint refuses

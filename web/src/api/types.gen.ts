@@ -162,7 +162,7 @@ export interface AlertRuleTarget {
 export interface AlertRule {
   id: number /* int64 */;
   /**
-   * Type is metric, offline, storage or script_failed.
+   * Type is metric, offline, storage, script_failed or container.
    */
   type: string;
   name: string;

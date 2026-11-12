@@ -36,6 +36,7 @@ const defaults: Record<string, AlertRuleConfig> = {
   offline: { minutes: 10 },
   storage: { capacityPercent: 80 },
   script_failed: {},
+  container: {},
 };
 
 /** RuleDialog adds or changes an alert rule. */

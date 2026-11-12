@@ -275,3 +275,32 @@ func TestSetMaintenance(t *testing.T) {
 func ptr[T any](value T) *T {
 	return &value
 }
+
+func TestMarkRemovedRevokesAnUninstalledAgentOnce(t *testing.T) {
+	h := newHarness(t)
+	agent := h.enroll(t, "nas-01")
+	if err := h.service.MarkRemoved(t.Context(), agent.ID); err != nil {
+		t.Fatal(err)
+	}
+	if revoked, err := h.service.IsRevoked(t.Context(), agent.ID); err != nil || !revoked {
+		t.Errorf("IsRevoked = %v, %v", revoked, err)
+	}
+	entry := h.lastAudit(t)
+	if entry.Action != "agent.uninstall" || entry.AgentID == nil || *entry.AgentID != agent.ID || entry.UserID != nil {
+		t.Errorf("audit = %+v, want agent.uninstall about the machine, by no user", entry)
+	}
+	before := len(h.auditActions(t))
+	if err := h.service.MarkRemoved(t.Context(), agent.ID); err != nil {
+		t.Errorf("a second report: %v", err)
+	}
+	if after := len(h.auditActions(t)); after != before {
+		t.Errorf("a second report added %d audit entries", after-before)
+	}
+	if err := h.service.MarkRemoved(t.Context(), 9999); err == nil {
+		t.Error("MarkRemoved of an unknown agent succeeded")
+	}
+	h.failStatement(t, "UPDATE", "agents")
+	if err := h.service.MarkRemoved(t.Context(), h.enroll(t, "nas-02").ID); err == nil {
+		t.Error("MarkRemoved hid a database failure")
+	}
+}

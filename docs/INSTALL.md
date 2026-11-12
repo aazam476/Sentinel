@@ -281,8 +281,10 @@ sudo sentinel-agent uninstall
 
 On Windows, run `sentinel-agent.exe uninstall` as Administrator. This removes the service, the
 local policy and the agent's keys; delete the binary afterwards (`/usr/local/bin/sentinel-agent`,
-`/Library/Sentinel/bin/sentinel-agent` or `C:\Program Files\Sentinel`). Then revoke the machine
-on its page, so the server stops expecting it.
+`/Library/Sentinel/bin/sentinel-agent` or `C:\Program Files\Sentinel`). If the server can be
+reached, uninstall tells it the machine was removed: the machine leaves the fleet, the server
+never accepts its key again, and the audit log records `agent.uninstall`. If it can't, the
+command says so; revoke the machine on its page instead.
 
 ## For maintainers: making a release
 
