@@ -10,6 +10,7 @@ import type {
   PowerRequest,
   ProcessList,
   ServiceList,
+  WakeResponse,
 } from './types.gen';
 
 export type LogLevel = MachineLogEntry['level'];
@@ -98,6 +99,13 @@ export function useLogs(id: string, filter: LogFilter, now: number) {
     queryFn: () => apiRequest<LogEntries>(`${machinePath(id)}/logs?${query.toString()}`),
     placeholderData: keepPreviousData,
     retry: false,
+  });
+}
+
+/** useWake wakes an offline machine through a neighbour on its network. */
+export function useWake(id: string) {
+  return useMutation({
+    mutationFn: () => apiRequest<WakeResponse>(`${machinePath(id)}/wake`, { method: 'POST' }),
   });
 }
 

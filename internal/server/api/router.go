@@ -3,6 +3,7 @@
 package api
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -20,6 +21,11 @@ import (
 	"github.com/aazam476/sentinel/internal/server/serverkey"
 	"github.com/aazam476/sentinel/internal/server/updates"
 )
+
+// DatabaseSizer reports the database's size (internal/server/store).
+type DatabaseSizer interface {
+	SizeBytes(ctx context.Context) (int64, error)
+}
 
 // RouterOptions holds what NewRouter needs to build the routes.
 type RouterOptions struct {
@@ -40,8 +46,10 @@ type RouterOptions struct {
 	// TLSFingerprint is the self-signed certificate's key fingerprint, or
 	// "" when agents check the server's certificate the usual way.
 	TLSFingerprint string
-	Logger         *slog.Logger
-	Clock          Clock
+	// Database reports its own size, for the About page.
+	Database DatabaseSizer
+	Logger   *slog.Logger
+	Clock    Clock
 	// BasePath is the configured base path; the session cookie is limited
 	// to it.
 	BasePath string
@@ -76,6 +84,7 @@ func NewRouter(options RouterOptions) http.Handler {
 		publicURL:    options.PublicURL,
 		maxFileBytes: maxFileBytes(options.MaxFileBytes),
 		turn:         options.Relay,
+		database:     options.Database,
 	}
 
 	mux := http.NewServeMux()
@@ -124,6 +133,7 @@ func (h *handlers) addAccountRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/auth/passkeys/{id}", h.signedIn(h.handleDeletePasskey))
 	mux.HandleFunc("DELETE /api/auth/totp", h.signedIn(h.handleRemoveTOTP))
 	mux.HandleFunc("GET /api/settings/security", h.signedIn(h.handleGetSecuritySettings))
+	mux.HandleFunc("GET /api/about", h.withPermission(auth.PermissionViewFleet, h.handleAbout))
 	mux.HandleFunc("PUT /api/settings/security", h.withPermission(auth.PermissionManageSettings, h.handleUpdateSecuritySettings))
 }
 
@@ -157,6 +167,7 @@ func (h *handlers) addMachineRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/agents/{id}/processes", h.withPermission(auth.PermissionManageProcesses, h.handleListProcesses))
 	mux.HandleFunc("POST /api/agents/{id}/processes/{pid}/kill", h.withPermission(auth.PermissionManageProcesses, h.handleKillProcess))
 	mux.HandleFunc("POST /api/agents/{id}/power", h.withPermission(auth.PermissionControlPower, h.handlePower))
+	mux.HandleFunc("POST /api/agents/{id}/wake", h.withPermission(auth.PermissionControlPower, h.handleWake))
 	mux.HandleFunc("GET /api/events", h.withPermission(auth.PermissionViewFleet, h.handleEvents))
 }
 

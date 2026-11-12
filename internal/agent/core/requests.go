@@ -35,6 +35,7 @@ func (c *connection) handlers() map[string]handler {
 		protocol.ActionProcessList:         c.listProcesses,
 		protocol.ActionProcessKill:         c.killProcess,
 		protocol.ActionSystemReboot:        c.power(power.Reboot),
+		protocol.ActionPowerWake:           c.wake,
 		protocol.ActionSystemShutdown:      c.power(power.Shutdown),
 		protocol.ActionScriptRun:           c.runScript,
 		protocol.ActionAgentUpdate:         c.startUpdate,

@@ -186,6 +186,8 @@ export const nasDetails: AgentDetails = {
   temperatures: [{ sensor: 'coretemp', celsius: 51 }],
   desktopAvailable: false,
   desktopReason: 'Remote desktop is turned off by this machine’s local policy.',
+  interfaces: [{ name: 'eth0', mac: 'aa:bb:cc:dd:ee:01', addresses: ['192.168.1.20/24'] }],
+  canWake: false,
 };
 
 export const enrollmentTokens: EnrollmentToken[] = [

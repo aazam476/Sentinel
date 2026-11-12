@@ -33,6 +33,7 @@ type Host struct {
 	CPUModel        string
 	CPUCores        int
 	MemoryTotal     uint64
+	Interfaces      []protocol.NetworkInterface
 }
 
 // Collector turns a Source's readings into protocol messages.
@@ -95,5 +96,6 @@ func (c *Collector) SystemInfo(ctx context.Context, capabilities []protocol.Capa
 		Hostname: host.Hostname, OS: host.OS, Platform: host.Platform, PlatformVersion: host.PlatformVersion,
 		KernelVersion: host.KernelVersion, Arch: runtime.GOARCH, CPUModel: host.CPUModel, CPUCores: host.CPUCores,
 		MemoryTotal: host.MemoryTotal, AgentVersion: agentVersion, Capabilities: capabilities,
+		Interfaces: host.Interfaces,
 	}, nil
 }

@@ -57,6 +57,9 @@ export function AppShell({ session }: AppShellProps) {
               Audit log
             </NavLink>
           )}
+          <NavLink to="/about" className={linkClass}>
+            About
+          </NavLink>
         </nav>
         <div className={styles.user}>
           <span className={styles.username} title={session.user.username}>

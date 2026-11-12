@@ -45,6 +45,7 @@ type handlers struct {
 	serverKey  serverkey.Key
 	tlsPin     string
 	logger     *slog.Logger
+	database   DatabaseSizer
 	clock      Clock
 	cookiePath string
 	publicURL  *url.URL

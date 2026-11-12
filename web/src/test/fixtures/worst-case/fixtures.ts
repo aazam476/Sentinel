@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import type {
+  AboutResponse,
   Agent,
   AgentBuilds,
   AgentDetails,
@@ -318,6 +319,13 @@ export const worstMachine: AgentDetails = {
   // Near the most the server keeps (128 bytes).
   desktopReason:
     'Wayland sessions aren’t supported yet; an X11 session (such as “Ubuntu on Xorg”) works. Ask them to switch, please.',
+  // The most interfaces an agent reports, each with a long name and several networks.
+  interfaces: Array.from({ length: 32 }, (_, index) => ({
+    name: `vethcontainer${String(index).padStart(3, '0')}-${'x'.repeat(40)}`,
+    mac: `02:42:ac:11:00:${index.toString(16).padStart(2, '0')}`,
+    addresses: [`172.17.${String(index)}.254/16`, `fd00:dead:beef:${index.toString(16)}::1/64`],
+  })),
+  canWake: true,
 };
 
 export const worstTokens: EnrollmentToken[] = [
@@ -1055,5 +1063,18 @@ export function worstBuilds(): AgentBuilds {
     autoUpdate: true,
     canFetch: true,
     developmentKey: true,
+  };
+}
+
+/** worstAbout: a long pre-release version, a huge database and 40 agent versions. */
+export function worstAbout(): AboutResponse {
+  return {
+    serverVersion: 'v10.20.300-beta.12+build.20261112.abcdef0',
+    databaseBytes: 987_654_321_987,
+    machines: 123_456,
+    agentVersions: Array.from({ length: 40 }, (_, index) => ({
+      version: index === 0 ? 'v10.20.300-beta.12+build.20261112.abcdef0' : `v0.${String(index)}.0`,
+      machines: index === 0 ? 100_000 : 40 - index,
+    })),
   };
 }

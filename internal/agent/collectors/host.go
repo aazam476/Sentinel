@@ -150,5 +150,6 @@ func (source HostSource) Host(ctx context.Context) (Host, error) {
 	if _, total, err := source.Memory(ctx); err == nil {
 		result.MemoryTotal = total
 	}
+	result.Interfaces = systemInterfaces()
 	return result, nil
 }

@@ -19,6 +19,16 @@ export function SystemDetails({ agent }: { agent: AgentDetails }) {
     ],
     ['Memory', agent.memoryTotalBytes > 0 ? formatBytes(agent.memoryTotalBytes) : '–'],
     ['Uptime', agent.current === null ? '–' : formatUptime(agent.current.uptimeSeconds)],
+    [
+      'Network',
+      agent.interfaces
+        .filter((iface) => iface.addresses.length > 0)
+        .map(
+          (iface) =>
+            `${iface.name} ${iface.addresses.join(', ')}${iface.mac === '' ? '' : ` (${iface.mac})`}`,
+        )
+        .join(' · ') || '–',
+    ],
     ['Agent version', agent.agentVersion],
     ['Enrolled', formatDateTime(agent.enrolledAt)],
   ];

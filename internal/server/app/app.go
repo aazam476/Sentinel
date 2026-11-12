@@ -91,6 +91,7 @@ type services struct {
 	updates   *updates.Service
 	serverKey serverkey.Key
 	relay     *turn.Relay
+	database  *store.Store
 }
 
 // New creates the data directory if needed, opens the database and secrets
@@ -180,6 +181,7 @@ func buildServices(database *store.Store, options Options) (services, error) {
 	}
 	auditLog := audit.New(database)
 	built := services{
+		database: database,
 		auth: auth.NewService(auth.Options{
 			Database: database, Secrets: box, AuditLog: auditLog, Clock: options.Clock, DataDir: dataDir,
 		}),
@@ -298,6 +300,7 @@ func buildHandler(options Options, built services) (http.Handler, error) {
 		PublicURL:      settings.PublicURL,
 		MaxFileBytes:   settings.MaxFileBytes,
 		Relay:          relayOrNil(built.relay),
+		Database:       built.database,
 	})
 	handler = middleware.RequireSameOrigin(handler, settings.PublicURL)
 	handler = withAgentEndpoint(handler, built.hub)

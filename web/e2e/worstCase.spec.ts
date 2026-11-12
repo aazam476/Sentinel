@@ -25,6 +25,7 @@ import {
   worstMachineAlerts,
   worstRules,
   worstUsers,
+  worstAbout,
   worstBuilds,
   worstFolder,
   worstFolderLink,
@@ -64,6 +65,7 @@ async function serveWorstCase(page: Page) {
     'notification-channels': worstChannels,
     users: worstUsers(),
     'agent-builds': worstBuilds(),
+    about: worstAbout(),
     [`agents/${worstMachine.id}/metrics`]: { metric: 'cpu.percent', resolution: 'raw', points: [] },
     'enrollment-tokens': { tokens: worstTokens, serverFingerprint: 'SHA256:x', tlsFingerprint: '' },
   };
@@ -124,6 +126,7 @@ const screens: {
   { path: '/alerts/channels', ready: 'Notification channels', role: 'region' },
   { path: '/users', ready: 'Users', role: 'region' },
   { path: '/updates', ready: 'Agent builds', role: 'region' },
+  { path: '/about', ready: 'Agent versions', role: 'region' },
 ];
 
 for (const screen of screens) {

@@ -12,6 +12,7 @@ import { useNow } from '../../hooks/useNow';
 import { allows, canOperate, type MachineContext } from './machineContext';
 import styles from './MachinePage.module.css';
 import { PowerActions } from './PowerActions';
+import { WakeAction } from './WakeAction';
 
 /**
  * MachinePage is one machine: its name and status, power actions, and tabs
@@ -48,6 +49,9 @@ export function MachinePage() {
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{machine.name}</h1>
           {canOperate(session) && allows(machine, 'power') && <PowerActions machine={machine} />}
+          {canOperate(session) && !machine.online && machine.canWake && (
+            <WakeAction machine={machine} />
+          )}
         </div>
         <p className={styles.subtitle}>
           <MachineStatus isOnline={machine.online} />

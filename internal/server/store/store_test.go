@@ -283,3 +283,30 @@ func TestSnapshot(t *testing.T) {
 		}
 	})
 }
+
+func TestSizeBytesGrowsWithTheData(t *testing.T) {
+	db := openStore(t, filepath.Join(t.TempDir(), "sentinel.db"))
+	before, err := db.SizeBytes(t.Context())
+	if err != nil || before <= 0 {
+		t.Fatalf("SizeBytes = %d, %v", before, err)
+	}
+	err = db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `CREATE TABLE filler (data BLOB)`)
+		if err == nil {
+			_, err = tx.ExecContext(t.Context(), `INSERT INTO filler VALUES (zeroblob(1048576))`)
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after, err := db.SizeBytes(t.Context()); err != nil || after < before+1<<20 {
+		t.Errorf("after 1 MiB, SizeBytes = %d (was %d), %v", after, before, err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.SizeBytes(t.Context()); err == nil {
+		t.Error("SizeBytes on a closed database succeeded")
+	}
+}

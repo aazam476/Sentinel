@@ -13,6 +13,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/power"
 	"github.com/aazam476/sentinel/internal/agent/processes"
 	"github.com/aazam476/sentinel/internal/agent/services"
+	"github.com/aazam476/sentinel/internal/agent/wol"
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/hub"
 )
@@ -171,6 +172,58 @@ func TestSystemRequests(t *testing.T) {
 			var agentErr *protocol.Error
 			if err := s.request(t, agentID, c.action, c.payload, nil); !errors.As(err, &agentErr) || agentErr.Code != c.code {
 				t.Errorf("err = %v, want %s", err, c.code)
+			}
+		})
+	}
+}
+
+func TestWakingAnotherMachine(t *testing.T) {
+	start := func(t *testing.T, localPolicy policy.Policy, wake func(context.Context, string, string) error) (*server, string) {
+		t.Helper()
+		s := newServer(t)
+		s.withMachine(newFakeMachine())
+		s.machine.Wake = wake
+		events := s.subscribe()
+		agent := s.startAgent(localPolicy)
+		waitFor(t, events, agent.state.AgentID, hub.EventInfoUpdated)
+		return s, agent.state.AgentID
+	}
+	request := protocol.WakePayload{MAC: "aa:bb:cc:dd:ee:01", Network: "192.168.1.20/24"}
+
+	t.Run("sends the packet it is asked to", func(t *testing.T) {
+		sent := make(chan protocol.WakePayload, 1)
+		s, agentID := start(t, policy.Policy{}, func(_ context.Context, mac, network string) error {
+			sent <- protocol.WakePayload{MAC: mac, Network: network}
+			return nil
+		})
+		if err := s.request(t, agentID, protocol.ActionPowerWake, request, nil); err != nil {
+			t.Fatal(err)
+		}
+		if got := <-sent; got != request {
+			t.Errorf("sent %+v", got)
+		}
+	})
+
+	tests := []struct {
+		name     string
+		policy   string
+		wakeErr  error
+		wantCode protocol.ErrorCode
+	}{
+		{name: "SEC-22 refuses when the local policy switches power off", policy: "[capabilities]\npower = false\n", wantCode: protocol.ErrorPolicyDenied},
+		{name: "refuses a network this machine isn't on", wakeErr: wol.ErrNotMyNetwork, wantCode: protocol.ErrorInvalidRequest},
+		{name: "reports a packet that couldn't be sent", wakeErr: errors.New("network is unreachable"), wantCode: protocol.ErrorInternal},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			localPolicy, err := policy.Parse(test.policy)
+			if err != nil {
+				t.Fatal(err)
+			}
+			s, agentID := start(t, localPolicy, func(context.Context, string, string) error { return test.wakeErr })
+			var agentErr *protocol.Error
+			if err := s.request(t, agentID, protocol.ActionPowerWake, request, nil); !errors.As(err, &agentErr) || agentErr.Code != test.wantCode {
+				t.Errorf("err = %v, want %s", err, test.wantCode)
 			}
 		})
 	}

@@ -32,6 +32,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/storage"
 	"github.com/aazam476/sentinel/internal/agent/terminal"
 	"github.com/aazam476/sentinel/internal/agent/tray"
+	"github.com/aazam476/sentinel/internal/agent/wol"
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/shared/clock"
 )
@@ -109,6 +110,9 @@ type Options struct {
 	// are open, when the local policy says to (SEC-23, SEC-24); nil uses
 	// this machine's desktop where there is a way to.
 	Notifier Notifier
+	// Wake sends a Wake-on-LAN packet to a machine on one of this machine's
+	// networks (internal/agent/wol); nil uses wol.Wake.
+	Wake func(ctx context.Context, mac, network string) error
 	// Tray, if set, serves the trays of the people signed in at the
 	// machine (internal/agent/tray): it hears the agent's status, asks
 	// before desktop sessions ahead of Notifier, and its commands end
@@ -304,6 +308,9 @@ func withMachineDefaults(options *Options) {
 	}
 	if options.Notifier == nil {
 		options.Notifier = platformNotifier(options.Policy.Desktop)
+	}
+	if options.Wake == nil {
+		options.Wake = wol.Wake
 	}
 	if options.Storage == nil {
 		options.Storage = storage.New(storage.Options{GOOS: runtime.GOOS, Runner: runner, Logger: options.Logger})

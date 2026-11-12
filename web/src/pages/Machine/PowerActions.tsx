@@ -27,7 +27,8 @@ const copy = {
   shutdown: {
     label: 'Shut down',
     title: 'Shut down this machine?',
-    description: 'It stays off until someone turns it on again; Sentinel can’t start it.',
+    description:
+      'It stays off until someone turns it on, or Sentinel wakes it through another machine on its network.',
     waiting: 'Shutting down…',
   },
 } as const;

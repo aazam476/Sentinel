@@ -151,6 +151,9 @@ func cleanSystemInfo(info protocol.SystemInfo) (protocol.SystemInfo, error) {
 			return protocol.SystemInfo{}, err
 		}
 	}
+	if info.Interfaces, err = cleanInterfaces(info.Interfaces); err != nil {
+		return protocol.SystemInfo{}, err
+	}
 	if len(info.Capabilities) > maxCapabilities {
 		return protocol.SystemInfo{}, fmt.Errorf("agent reported %d capabilities, more than %d", len(info.Capabilities), maxCapabilities)
 	}

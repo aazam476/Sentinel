@@ -266,6 +266,14 @@ refused. Anyone signed in at the machine can answer and pause.
 The tray talks to the agent over a local socket that only people signed in at the machine can
 open, never a network port (ADR 0038). `sentinel-agent uninstall` removes it.
 
+### Waking machines
+
+An offline machine shows **Wake** when another online machine on the same network can send it
+a Wake-on-LAN packet. Turn on Wake-on-LAN in its BIOS or firmware and network settings first;
+Sentinel learns its network address while it is online. The machine that sends the packet needs
+power actions allowed by its own policy. The **About** page shows the server's version, the
+database's size and which agent versions the machines run.
+
 ### Updates
 
 On **Updates**, update every machine, or open a machine and choose **Update to …**. You can

@@ -66,6 +66,17 @@ type AgentDetails struct {
 	DesktopReason    string `json:"desktopReason"`
 	// Update is the last update the machine was asked to make, or null.
 	Update *AgentUpdateStatus `json:"update" tstype:"AgentUpdateStatus | null,required"`
+	// Interfaces are its network interfaces, from its last system info.
+	Interfaces []NetworkInterface `json:"interfaces"`
+	// CanWake says an online machine on its network can wake it now.
+	CanWake bool `json:"canWake"`
+}
+
+// NetworkInterface is one of a machine's network interfaces.
+type NetworkInterface struct {
+	Name      string   `json:"name"`
+	MAC       string   `json:"mac"`
+	Addresses []string `json:"addresses"`
 }
 
 // Capability is a feature and whether the machine's local policy allows it.
@@ -125,7 +136,7 @@ func (h *handlers) handleGetAgent(w http.ResponseWriter, r *http.Request, sessio
 		h.writeError(w, err)
 		return
 	}
-	h.writeAgentDetails(w, r, agent)
+	h.writeAgentDetails(w, r, session, agent)
 }
 
 func (h *handlers) handleUpdateAgent(w http.ResponseWriter, r *http.Request, session auth.Session) {
@@ -139,7 +150,7 @@ func (h *handlers) handleUpdateAgent(w http.ResponseWriter, r *http.Request, ses
 		h.writeError(w, err)
 		return
 	}
-	h.writeAgentDetails(w, r, agent)
+	h.writeAgentDetails(w, r, session, agent)
 }
 
 // handleRevokeAgent revokes a machine and closes its live connection
@@ -156,7 +167,7 @@ func (h *handlers) handleRevokeAgent(w http.ResponseWriter, r *http.Request, ses
 }
 
 // writeAgentDetails answers with one machine's details.
-func (h *handlers) writeAgentDetails(w http.ResponseWriter, r *http.Request, agent fleet.Agent) {
+func (h *handlers) writeAgentDetails(w http.ResponseWriter, r *http.Request, session auth.Session, agent fleet.Agent) {
 	counts, err := h.alerts.FiringCounts(r.Context())
 	if err != nil {
 		h.writeError(w, err)
@@ -167,6 +178,7 @@ func (h *handlers) writeAgentDetails(w http.ResponseWriter, r *http.Request, age
 		h.writeError(w, err)
 		return
 	}
+	details.CanWake = session.Role.Can(auth.PermissionControlPower) && h.canWake(r, session, agent)
 	writeJSON(w, http.StatusOK, details)
 }
 
@@ -195,6 +207,10 @@ func (h *handlers) agentDetails(agent fleet.Agent, firingAlerts map[int64]int) A
 		Filesystems:      []Filesystem{}, Temperatures: []Temperature{},
 	}
 	details.DesktopAvailable, details.DesktopReason = desktopAvailability(agent)
+	details.Interfaces = make([]NetworkInterface, 0, len(agent.SystemInfo.Interfaces))
+	for _, iface := range agent.SystemInfo.Interfaces {
+		details.Interfaces = append(details.Interfaces, NetworkInterface{Name: iface.Name, MAC: iface.MAC, Addresses: append([]string{}, iface.Addresses...)})
+	}
 	if snapshot, ok := h.metrics.Latest(agent.ID); ok && details.Online {
 		for _, filesystem := range snapshot.Filesystems {
 			details.Filesystems = append(details.Filesystems, Filesystem(filesystem))

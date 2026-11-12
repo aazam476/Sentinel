@@ -254,4 +254,30 @@ describe('machine view', () => {
     await screen.findByRole('heading', { name: 'Living room NAS' });
     expect(screen.queryByRole('region', { name: 'Maintenance' })).toBeNull();
   });
+
+  it('§9.6 shows the network and wakes an offline machine through a neighbour', async () => {
+    signedInAs(adminSession);
+    withMachine({ ...nasDetails, online: false, current: null, canWake: true });
+    let woken = false;
+    server.use(
+      http.post(apiPath(`agents/${nasDetails.id}/wake`), () => {
+        woken = true;
+        return json({ via: 'pi' }, 202);
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp(path);
+    expect(await screen.findByText('eth0 192.168.1.20/24 (aa:bb:cc:dd:ee:01)')).toBeVisible();
+    await user.click(await screen.findByRole('button', { name: 'Wake' }));
+    expect(await screen.findByText(/Sent a wake-up through pi/)).toBeVisible();
+    expect(woken).toBe(true);
+  });
+
+  it('offers Wake only where it can work', async () => {
+    signedInAs(adminSession);
+    withMachine({ ...nasDetails, online: false, current: null, canWake: false });
+    renderApp(path);
+    expect(await screen.findByRole('heading', { name: nasDetails.name })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Wake' })).toBeNull();
+  });
 });

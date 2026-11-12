@@ -72,6 +72,31 @@ type SystemInfo struct {
 	// Desktop says whether remote desktop can be used now; absent from
 	// agents that predate it.
 	Desktop *DesktopAvailability `json:"desktop,omitempty"`
+	// Interfaces are the machine's network interfaces (§9.6), which
+	// Wake-on-LAN also needs; absent from agents that predate them.
+	Interfaces []NetworkInterface `json:"interfaces,omitempty"`
+}
+
+// NetworkInterface is one of the machine's network interfaces.
+type NetworkInterface struct {
+	Name string `json:"name"`
+	// MAC is its hardware address, "aa:bb:cc:dd:ee:ff", if it has one.
+	MAC string `json:"mac,omitempty"`
+	// Addresses are its IP networks in CIDR form: "192.168.1.20/24".
+	Addresses []string `json:"addresses"`
+}
+
+// ActionPowerWake asks an agent to wake another machine on its network
+// with a Wake-on-LAN magic packet (§9.6).
+const ActionPowerWake = "power.wake"
+
+// WakePayload names the machine to wake: its MAC address, and the network
+// it is on, which must be one of the agent's own.
+type WakePayload struct {
+	MAC string `json:"mac"`
+	// Network is the target's IPv4 network in CIDR form: the packet goes to
+	// its broadcast address.
+	Network string `json:"network"`
 }
 
 // DesktopAvailability says whether a machine's desktop can be shared.

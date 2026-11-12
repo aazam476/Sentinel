@@ -5,6 +5,36 @@
 import type * as protocol from './protocol.gen';
 
 //////////
+// source: about.go
+
+/**
+ * AboutResponse describes the server and its fleet (§9.11).
+ */
+export interface AboutResponse {
+  serverVersion: string;
+  /**
+   * DatabaseBytes is the size of the server's database.
+   */
+  databaseBytes: number /* int64 */;
+  /**
+   * Machines counts the enrolled machines.
+   */
+  machines: number /* int */;
+  /**
+   * AgentVersions is how many machines run each agent version, most
+   * common first.
+   */
+  agentVersions: AgentVersionCount[];
+}
+/**
+ * AgentVersionCount is how many machines run one agent version.
+ */
+export interface AgentVersionCount {
+  version: string;
+  machines: number /* int */;
+}
+
+//////////
 // source: agents.go
 
 /**
@@ -82,6 +112,22 @@ export interface AgentDetails extends Agent {
    * Update is the last update the machine was asked to make, or null.
    */
   update: AgentUpdateStatus | null;
+  /**
+   * Interfaces are its network interfaces, from its last system info.
+   */
+  interfaces: NetworkInterface[];
+  /**
+   * CanWake says an online machine on its network can wake it now.
+   */
+  canWake: boolean;
+}
+/**
+ * NetworkInterface is one of a machine's network interfaces.
+ */
+export interface NetworkInterface {
+  name: string;
+  mac: string;
+  addresses: string[];
 }
 /**
  * Capability is a feature and whether the machine's local policy allows it.
@@ -1168,4 +1214,14 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   role?: string;
   disabled?: boolean;
+}
+
+//////////
+// source: wake.go
+
+/**
+ * WakeResponse says which machine sent the wake-up.
+ */
+export interface WakeResponse {
+  via: string;
 }

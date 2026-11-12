@@ -11,6 +11,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/power"
 	"github.com/aazam476/sentinel/internal/agent/processes"
 	"github.com/aazam476/sentinel/internal/agent/services"
+	"github.com/aazam476/sentinel/internal/agent/wol"
 	"github.com/aazam476/sentinel/internal/protocol"
 )
 
@@ -105,6 +106,26 @@ func (c *connection) power(action power.Action) handler {
 		}()
 		return nil, nil
 	}
+}
+
+// wake sends a Wake-on-LAN packet for another machine on this one's
+// network (§9.6). Power must be allowed here, as for reboots.
+func (c *connection) wake(ctx context.Context, request protocol.Message) (any, *protocol.Error) {
+	if refusal := c.refuseUnlessAllowed(policy.Power, "Waking other machines"); refusal != nil {
+		return nil, refusal
+	}
+	var payload protocol.WakePayload
+	if err := protocol.DecodePayload(request, &payload); err != nil {
+		return nil, invalidRequest(err)
+	}
+	if err := c.agent.options.Wake(ctx, payload.MAC, payload.Network); err != nil {
+		if errors.Is(err, wol.ErrBadMAC) || errors.Is(err, wol.ErrNotMyNetwork) {
+			return nil, invalidRequest(err)
+		}
+		return nil, &protocol.Error{Code: protocol.ErrorInternal, Message: "The wake-up packet couldn't be sent: " + err.Error()}
+	}
+	c.agent.options.Logger.Info("sent a wake-up packet", "mac", payload.MAC, "network", payload.Network)
+	return nil, nil
 }
 
 // systemError turns an error from a system package into the protocol

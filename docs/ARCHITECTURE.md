@@ -129,6 +129,7 @@ Messages are JSON with a `type`, an `id`, an `action` like `docker.container.res
 | `internal/agent/logs/` | Reads the system log: journald, the unified log, the Event Log | Built |
 | `internal/agent/processes/` | Lists processes with their CPU use over the last second; ends one | Built |
 | `internal/agent/power/` | Reboots or shuts down the machine, just after answering | Built |
+| `internal/agent/wol/` | Wake-on-LAN: the magic packet, sent only to the broadcast address of one of the machine's own networks | Built |
 | `internal/agent/docker/` | Containers, images, volumes, networks and their logs, through the Docker Engine API (Docker or Podman) | Built |
 | `internal/agent/stacks/` | Compose stacks: Sentinel's own folder of stacks, and projects started elsewhere | Built |
 | `internal/agent/storage/` | ZFS pools, datasets, vdevs and ARC; physical disks with SMART and pool membership; other filesystems. Read-only: zfs and zpool may only list, status and get | Built |
