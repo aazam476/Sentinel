@@ -36,6 +36,8 @@ func (c *connection) handlers() map[string]handler {
 		protocol.ActionProcessKill:         c.killProcess,
 		protocol.ActionSystemReboot:        c.power(power.Reboot),
 		protocol.ActionPowerWake:           c.wake,
+		protocol.ActionPackageListUpdates:  c.listPackageUpdates,
+		protocol.ActionPackageApplyUpdates: c.applyPackageUpdates,
 		protocol.ActionSystemShutdown:      c.power(power.Shutdown),
 		protocol.ActionScriptRun:           c.runScript,
 		protocol.ActionAgentUpdate:         c.startUpdate,
@@ -81,7 +83,7 @@ type afterAnswer func()
 
 func (c *connection) systemInfo(ctx context.Context, _ protocol.Message) (any, *protocol.Error) {
 	options := c.agent.options
-	info, err := options.Collector.SystemInfo(ctx, options.Policy.Report(), options.Version)
+	info, err := options.Collector.SystemInfo(ctx, c.agent.capabilities(), options.Version)
 	if err != nil {
 		options.Logger.Warn("could not describe this machine", "error", err)
 		return nil, &protocol.Error{Code: protocol.ErrorInternal, Message: "The agent couldn't read this machine's details."}

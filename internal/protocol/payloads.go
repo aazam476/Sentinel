@@ -107,6 +107,10 @@ type DesktopAvailability struct {
 	Reason string `json:"reason,omitempty"`
 }
 
+// ReasonDisabledByPolicy is a Capability's Reason when the machine's
+// local policy switches it off (SEC-22).
+const ReasonDisabledByPolicy = "Disabled by local policy"
+
 // Capability is one feature and whether this machine allows it.
 type Capability struct {
 	Name    string `json:"name"`

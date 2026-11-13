@@ -1,0 +1,4 @@
+Listing... Done
+openssl/jammy-updates,jammy-security 3.0.2-0ubuntu1.15 amd64 [upgradable from: 3.0.2-0ubuntu1.14]
+tzdata/jammy-updates 2024a-0ubuntu0.22.04.1 all [upgradable from: 2023c-0ubuntu0.22.04.2]
+libstdc++6/jammy-updates 12.3.0-1ubuntu1~22.04 amd64 [upgradable from: 12.1.0-2ubuntu1~22.04]

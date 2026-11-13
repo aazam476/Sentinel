@@ -16,6 +16,7 @@ import type {
   ServiceList,
   SessionResponse,
   SettingsResponse,
+  PackageUpdatesResponse,
   SessionSummary,
   Schedules,
   Script,
@@ -1101,5 +1102,53 @@ export function worstSettings(): SettingsResponse {
       maxFileBytes: 10_737_418_240,
       turnListen: '[2001:db8:85a3:0000:0000:8a2e:0370:7334]:3478',
     },
+  };
+}
+
+/**
+ * worstPackages: a long Windows Update title, an unbreakable package name,
+ * long versions, a manager's long error and 400 updates in one list.
+ */
+export function worstPackages(): PackageUpdatesResponse {
+  return {
+    restartRequired: true,
+    sources: [
+      {
+        manager: 'windows-update',
+        selectable: true,
+        error: '',
+        updates: [
+          {
+            id: '0a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d',
+            name: '2026-11 Cumulative Update Preview for .NET Framework 3.5, 4.8 and 4.8.1 for Windows Server 2022 for x64 (KB5045987)',
+            current: '',
+            available: '',
+            security: true,
+          },
+        ],
+      },
+      {
+        manager: 'apt',
+        selectable: true,
+        error: '',
+        updates: Array.from({ length: 400 }, (_, index) => ({
+          id: index === 0 ? 'libreoffice-l10n-zh-tw-help-common-data' : `package-${String(index)}`,
+          name:
+            index === 0
+              ? 'libreoffice-l10n-zh-tw-help-common-data-with-a-very-long-name-and-no-spaces-at-all'
+              : `package-${String(index)}`,
+          current: '1:24.8.3~rc2-0ubuntu0.24.04.1~ppa1+really24.2.7-0ubuntu0.24.04.3',
+          available: '1:24.8.4~rc1-0ubuntu0.24.04.1~ppa1+really24.8.4-0ubuntu0.24.04.1',
+          security: index % 7 === 0,
+        })),
+      },
+      {
+        manager: 'winget',
+        selectable: true,
+        error:
+          'winget: exit status 0x8a15000f: Data required by the source is missing; the source https://cdn.winget.microsoft.com/cache/source.msix could not be reached',
+        updates: [],
+      },
+    ],
   };
 }

@@ -31,6 +31,9 @@ const (
 	PermissionControlPower    Permission = "control_power"
 	PermissionManageDocker    Permission = "manage_docker"
 	PermissionRunScripts      Permission = "run_scripts"
+	// PermissionManagePackages covers listing updates too: listing refreshes
+	// the package catalogs, as root, on the machine.
+	PermissionManagePackages Permission = "manage_packages"
 
 	// Admin: manage Sentinel itself.
 	PermissionManageUsers      Permission = "manage_users"
@@ -56,7 +59,8 @@ func requiredRole(permission Permission) (Role, bool) {
 		PermissionManageProcesses,
 		PermissionControlPower,
 		PermissionManageDocker,
-		PermissionRunScripts:
+		PermissionRunScripts,
+		PermissionManagePackages:
 		return RoleOperator, true
 
 	case PermissionManageUsers,

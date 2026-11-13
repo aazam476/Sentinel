@@ -208,7 +208,7 @@ export interface AlertRuleTarget {
 export interface AlertRule {
   id: number /* int64 */;
   /**
-   * Type is metric, offline, storage, script_failed or container.
+   * Type is metric, offline, storage, script_failed, container or updates.
    */
   type: string;
   name: string;
@@ -666,6 +666,71 @@ export interface MetricPoint {
   value: number /* float64 */;
   min: number /* float64 */;
   max: number /* float64 */;
+}
+
+//////////
+// source: packages.go
+
+/**
+ * PackageUpdate is one update a machine's package manager offers.
+ */
+export interface PackageUpdate {
+  /**
+   * ID is what to send back to install it.
+   */
+  id: string;
+  name: string;
+  /**
+   * Current and Available are versions, "" when the manager doesn't say.
+   */
+  current: string;
+  available: string;
+  security: boolean;
+}
+/**
+ * PackageSource is one package manager's updates.
+ */
+export interface PackageSource {
+  manager: 'apt' | 'dnf' | 'zypper' | 'pacman' | 'apk' | 'softwareupdate' | 'homebrew' | 'windows-update' | 'winget';
+  updates: PackageUpdate[];
+  /**
+   * Selectable is false when the manager only installs everything at once.
+   */
+  selectable: boolean;
+  /**
+   * Error says why the manager couldn't be asked, or "".
+   */
+  error: string;
+}
+/**
+ * PackageUpdatesResponse answers GET /api/agents/{id}/packages.
+ */
+export interface PackageUpdatesResponse {
+  sources: PackageSource[];
+  /**
+   * RestartRequired is true when installed updates wait for a restart.
+   */
+  restartRequired: boolean;
+}
+/**
+ * ApplyPackagesRequest is the body of POST /api/agents/{id}/packages.
+ */
+export interface ApplyPackagesRequest {
+  manager: string;
+  /**
+   * IDs are the updates to install; empty installs every one.
+   */
+  ids: string[];
+}
+/**
+ * ApplyPackagesResponse answers POST /api/agents/{id}/packages.
+ */
+export interface ApplyPackagesResponse {
+  /**
+   * Output is the end of what the package manager printed.
+   */
+  output: string;
+  restartRequired: boolean;
 }
 
 //////////

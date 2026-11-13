@@ -256,6 +256,10 @@ describe('alert text', () => {
     [{ type: 'storage', config: {} }, 'Pool or disk problems, or more than 80% full'],
     [{ type: 'script_failed', config: {} }, 'A scheduled script fails'],
     [{ type: 'container', config: {} }, 'A container stops with an error or keeps restarting'],
+    [
+      { type: 'updates', config: {} },
+      'Operating system updates are waiting; one notification a day lists every machine',
+    ],
     [{ type: 'weather', config: {} }, 'weather'],
   ])('describes %j as "%s"', (rule, want) => {
     expect(describeCondition(rule)).toBe(want);

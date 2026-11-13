@@ -197,7 +197,7 @@ Sentinel's own signatures still guarantee the file is genuine.
 ### What the agent may do
 
 Each machine has a local policy file, `policy.toml`, that only someone on that machine can
-change. It can turn features off, such as the terminal, files, scripts, Docker or power, and
+change. It can turn features off, such as the terminal, files, scripts, Docker, packages or power, and
 limit the file manager to some folders. It lives in `/etc/sentinel/` on Linux,
 `/Library/Sentinel/etc/` on macOS, and `C:\ProgramData\Sentinel\etc\` on Windows. The machine
 page shows what the policy turns off.
@@ -285,6 +285,19 @@ On **Updates**, update every machine, or open a machine and choose **Update to â
 also turn on automatic updates, which run hourly. Each machine checks the new build's
 signature, then tries it while keeping the old one. It only switches if the new version
 connects, and otherwise reports why and keeps running. See ADR 0028.
+
+### Operating system updates
+
+Open a machine and choose **Updates** to see what its package managers can update, then
+install the ones you pick, or all of them. Linux machines use apt, dnf, zypper, pacman or apk;
+pacman (Arch) only updates everything at once, and listing needs `checkupdates` from
+`pacman-contrib`. macOS uses `softwareupdate`, and Homebrew if it is installed (it runs as
+the user who installed it). Windows uses Windows Update, and winget if it is installed.
+
+Once a day the server checks every online machine. The **Updates available** alert rule then
+sends one notification listing every machine with updates waiting; edit or switch it off on
+**Alerts â†’ Rules**. To stop the server touching a machine's packages at all, set
+`packages = false` under `[capabilities]` in its policy file. See ADR 0042.
 
 ### Removing the agent
 

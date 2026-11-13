@@ -1,0 +1,8 @@
+Software Update Tool
+
+Finding available software
+Software Update found the following new or updated software:
+* Label: Command Line Tools for Xcode-15.3
+	Title: Command Line Tools for Xcode, Version: 15.3, Size: 707501KiB, Recommended: YES, 
+* Label: macOS Sonoma 14.5-23F79
+	Title: macOS Sonoma 14.5, Version: 14.5, Size: 6614625K, Recommended: YES, Action: restart, 

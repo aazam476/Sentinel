@@ -30,7 +30,7 @@ const (
 
 // DisabledReason is what the UI shows for a capability the policy switches
 // off.
-const DisabledReason = "Disabled by local policy"
+const DisabledReason = protocol.ReasonDisabledByPolicy
 
 // maxFileSize caps the policy file; a real one is a few hundred bytes.
 const maxFileSize = 64 << 10

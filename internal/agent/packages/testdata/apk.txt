@@ -1,0 +1,2 @@
+busybox-1.36.1-r29 x86_64 {busybox} (GPL-2.0-only) [upgradable from: busybox-1.36.1-r28]
+libcrypto3-3.3.1-r0 x86_64 {openssl} (Apache-2.0) [upgradable from: libcrypto3-3.3.0-r2]

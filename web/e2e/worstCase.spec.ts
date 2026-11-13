@@ -27,6 +27,7 @@ import {
   worstUsers,
   worstAbout,
   worstSettings,
+  worstPackages,
   worstBuilds,
   worstFolder,
   worstFolderLink,
@@ -68,6 +69,7 @@ async function serveWorstCase(page: Page) {
     'agent-builds': worstBuilds(),
     about: worstAbout(),
     settings: worstSettings(),
+    [`agents/${worstMachine.id}/packages`]: worstPackages(),
     [`agents/${worstMachine.id}/metrics`]: { metric: 'cpu.percent', resolution: 'raw', points: [] },
     'enrollment-tokens': { tokens: worstTokens, serverFingerprint: 'SHA256:x', tlsFingerprint: '' },
   };
@@ -117,6 +119,12 @@ const screens: {
   { path: `/machines/${worstMachine.id}/docker/stacks`, ready: 'Stacks', role: 'region' },
   { path: `/machines/${worstMachine.id}/storage`, ready: 'Pools', role: 'region', allowAll: true },
   { path: worstFolderLink, ready: 'Files', role: 'region', allowAll: true },
+  {
+    path: `/machines/${worstMachine.id}/updates`,
+    ready: 'Updates',
+    role: 'region',
+    allowAll: true,
+  },
   // No desktop to share: the longest reason the server keeps.
   { path: `/machines/${worstMachine.id}/desktop`, ready: longDisplayName, allowAll: true },
   { path: '/machines/add', ready: 'Add a machine' },

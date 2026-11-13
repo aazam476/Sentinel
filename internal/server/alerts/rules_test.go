@@ -55,13 +55,16 @@ func TestSaveRuleValidation(t *testing.T) {
 }
 
 func TestRules(t *testing.T) {
-	t.Run("starts with the storage and container rules, on for every machine", func(t *testing.T) {
+	t.Run("starts with the storage, container and updates rules, on for every machine", func(t *testing.T) {
 		h := newHarness(t)
 		rules, err := h.service.Rules(t.Context())
-		if err != nil || len(rules) != 2 {
+		if err != nil || len(rules) != 3 {
 			t.Fatalf("got %+v, %v", rules, err)
 		}
-		containers, storage := rules[0], rules[1] // sorted by name
+		containers, storage, updates := rules[0], rules[1], rules[2] // sorted by name
+		if updates.Type != alerts.RuleUpdates || !updates.Enabled || updates.Target.Kind != "all" {
+			t.Errorf("updates rule = %+v", updates)
+		}
 		if containers.Type != alerts.RuleContainer || !containers.Enabled || containers.Target.Kind != "all" {
 			t.Errorf("container rule = %+v", containers)
 		}
@@ -85,7 +88,7 @@ func TestRules(t *testing.T) {
 			t.Fatal(err)
 		}
 		rules, err := h.service.Rules(t.Context())
-		if err != nil || len(rules) != 3 || rules[1].Name != "CPU very busy" || rules[1].Config.Threshold != 95 ||
+		if err != nil || len(rules) != 4 || rules[1].Name != "CPU very busy" || rules[1].Config.Threshold != 95 ||
 			len(rules[1].ChannelIDs) != 1 || rules[1].ChannelIDs[0] != channel.ID {
 			t.Errorf("got %+v, %v", rules, err)
 		}

@@ -48,7 +48,7 @@ type AlertRuleTarget struct {
 // AlertRule is one alert rule.
 type AlertRule struct {
 	ID int64 `json:"id"`
-	// Type is metric, offline, storage, script_failed or container.
+	// Type is metric, offline, storage, script_failed, container or updates.
 	Type       string          `json:"type"`
 	Name       string          `json:"name"`
 	Config     AlertRuleConfig `json:"config"`

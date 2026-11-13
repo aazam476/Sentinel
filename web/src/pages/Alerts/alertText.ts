@@ -8,6 +8,7 @@ export const ruleTypes = [
   { value: 'storage', label: 'Storage health' },
   { value: 'script_failed', label: 'Failed scheduled script' },
   { value: 'container', label: 'Container stopped' },
+  { value: 'updates', label: 'Updates available (daily digest)' },
 ] as const;
 
 /** watchableMetrics are the metrics a metric rule can watch. */
@@ -51,6 +52,8 @@ export function describeCondition(rule: Pick<AlertRule, 'type' | 'config'>): str
       return 'A scheduled script fails';
     case 'container':
       return 'A container stops with an error or keeps restarting';
+    case 'updates':
+      return 'Operating system updates are waiting; one notification a day lists every machine';
   }
   return rule.type;
 }

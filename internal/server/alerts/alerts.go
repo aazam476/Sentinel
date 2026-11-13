@@ -134,6 +134,8 @@ type scope struct {
 	agentID int64
 	kinds   []string
 	subject string
+	// quiet leaves notifying to the caller: updates go out as a digest.
+	quiet bool
 }
 
 // change is an alert that started or resolved.
@@ -172,7 +174,9 @@ func (s *Service) reconcile(ctx context.Context, in scope, conditions []Conditio
 	if err != nil {
 		return false, fmt.Errorf("reconcile alerts: %w", err)
 	}
-	s.notify(context.WithoutCancel(ctx), in.agentID, changes)
+	if !in.quiet {
+		s.notify(context.WithoutCancel(ctx), in.agentID, changes)
+	}
 	return changed, nil
 }
 

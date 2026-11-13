@@ -23,6 +23,7 @@ import (
 	"github.com/aazam476/sentinel/internal/agent/files"
 	"github.com/aazam476/sentinel/internal/agent/identity"
 	"github.com/aazam476/sentinel/internal/agent/logs"
+	"github.com/aazam476/sentinel/internal/agent/packages"
 	"github.com/aazam476/sentinel/internal/agent/policy"
 	"github.com/aazam476/sentinel/internal/agent/power"
 	"github.com/aazam476/sentinel/internal/agent/processes"
@@ -81,6 +82,9 @@ type Options struct {
 	Logs      logs.Reader
 	Processes Processes
 	Power     Power
+	// Packages lists and installs operating system updates (§9.6); nil
+	// uses this machine's package managers.
+	Packages Packages
 	// Docker manages containers (§9.4); nil uses the engine the local
 	// policy names, or the usual sockets.
 	Docker Docker
@@ -177,6 +181,13 @@ type Stacks interface {
 	Up(ctx context.Context, name string) error
 	Down(ctx context.Context, name string) error
 	Pull(ctx context.Context, name string) error
+}
+
+// Packages is the machine's package managers (internal/agent/packages).
+type Packages interface {
+	Supported() bool
+	List(ctx context.Context) (protocol.PackageUpdatesPayload, error)
+	Apply(ctx context.Context, request protocol.PackageApplyPayload) (protocol.PackageApplyResult, error)
 }
 
 // Power reboots and shuts down the machine (internal/agent/power).
@@ -290,6 +301,9 @@ func withMachineDefaults(options *Options) {
 	}
 	if options.Power == nil {
 		options.Power = power.New(runtime.GOOS, runner, options.Clock)
+	}
+	if options.Packages == nil {
+		options.Packages = packages.New(packages.System(runtime.GOOS, runner))
 	}
 	if options.Docker == nil {
 		options.Docker = docker.New(options.Policy.Docker.Socket, runtime.GOOS)

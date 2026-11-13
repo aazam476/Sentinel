@@ -178,6 +178,8 @@ func (h *handlers) addMachineRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/agents/{id}/processes/{pid}/kill", h.withPermission(auth.PermissionManageProcesses, h.handleKillProcess))
 	mux.HandleFunc("POST /api/agents/{id}/power", h.withPermission(auth.PermissionControlPower, h.handlePower))
 	mux.HandleFunc("POST /api/agents/{id}/wake", h.withPermission(auth.PermissionControlPower, h.handleWake))
+	mux.HandleFunc("GET /api/agents/{id}/packages", h.withPermission(auth.PermissionManagePackages, h.handleListPackages))
+	mux.HandleFunc("POST /api/agents/{id}/packages", h.withPermission(auth.PermissionManagePackages, h.handleApplyPackages))
 	mux.HandleFunc("GET /api/events", h.withPermission(auth.PermissionViewFleet, h.handleEvents))
 }
 

@@ -37,6 +37,7 @@ const defaults: Record<string, AlertRuleConfig> = {
   storage: { capacityPercent: 80 },
   script_failed: {},
   container: {},
+  updates: {},
 };
 
 /** RuleDialog adds or changes an alert rule. */

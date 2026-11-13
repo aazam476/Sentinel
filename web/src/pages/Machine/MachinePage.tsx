@@ -100,6 +100,13 @@ function MachineTabs({ session, machine }: MachineContext) {
     { to: 'services', label: 'Services', shown: true },
     { to: 'processes', label: 'Processes', shown: canOperate(session) },
     { to: 'logs', label: 'Logs', shown: true },
+    {
+      to: 'updates',
+      label: 'Updates',
+      // Hidden without a package manager Sentinel supports, or when the
+      // local policy switches it off (§10.2).
+      shown: canOperate(session) && allows(machine, 'packages'),
+    },
     { to: 'files', label: 'Files', shown: canOperate(session) && allows(machine, 'files') },
     { to: 'storage', label: 'Storage', shown: allows(machine, 'storage') },
     { to: 'docker', label: 'Docker', shown: allows(machine, 'docker') },

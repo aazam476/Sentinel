@@ -1,0 +1,5 @@
+   -    \                                                                                                     Name                         Id                         Version       Available     Source
+--------------------------------------------------------------------------------------------
+Microsoft Edge               Microsoft.Edge             124.0.2478.80 125.0.2535.51 winget
+Visual Studio Code éèà       Microsoft.VisualStudioCode 1.88.1        1.89.1        winget
+2 upgrades available.

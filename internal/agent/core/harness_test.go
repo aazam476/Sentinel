@@ -247,6 +247,10 @@ func (s *server) runAgent(state identity.State, key ed25519.PrivateKey, localPol
 
 func (s *server) runAgentWith(state identity.State, key ed25519.PrivateKey, localPolicy policy.Policy, collector core.Collector) *runningAgent {
 	s.t.Helper()
+	if s.machine.Packages == nil {
+		// Without a fake, the agent would look for this machine's managers.
+		s.machine.Packages = &fakePackages{supported: true}
+	}
 	if s.machine.Storage == nil {
 		// Without a fake, the agent would read this machine's disks.
 		s.machine.Storage = &fakeStorage{}
@@ -262,7 +266,7 @@ func (s *server) runAgentWith(state identity.State, key ed25519.PrivateKey, loca
 		Logger: slog.New(slog.DiscardHandler), Version: "v0.1.1", Random: func() float64 { return 0.5 },
 		Observe:  func(event core.Event) { running.events <- event },
 		Shells:   s.shells,
-		Services: s.machine.Services, Logs: s.machine.Logs, Processes: s.machine.Processes, Power: s.machine.Power,
+		Services: s.machine.Services, Logs: s.machine.Logs, Processes: s.machine.Processes, Power: s.machine.Power, Packages: s.machine.Packages,
 		Docker: s.machine.Docker, Stacks: s.machine.Stacks, Storage: s.machine.Storage, Files: s.machine.Files, Scripts: s.machine.Scripts,
 		Updater: s.machine.Updater, Restart: s.machine.Restart, Desktop: desktopProvider, Notifier: s.machine.Notifier, Tray: s.machine.Tray, Wake: s.machine.Wake,
 	})
