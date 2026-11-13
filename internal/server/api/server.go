@@ -8,6 +8,9 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/aazam476/sentinel/internal/server/config"
+	"github.com/aazam476/sentinel/internal/server/settings"
+
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/alerts"
 	"github.com/aazam476/sentinel/internal/server/audit"
@@ -46,6 +49,8 @@ type handlers struct {
 	tlsPin     string
 	logger     *slog.Logger
 	database   DatabaseSizer
+	settings   *settings.Service
+	config     config.Config
 	clock      Clock
 	cookiePath string
 	publicURL  *url.URL

@@ -51,11 +51,15 @@ func (e *FetchError) Error() string { return e.Err.Error() }
 func (e *FetchError) Unwrap() error { return e.Err }
 
 func (s *Service) fetch(ctx context.Context) ([]Build, error) {
-	sums, err := s.download(ctx, "SHA256SUMS")
+	base, err := s.releaseBase(ctx)
 	if err != nil {
 		return nil, err
 	}
-	sumsSignature, err := s.download(ctx, "SHA256SUMS.sig")
+	sums, err := s.download(ctx, base, "SHA256SUMS")
+	if err != nil {
+		return nil, err
+	}
+	sumsSignature, err := s.download(ctx, base, "SHA256SUMS.sig")
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +68,7 @@ func (s *Service) fetch(ctx context.Context) ([]Build, error) {
 	}
 	added := []Build{}
 	for name, digest := range agentBuilds(sums) {
-		build, err := s.fetchBuild(ctx, name, digest)
+		build, err := s.fetchBuild(ctx, base, name, digest)
 		if err != nil {
 			return added, err
 		}
@@ -89,8 +93,8 @@ func agentBuilds(sums []byte) map[string]string {
 	return builds
 }
 
-func (s *Service) fetchBuild(ctx context.Context, name, digest string) (Build, error) {
-	content, err := s.download(ctx, name)
+func (s *Service) fetchBuild(ctx context.Context, base, name, digest string) (Build, error) {
+	content, err := s.download(ctx, base, name)
 	if err != nil {
 		return Build{}, err
 	}
@@ -98,15 +102,15 @@ func (s *Service) fetchBuild(ctx context.Context, name, digest string) (Build, e
 	if hex.EncodeToString(actual[:]) != digest {
 		return Build{}, fmt.Errorf("%s doesn't match the release's checksum", name)
 	}
-	signature, err := s.download(ctx, name+".sig")
+	signature, err := s.download(ctx, base, name+".sig")
 	if err != nil {
 		return Build{}, err
 	}
 	return s.add(bytes.NewReader(content), signature)
 }
 
-func (s *Service) download(ctx context.Context, name string) ([]byte, error) {
-	base, err := url.Parse(s.options.ReleaseURL)
+func (s *Service) download(ctx context.Context, releaseBase, name string) ([]byte, error) {
+	base, err := url.Parse(releaseBase)
 	if err != nil {
 		return nil, &InvalidError{"releaseUrl", "the release channel's address is broken"}
 	}

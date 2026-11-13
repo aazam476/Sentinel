@@ -59,13 +59,14 @@ func (s *Service) markDirty(since int64) {
 // Prune deletes rows older than each table's retention.
 func (s *Service) Prune(ctx context.Context) error {
 	now := s.clock.Now()
+	retention := s.currentRetention()
 	deletions := []struct {
 		statement string
 		retention time.Duration
 	}{
-		{`DELETE FROM metrics_raw WHERE ts < ?`, RawRetention},
-		{`DELETE FROM metrics_1m WHERE ts < ?`, MinuteRetention},
-		{`DELETE FROM metrics_1h WHERE ts < ?`, HourRetention},
+		{`DELETE FROM metrics_raw WHERE ts < ?`, retention.Raw},
+		{`DELETE FROM metrics_1m WHERE ts < ?`, retention.Minute},
+		{`DELETE FROM metrics_1h WHERE ts < ?`, retention.Hour},
 	}
 	return s.database.Write(ctx, func(tx *sql.Tx) error {
 		for _, deletion := range deletions {

@@ -263,7 +263,7 @@ func TestAgentsAPI(t *testing.T) {
 		queries := []string{
 			"metric=cpu.percent&from=x&to=1",
 			"metric=cpu.percent&from=0&to=-1",
-			fmt.Sprintf("metric=cpu.percent&from=0&to=%d", (400 * 24 * time.Hour).Milliseconds()),
+			fmt.Sprintf("metric=cpu.percent&from=0&to=%d", (6 * 365 * 24 * time.Hour).Milliseconds()), // beyond five years of hourly history
 			"metric=nonsense&from=0&to=1000",
 		}
 		for _, query := range queries {

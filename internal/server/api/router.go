@@ -12,6 +12,7 @@ import (
 	"github.com/aazam476/sentinel/internal/server/alerts"
 	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
+	"github.com/aazam476/sentinel/internal/server/config"
 	"github.com/aazam476/sentinel/internal/server/fleet"
 	"github.com/aazam476/sentinel/internal/server/hub"
 	"github.com/aazam476/sentinel/internal/server/metrics"
@@ -19,6 +20,7 @@ import (
 	"github.com/aazam476/sentinel/internal/server/relay"
 	"github.com/aazam476/sentinel/internal/server/scripts"
 	"github.com/aazam476/sentinel/internal/server/serverkey"
+	"github.com/aazam476/sentinel/internal/server/settings"
 	"github.com/aazam476/sentinel/internal/server/updates"
 )
 
@@ -48,6 +50,10 @@ type RouterOptions struct {
 	TLSFingerprint string
 	// Database reports its own size, for the About page.
 	Database DatabaseSizer
+	// Settings are the ones admins change on the Settings page; Config is
+	// the server.toml it shows alongside them.
+	Settings *settings.Service
+	Config   config.Config
 	Logger   *slog.Logger
 	Clock    Clock
 	// BasePath is the configured base path; the session cookie is limited
@@ -85,6 +91,8 @@ func NewRouter(options RouterOptions) http.Handler {
 		maxFileBytes: maxFileBytes(options.MaxFileBytes),
 		turn:         options.Relay,
 		database:     options.Database,
+		settings:     options.Settings,
+		config:       options.Config,
 	}
 
 	mux := http.NewServeMux()
@@ -134,6 +142,8 @@ func (h *handlers) addAccountRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/auth/totp", h.signedIn(h.handleRemoveTOTP))
 	mux.HandleFunc("GET /api/settings/security", h.signedIn(h.handleGetSecuritySettings))
 	mux.HandleFunc("GET /api/about", h.withPermission(auth.PermissionViewFleet, h.handleAbout))
+	mux.HandleFunc("GET /api/settings", h.withPermission(auth.PermissionManageSettings, h.handleGetSettings))
+	mux.HandleFunc("PUT /api/settings", h.withPermission(auth.PermissionManageSettings, h.handleUpdateSettings))
 	mux.HandleFunc("PUT /api/settings/security", h.withPermission(auth.PermissionManageSettings, h.handleUpdateSecuritySettings))
 }
 

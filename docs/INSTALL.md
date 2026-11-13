@@ -111,6 +111,11 @@ With the self-signed certificate, the Add machine page puts the certificate's fi
 every install command, so agents pin it. With ACME or a proxy, agents check the certificate the
 usual way.
 
+The **Settings** page (admins only) shows these values read-only; change them here and restart
+the server. It is also where admins choose how long metrics history is kept and the release
+channel: **stable**, or **beta** to also fetch pre-releases. A pre-release server starts on
+beta. See ADR 0041.
+
 ### Backups
 
 ```bash

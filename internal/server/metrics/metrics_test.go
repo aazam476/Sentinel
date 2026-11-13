@@ -442,6 +442,20 @@ func TestPrune(t *testing.T) {
 		}
 	})
 
+	t.Run("keeps raw samples as long as the Settings page says", func(t *testing.T) {
+		h := newHarness(t)
+		start := h.clock.Now()
+		h.ingest(t, h.sample())
+		h.service.SetRetention(metrics.Retention{Raw: 72 * time.Hour, Minute: metrics.MinuteRetention, Hour: metrics.HourRetention})
+		h.clock.Set(start.Add(48 * time.Hour))
+		if err := h.service.Prune(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		if got := h.count(t, "metrics_raw"); got == 0 {
+			t.Error("raw rows deleted after 2 days with 3 days' retention")
+		}
+	})
+
 	t.Run("reports a database failure", func(t *testing.T) {
 		h := newHarness(t)
 		h.database.failWrites.Store(true)

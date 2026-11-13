@@ -29,10 +29,12 @@ import (
 	"github.com/aazam476/sentinel/internal/server/scripts"
 	"github.com/aazam476/sentinel/internal/server/secrets"
 	"github.com/aazam476/sentinel/internal/server/serverkey"
+	"github.com/aazam476/sentinel/internal/server/settings"
 	"github.com/aazam476/sentinel/internal/server/store"
 	"github.com/aazam476/sentinel/internal/server/turn"
 	"github.com/aazam476/sentinel/internal/server/updates"
 	"github.com/aazam476/sentinel/internal/server/web"
+	"github.com/aazam476/sentinel/internal/shared/buildinfo"
 	"github.com/aazam476/sentinel/internal/shared/clock"
 )
 
@@ -92,6 +94,7 @@ type services struct {
 	serverKey serverkey.Key
 	relay     *turn.Relay
 	database  *store.Store
+	settings  *settings.Service
 }
 
 // New creates the data directory if needed, opens the database and secrets
@@ -107,6 +110,9 @@ func New(ctx context.Context, options Options) (*App, error) {
 	}
 	built, err := buildServices(database, options)
 	if err != nil {
+		return nil, errors.Join(err, database.Close())
+	}
+	if err := built.settings.Apply(ctx); err != nil {
 		return nil, errors.Join(err, database.Close())
 	}
 	built.relay = startRelay(ctx, options)
@@ -191,6 +197,9 @@ func buildServices(database *store.Store, options Options) (services, error) {
 		registry:  registry.NewService(database, auditLog, box, options.Clock),
 		serverKey: serverKey,
 	}
+	built.settings = settings.New(settings.Options{
+		Database: database, AuditLog: auditLog, Metrics: built.metrics, StepUp: built.auth, ServerVersion: buildinfo.Version(),
+	})
 	// The hub, built below, tells alerts which machines are online.
 	built.alerts = alerts.NewService(alerts.Options{
 		Database: database, AuditLog: auditLog, Sealer: box, Clock: options.Clock, Logger: options.Logger,
@@ -201,6 +210,7 @@ func buildServices(database *store.Store, options Options) (services, error) {
 	built.updates = updates.New(updates.Options{
 		DataDir: dataDir, Database: database, AuditLog: auditLog, Hub: lazyHub{func() *hub.Hub { return built.hub }},
 		Fleet: built.fleet, Clock: options.Clock, Logger: options.Logger, ReleaseURL: options.Settings.ReleaseURL,
+		Channel: built.settings.Channel,
 	})
 	built.hub = hub.New(hub.Options{
 		Fleet: built.fleet, Metrics: built.metrics, Alerts: built.alerts, Updates: built.updates, Key: serverKey,
@@ -301,6 +311,8 @@ func buildHandler(options Options, built services) (http.Handler, error) {
 		MaxFileBytes:   settings.MaxFileBytes,
 		Relay:          relayOrNil(built.relay),
 		Database:       built.database,
+		Settings:       built.settings,
+		Config:         settings,
 	})
 	handler = middleware.RequireSameOrigin(handler, settings.PublicURL)
 	handler = withAgentEndpoint(handler, built.hub)

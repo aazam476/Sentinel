@@ -15,6 +15,7 @@ import type {
   ProcessList,
   ServiceList,
   SessionResponse,
+  SettingsResponse,
   SessionSummary,
   Schedules,
   Script,
@@ -1076,5 +1077,29 @@ export function worstAbout(): AboutResponse {
       version: index === 0 ? 'v10.20.300-beta.12+build.20261112.abcdef0' : `v0.${String(index)}.0`,
       machines: index === 0 ? 100_000 : 40 - index,
     })),
+  };
+}
+
+/** worstSettings: every server.toml field at its longest believable value. */
+export function worstSettings(): SettingsResponse {
+  return {
+    retention: { rawHours: 168, minuteDays: 90, hourDays: 1825 },
+    updateChannel: 'beta',
+    server: {
+      listen: '[2001:db8:85a3:0000:0000:8a2e:0370:7334]:8443',
+      publicUrl:
+        'https://sentinel-monitoring.northwind-industries-holdings.example.com/infrastructure/remote-management',
+      basePath: '/infrastructure/remote-management',
+      trustedProxies: Array.from({ length: 12 }, (_, index) => `10.${String(index)}.0.0/16`).concat(
+        ['2001:db8:85a3::/48'],
+      ),
+      tlsMode: 'acme',
+      acmeEmail: 'bartholomew.fitzgerald@northwind-industries-holdings.example.com',
+      behindTlsProxy: true,
+      releaseUrl:
+        'https://github.com/northwind-industries-holdings/sentinel-internal-builds/releases/latest/download/',
+      maxFileBytes: 10_737_418_240,
+      turnListen: '[2001:db8:85a3:0000:0000:8a2e:0370:7334]:3478',
+    },
   };
 }

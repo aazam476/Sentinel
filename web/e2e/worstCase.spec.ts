@@ -26,6 +26,7 @@ import {
   worstRules,
   worstUsers,
   worstAbout,
+  worstSettings,
   worstBuilds,
   worstFolder,
   worstFolderLink,
@@ -66,6 +67,7 @@ async function serveWorstCase(page: Page) {
     users: worstUsers(),
     'agent-builds': worstBuilds(),
     about: worstAbout(),
+    settings: worstSettings(),
     [`agents/${worstMachine.id}/metrics`]: { metric: 'cpu.percent', resolution: 'raw', points: [] },
     'enrollment-tokens': { tokens: worstTokens, serverFingerprint: 'SHA256:x', tlsFingerprint: '' },
   };
@@ -127,6 +129,7 @@ const screens: {
   { path: '/users', ready: 'Users', role: 'region' },
   { path: '/updates', ready: 'Agent builds', role: 'region' },
   { path: '/about', ready: 'Agent versions', role: 'region' },
+  { path: '/settings', ready: 'Server (server.toml)', role: 'region' },
 ];
 
 for (const screen of screens) {

@@ -69,6 +69,13 @@ type Options struct {
 	// https://github.com/<owner>/sentinel/releases/latest/download/.
 	ReleaseURL string
 	HTTPClient *http.Client
+	// Channel is the release channel, "stable" or "beta" (§9.10); nil is
+	// stable. On beta, a GitHub "latest" ReleaseURL is resolved to the
+	// newest release, pre-releases included (channel.go).
+	Channel func(ctx context.Context) string
+	// ReleasesAPIURL lists the repository's releases; "" derives it from
+	// a GitHub ReleaseURL. Tests point it at a fake.
+	ReleasesAPIURL string
 }
 
 // Service hosts builds and updates agents.

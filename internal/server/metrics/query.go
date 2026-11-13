@@ -73,11 +73,12 @@ func (s *Service) Query(ctx context.Context, agentID int64, metric string, from,
 
 func (s *Service) resolutionFor(from, to int64) Resolution {
 	now := s.clock.Now()
+	retention := s.currentRetention()
 	span := time.Duration(to-from) * time.Millisecond
 	switch {
-	case span <= maxRawSpan && from >= now.Add(-RawRetention).UnixMilli():
+	case span <= maxRawSpan && from >= now.Add(-retention.Raw).UnixMilli():
 		return ResolutionRaw
-	case span <= maxMinuteSpan && from >= now.Add(-MinuteRetention).UnixMilli():
+	case span <= maxMinuteSpan && from >= now.Add(-retention.Minute).UnixMilli():
 		return ResolutionMinute
 	default:
 		return ResolutionHour

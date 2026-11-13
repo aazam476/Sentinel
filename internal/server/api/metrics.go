@@ -30,7 +30,7 @@ type MetricPoint struct {
 
 // maxMetricRange is the longest range a chart can ask for: the hourly
 // table's retention plus a day of slack.
-const maxMetricRange = metrics.HourRetention + 24*time.Hour
+const maxMetricRange = metrics.MaxHourRetention + 24*time.Hour
 
 // handleAgentMetrics answers GET /api/agents/{id}/metrics?metric=&from=&to=
 // with from and to in Unix milliseconds.

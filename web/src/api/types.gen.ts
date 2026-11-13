@@ -919,6 +919,52 @@ export interface SessionsResponse {
 }
 
 //////////
+// source: settings.go
+
+/**
+ * SettingsResponse is the Settings page (§9.10): what admins change here,
+ * and what server.toml sets, shown read-only.
+ */
+export interface SettingsResponse {
+  retention: MetricsRetention;
+  /**
+   * UpdateChannel is "stable" or "beta": where agent builds come from.
+   */
+  updateChannel: string;
+  server: ServerConfig;
+}
+/**
+ * SettingsRequest changes the settings admins can change here.
+ */
+export interface SettingsRequest {
+  retention: MetricsRetention;
+  updateChannel: string;
+}
+/**
+ * MetricsRetention is how long metrics history is kept (§9.1).
+ */
+export interface MetricsRetention {
+  rawHours: number /* int */;
+  minuteDays: number /* int */;
+  hourDays: number /* int */;
+}
+/**
+ * ServerConfig is server.toml as the server resolved it.
+ */
+export interface ServerConfig {
+  listen: string;
+  publicUrl: string;
+  basePath: string;
+  trustedProxies: string[];
+  tlsMode: string;
+  acmeEmail: string;
+  behindTlsProxy: boolean;
+  releaseUrl: string;
+  maxFileBytes: number /* int64 */;
+  turnListen: string;
+}
+
+//////////
 // source: setup.go
 
 /**

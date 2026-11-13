@@ -424,6 +424,46 @@ func TestFetch(t *testing.T) {
 		h.files["SHA256SUMS.sig"], _ = release.Sign(manifest, h.key)
 	}
 
+	t.Run("on the beta channel, fetches the newest release, pre-releases included", func(t *testing.T) {
+		h := newHarness(t)
+		publish(h)
+		var listed int
+		github := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/api/releases" {
+				listed++
+				_, _ = w.Write([]byte(`[{"tag_name":"v3.0.0-rc.1","draft":true},{"tag_name":"v2.0.0-beta.1","draft":false},{"tag_name":"v1.0.0","draft":false}]`))
+				return
+			}
+			content, found := h.files[strings.TrimPrefix(r.URL.Path, "/acme/sentinel/releases/download/v2.0.0-beta.1/")]
+			if !found {
+				http.NotFound(w, r)
+				return
+			}
+			_, _ = w.Write(content)
+		}))
+		t.Cleanup(github.Close)
+		options := updates.Options{
+			DataDir: h.dataDir, Database: h.database, AuditLog: audit.New(h.database), Hub: h.hub, Fleet: fakeFleet{h.agents},
+			Clock: h.clock, Keys: []ed25519.PublicKey{h.key.Public().(ed25519.PublicKey)},
+			ReleaseURL: github.URL + "/acme/sentinel/releases/latest/download/", ReleasesAPIURL: github.URL + "/api/releases",
+			HTTPClient: github.Client(), Channel: func(context.Context) string { return "beta" },
+		}
+		added, err := updates.New(options).Fetch(t.Context(), h.admin, auth.RequestInfo{})
+		if err != nil || len(added) != 2 || listed != 1 {
+			t.Fatalf("beta fetch = %v, %v (listed %d times)", added, err, listed)
+		}
+
+		options.Channel = func(context.Context) string { return "stable" }
+		if _, err := updates.New(options).Fetch(t.Context(), h.admin, auth.RequestInfo{}); err == nil || listed != 1 {
+			t.Errorf("stable fetched from %q without listing: err %v", options.ReleaseURL, err)
+		}
+		options.Channel = func(context.Context) string { return "beta" }
+		options.ReleasesAPIURL = github.URL + "/missing"
+		if _, err := updates.New(options).Fetch(t.Context(), h.admin, auth.RequestInfo{}); err == nil {
+			t.Error("a release list that can't be read fetched something")
+		}
+	})
+
 	t.Run("hosts the agent builds of the latest release, checked against its signed checksums", func(t *testing.T) {
 		h := newHarness(t)
 		publish(h)
