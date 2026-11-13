@@ -4,6 +4,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/aazam476/sentinel/internal/protocol"
 )
@@ -16,7 +17,14 @@ type streamOutput struct {
 // SendFrame sends a stream's data, giving up after writeTimeout of real
 // time (see connection.send).
 func (o streamOutput) SendFrame(ctx context.Context, stream protocol.StreamID, data []byte) error {
-	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	// A cancelled context mid-write would make the WebSocket library
+	// close the whole connection, ending every other stream on it: so a
+	// caller that has given up stops here, and a write that has begun
+	// only stops at the time limit.
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("not sent: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
 	defer cancel()
 	return protocol.WriteFrame(ctx, o.conn.conn, stream, data)
 }

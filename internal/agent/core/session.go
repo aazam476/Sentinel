@@ -222,7 +222,14 @@ func (c *connection) sendSamples(ctx context.Context) {
 // between the server receiving it and the write returning, and the
 // WebSocket library closes the connection when a write's context ends.)
 func (c *connection) send(ctx context.Context, message protocol.Message, payload any) error {
-	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	// A cancelled context mid-write would make the WebSocket library
+	// close the whole connection, ending every other stream on it: so a
+	// caller that has given up stops here, and a write that has begun
+	// only stops at the time limit.
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("not sent: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
 	defer cancel()
 	return protocol.WriteMessage(ctx, c.conn, message, payload)
 }

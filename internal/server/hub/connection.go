@@ -4,6 +4,7 @@ package hub
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -205,7 +206,14 @@ func (c *connection) watchHeartbeat(ctx context.Context) {
 
 // send writes one message, giving up after writeTimeout.
 func (c *connection) send(ctx context.Context, message protocol.Message, payload any) error {
-	ctx, cancel := clock.WithTimeout(ctx, c.hub.clock, writeTimeout)
+	// A cancelled context mid-write would make the WebSocket library
+	// close the whole connection, ending every other stream on it: so a
+	// caller that has given up stops here, and a write that has begun
+	// only stops at the time limit.
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("not sent: %w", err)
+	}
+	ctx, cancel := clock.WithTimeout(context.WithoutCancel(ctx), c.hub.clock, writeTimeout)
 	defer cancel()
 	return protocol.WriteMessage(ctx, c.conn, message, payload)
 }

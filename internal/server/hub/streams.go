@@ -5,6 +5,7 @@ package hub
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/aazam476/sentinel/internal/protocol"
@@ -77,7 +78,14 @@ func (s *Stream) Write(ctx context.Context, data []byte) error {
 		return ErrStreamClosed
 	default:
 	}
-	ctx, cancel := clock.WithTimeout(ctx, s.conn.hub.clock, writeTimeout)
+	// A cancelled context mid-write would make the WebSocket library
+	// close the whole connection, ending every other stream on it: so a
+	// caller that has given up stops here, and a write that has begun
+	// only stops at the time limit.
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("not sent: %w", err)
+	}
+	ctx, cancel := clock.WithTimeout(context.WithoutCancel(ctx), s.conn.hub.clock, writeTimeout)
 	defer cancel()
 	return protocol.WriteFrame(ctx, s.conn.conn, s.ID, data)
 }

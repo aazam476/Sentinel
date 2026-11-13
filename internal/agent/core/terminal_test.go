@@ -3,6 +3,7 @@
 package core_test
 
 import (
+	"context"
 	"errors"
 	"io"
 	"testing"
@@ -232,6 +233,54 @@ func TestTerminal(t *testing.T) {
 			if !errors.As(err, &agentErr) || agentErr.Code != c.code {
 				t.Errorf("%s %v: err = %v, want %s", c.action, c.payload, err, c.code)
 			}
+		}
+	})
+}
+
+func TestAWriteThatIsGivenUpKeepsTheConnection(t *testing.T) {
+	s := newServer(t)
+	s.withEchoShells()
+	events := s.subscribe()
+	agent := s.startAgent(policy.Policy{})
+	waitFor(t, events, agent.state.AgentID, hub.EventInfoUpdated)
+	stream, _, err := s.openTerminal(t, agent.state.AgentID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("a caller that has given up sends nothing", func(t *testing.T) {
+		cancelled, cancel := context.WithCancel(t.Context())
+		cancel()
+		if err := stream.Write(cancelled, []byte("never sent")); !errors.Is(err, context.Canceled) {
+			t.Errorf("Write() = %v, want context.Canceled", err)
+		}
+	})
+
+	t.Run("giving up on a write that is stuck on the network ends neither the session nor the connection", func(t *testing.T) {
+		s.proxy.Stall(true)
+		ctx, cancel := context.WithCancel(t.Context())
+		chunk := make([]byte, 16<<10)
+		written := make(chan struct{})
+		go func() {
+			defer close(written)
+			// Fills the stalled link's buffers until a write blocks.
+			for ctx.Err() == nil {
+				if err := stream.Write(ctx, chunk); err != nil {
+					return
+				}
+			}
+		}()
+		time.Sleep(500 * time.Millisecond) //nolint:forbidigo // real network buffers fill in real time
+		cancel()
+		s.proxy.Stall(false)
+		<-written
+		if err := s.request(t, agent.state.AgentID, protocol.ActionSystemInfo, nil, nil); err != nil {
+			t.Fatalf("the agent stopped answering: %v", err)
+		}
+		select {
+		case <-stream.Done():
+			t.Errorf("the session ended: %s", stream.Reason())
+		default:
 		}
 	})
 }
