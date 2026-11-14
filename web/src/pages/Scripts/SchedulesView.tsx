@@ -1,27 +1,36 @@
 // SPDX-License-Identifier: Apache-2.0
 import { useState } from 'react';
+import { useOutletContext } from 'react-router';
 import { toast } from 'sonner';
 
 import { useAgents } from '../../api/agents';
 import { useDeleteSchedule, useSaveSchedule, useSchedules, useScripts } from '../../api/scripts';
-import type { Schedule } from '../../api/types.gen';
+import type { Schedule, SessionResponse } from '../../api/types.gen';
 import { Button } from '../../components/Button/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import { FormError } from '../../components/FormError/FormError';
 import { messageFor } from '../../components/FormError/messageFor';
+import { StepUpDialog } from '../../components/StepUpDialog/StepUpDialog';
+import { useStepUpRetry } from '../../components/StepUpDialog/useStepUpRetry';
 import { formatDateTime } from '../../formatting/formatting';
 import systemStyles from '../Machine/SystemTab.module.css';
 import { ScheduleDialog } from './ScheduleDialog';
 import styles from './Scripts.module.css';
 import { describeCron, describeTarget } from './scriptText';
 
-/** SchedulesView lists the schedules, soonest first, and edits them. */
+/**
+ * SchedulesView lists the schedules, soonest first, and edits them. Saving
+ * one that is on and reaches more than one machine asks to confirm it’s
+ * you first, when the last check was a while ago (SEC-07).
+ */
 export function SchedulesView() {
+  const session = useOutletContext<SessionResponse>();
   const schedules = useSchedules();
   const scripts = useScripts();
   const agents = useAgents();
   const save = useSaveSchedule();
   const remove = useDeleteSchedule();
+  const stepUp = useStepUpRetry();
   const [editing, setEditing] = useState<Schedule | 'new'>();
   const [deleting, setDeleting] = useState<Schedule>();
   const names = new Map((agents.data?.agents ?? []).map((agent) => [agent.id, agent.name]));
@@ -97,13 +106,21 @@ export function SchedulesView() {
           onClose={() => {
             setEditing(undefined);
           }}
-          onSave={(request, done) => {
+          onSave={function saveSchedule(request, failed) {
             save.mutate(request, {
               onSuccess: () => {
                 toast.success('Schedule saved');
                 setEditing(undefined);
               },
-              onError: done,
+              onError: (error) => {
+                if (
+                  !stepUp.handleError(error, () => {
+                    saveSchedule(request, failed);
+                  })
+                ) {
+                  failed(error);
+                }
+              },
             });
           }}
         />
@@ -126,6 +143,12 @@ export function SchedulesView() {
             });
           }
         }}
+      />
+      <StepUpDialog
+        open={stepUp.isOpen}
+        onOpenChange={stepUp.setOpen}
+        secondFactors={session.secondFactors}
+        onConfirmed={stepUp.confirmed}
       />
     </section>
   );

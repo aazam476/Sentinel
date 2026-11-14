@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useOutletContext, useParams } from 'react-router';
 import { toast } from 'sonner';
 
+import { isApiError } from '../../api/client';
 import { useDeleteScript, useSaveScript, useScripts } from '../../api/scripts';
-import type { Script } from '../../api/types.gen';
+import type { Script, SessionResponse } from '../../api/types.gen';
 import { Button } from '../../components/Button/Button';
 import { CodeEditor } from '../../components/CodeEditor/CodeEditor';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import { Field } from '../../components/Field/Field';
 import { FormError } from '../../components/FormError/FormError';
+import { StepUpDialog } from '../../components/StepUpDialog/StepUpDialog';
+import { useStepUpRetry } from '../../components/StepUpDialog/useStepUpRetry';
 import systemStyles from '../Machine/SystemTab.module.css';
 import { RunDialog } from './RunDialog';
 import styles from './Scripts.module.css';
@@ -48,10 +51,17 @@ export function ScriptEditor() {
   return <ScriptForm key={script.id} script={script} />;
 }
 
+/**
+ * ScriptForm edits one script. Saving a script that a schedule runs on
+ * more than one machine asks to confirm it’s you first, when the last
+ * check was a while ago (SEC-07).
+ */
 function ScriptForm({ script }: { script: Script }) {
+  const session = useOutletContext<SessionResponse>();
   const navigate = useNavigate();
   const save = useSaveScript();
   const remove = useDeleteScript();
+  const stepUp = useStepUpRetry();
   const [draft, setDraft] = useState(script);
   const [running, setRunning] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -77,6 +87,7 @@ function ScriptForm({ script }: { script: Script }) {
             void navigate(`/scripts/${String(saved.id)}`);
           }
         },
+        onError: (error) => stepUp.handleError(error, handleSave),
       },
     );
   };
@@ -153,7 +164,7 @@ function ScriptForm({ script }: { script: Script }) {
           change({ body });
         }}
       />
-      <FormError error={save.error} />
+      <FormError error={isApiError(save.error, 'step_up_required') ? null : save.error} />
       <div className={systemStyles.toolbar}>
         <Button onClick={handleSave} isBusy={save.isPending}>
           Save
@@ -179,7 +190,20 @@ function ScriptForm({ script }: { script: Script }) {
           </>
         )}
       </div>
-      {!isNew && <RunDialog open={running} onOpenChange={setRunning} script={script} />}
+      {!isNew && (
+        <RunDialog
+          open={running}
+          onOpenChange={setRunning}
+          script={script}
+          secondFactors={session.secondFactors}
+        />
+      )}
+      <StepUpDialog
+        open={stepUp.isOpen}
+        onOpenChange={stepUp.setOpen}
+        secondFactors={session.secondFactors}
+        onConfirmed={stepUp.confirmed}
+      />
       <ConfirmDialog
         open={deleting}
         onOpenChange={setDeleting}

@@ -111,6 +111,12 @@ type fakeFleet struct{ agents []fleet.Agent }
 
 func (f fakeFleet) AllAgents(context.Context) ([]fleet.Agent, error) { return f.agents, nil }
 
+// fakeStepUp answers every second-factor check with err: nil for someone
+// who checked recently, auth.ErrStepUpRequired for someone who didn't.
+type fakeStepUp struct{ err error }
+
+func (f *fakeStepUp) RequireRecentSecondFactor(auth.Session) error { return f.err }
+
 type harness struct {
 	service  *scripts.Service
 	hub      *fakeHub
@@ -120,6 +126,12 @@ type harness struct {
 	viewer   auth.Session
 	agents   []fleet.Agent
 	alerts   *fakeAlerts
+	// stepUp says whether the person checked their second factor recently;
+	// they did, unless a test sets its err.
+	stepUp *fakeStepUp
+	// options are what the service was built with, for a test that builds
+	// another.
+	options scripts.Options
 }
 
 // newHarness has three machines: nas (linux, tagged homelab, online), pc
@@ -132,7 +144,7 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = database.Close() }) // nothing to check when a test database closes
-	h := &harness{clock: clock, auditLog: audit.New(database), alerts: &fakeAlerts{}}
+	h := &harness{clock: clock, auditLog: audit.New(database), alerts: &fakeAlerts{}, stepUp: &fakeStepUp{}}
 	err = database.Write(t.Context(), func(tx *sql.Tx) error {
 		result, err := tx.ExecContext(t.Context(), `INSERT INTO users (username, password_hash, role, created_at) VALUES ('olga', 'x', 'operator', 0)`)
 		if err != nil {
@@ -165,8 +177,9 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	h.hub = &fakeHub{online: map[int64]bool{h.agents[0].ID: true, h.agents[1].ID: true}, plans: map[int64]plan{}, streams: map[int64]*fakeStream{}}
-	h.service = scripts.New(scripts.Options{Database: database, AuditLog: h.auditLog, Hub: h.hub, Fleet: fakeFleet{h.agents},
-		Clock: clock, Logger: slog.New(slog.DiscardHandler), Alerts: h.alerts})
+	h.options = scripts.Options{Database: database, AuditLog: h.auditLog, Hub: h.hub, Fleet: fakeFleet{h.agents},
+		Clock: clock, Logger: slog.New(slog.DiscardHandler), Alerts: h.alerts, StepUp: h.stepUp}
+	h.service = scripts.New(h.options)
 	return h
 }
 

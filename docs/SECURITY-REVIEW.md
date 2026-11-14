@@ -62,12 +62,20 @@ stored only as hashes; 12-hour idle and 7-day absolute timeouts; users list and 
 **SEC-07 Step-up.** Opening a terminal or a desktop session, running a script on more than one
 machine, changing users, roles or the 2FA requirement, and adding or removing a second factor
 need a second factor checked within 15 minutes (or, for a user without one, the password
-re-entered); the UI asks for it in place and retries (`auth/stepup.go`, `twofactor.go`).
+re-entered); the UI asks for it in place and retries (`auth/stepup.go`, `twofactor.go`). For
+scripts that covers the three ways a person can put one on several machines: running it,
+saving a schedule that is on and reaches more than one, and changing a script such a schedule
+runs (`internal/server/scripts/stepup.go`, ADR 0043).
 *Tests:* `TestSEC07_OpeningATerminalNeedsARecentSecondFactor`,
 `TestSEC07_OpeningADesktopNeedsARecentSecondFactor`, `TestSEC07_ChangingUsersNeedsARecentSecondFactor`,
-`TestSEC07_StepUpOverHTTP`, the password step-up in `TestSEC04_TwoFactorIsEachUsersChoiceByDefault`
-and `TestSEC04_TwoFactorIsOptionalOverHTTP`, `TestSEC05_PasswordStepUpIsRateLimited`, component
-tests of the step-up dialog in each place.
+`TestSEC07_StepUpOverHTTP`, `TestSEC07_RunningAScriptOnMoreThanOneMachineNeedsARecentSecondFactor`,
+`TestSEC07_ScheduleThatReachesMoreThanOneMachineNeedsARecentSecondFactor`,
+`TestSEC07_ChangingAScriptScheduledOnMoreThanOneMachineNeedsARecentSecondFactor`,
+`TestSEC07_AScriptOnMoreThanOneMachineNeedsARecentSecondFactorOverHTTP`, the password step-up in
+`TestSEC04_TwoFactorIsEachUsersChoiceByDefault` and `TestSEC04_TwoFactorIsOptionalOverHTTP`,
+`TestSEC05_PasswordStepUpIsRateLimited`, component tests of the step-up dialog in each place.
+*Limits:* a script on one machine, the file manager, Docker and stacks need no step-up,
+though each can do what a terminal can; SEC-07 doesn't list them.
 
 **SEC-08 Local recovery.** `sentinel-server reset-admin` works only as root or the data
 directory's owner, and the admin must set up 2FA again (`cmd/sentinel-server/resetadmin.go`,

@@ -138,12 +138,17 @@ func (s *Service) GetScript(ctx context.Context, id int64) (Script, error) {
 	return script, err
 }
 
-// SaveScript adds a script (ID 0) or changes one, and audits it.
+// SaveScript adds a script (ID 0) or changes one, and audits it. Changing
+// a script that a schedule runs on more than one machine needs a recent
+// second-factor check (SEC-07): the schedule would run the new text there.
 func (s *Service) SaveScript(ctx context.Context, actor auth.Session, request auth.RequestInfo, script Script) (Script, error) {
 	if err := auth.Authorize(actor, auth.PermissionRunScripts); err != nil {
 		return Script{}, err
 	}
 	if err := script.validate(); err != nil {
+		return Script{}, err
+	}
+	if err := s.checkScriptChange(ctx, actor, script.ID); err != nil {
 		return Script{}, err
 	}
 	now := s.clock.Now().UnixMilli()

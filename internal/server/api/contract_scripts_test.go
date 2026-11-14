@@ -8,11 +8,13 @@ import (
 	"slices"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/coder/websocket"
 
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/api"
+	"github.com/aazam476/sentinel/internal/server/hub"
 )
 
 // serveScript answers the next script.run as the agent does: at once,
@@ -131,4 +133,76 @@ func TestScripts(t *testing.T) {
 			t.Errorf("audit = %v", got)
 		}
 	})
+}
+
+// TestSEC07_AScriptOnMoreThanOneMachineNeedsARecentSecondFactorOverHTTP
+// checks the three ways a person can make a script run on several
+// machines: running it, scheduling it, and changing a script that is
+// scheduled. Each needs a second factor checked in the last 15 minutes;
+// one machine doesn't.
+func TestSEC07_AScriptOnMoreThanOneMachineNeedsARecentSecondFactorOverHTTP(t *testing.T) {
+	server := newTestServer(t)
+	admin := server.setUpAdmin()
+	// The admin's check goes stale before the machines connect, so their
+	// connections don't sit silent while the clock moves.
+	server.clock.Advance(16 * time.Minute)
+	events, stop := server.app.Hub.Subscribe()
+	defer stop()
+	token := createToken(t, admin, api.CreateEnrollmentTokenRequest{MaxUses: 2})
+	machines := map[string]*websocket.Conn{}
+	tags := []string{"fleet"}
+	for range 2 {
+		id, conn := server.connectAgent(token.Secret, token.ServerFingerprint)
+		waitForAgentEvent(t, events, id, hub.EventInfoUpdated)
+		expect(t, admin.browser.do(http.MethodPatch, "/api/agents/"+id, api.UpdateAgentRequest{Tags: &tags}), http.StatusOK, "")
+		machines[id] = conn
+	}
+	var one string
+	for id := range machines {
+		one = id
+	}
+	var script api.Script
+	save := api.SaveScriptRequest{Name: "Uptime", Language: "sh", Body: "uptime"}
+	admin.browser.do(http.MethodPost, "/api/scripts", save).decode(t, &script)
+	scriptPath := "/api/scripts/" + strconv.FormatInt(script.ID, 10)
+	onTag := api.RunScriptRequest{Target: api.ScriptTarget{Kind: "tag", Value: "fleet"}}
+	schedule := api.SaveScheduleRequest{ScriptID: script.ID, Cron: "0 3 * * *", Timezone: "UTC", Target: onTag.Target, Enabled: true}
+
+	// Without a recent check: several machines are refused, one isn't.
+	expect(t, admin.browser.do(http.MethodPost, scriptPath+"/run", onTag), http.StatusForbidden, "step_up_required")
+	expect(t, admin.browser.do(http.MethodPost, "/api/schedules", schedule), http.StatusForbidden, "step_up_required")
+	if got := auditActions(t, server, "script.run"); len(got) != 0 {
+		t.Fatalf("a refused run was recorded as run: %v", got)
+	}
+	ran := serveScript(t, machines[one], "up 3 days\n", protocol.ScriptResult{})
+	onOne := api.RunScriptRequest{Target: api.ScriptTarget{Kind: "agent", Value: one}}
+	expect(t, admin.browser.do(http.MethodPost, scriptPath+"/run", onOne), http.StatusOK, "")
+	<-ran
+	server.app.Scripts.Wait()
+
+	// After one: the schedule saves, and the script runs on both.
+	expect(t, admin.browser.do(http.MethodPost, "/api/auth/step-up", api.TOTPCodeRequest{TOTPCode: server.code(admin.totpSecret)}), http.StatusOK, "")
+	expect(t, admin.browser.do(http.MethodPost, "/api/schedules", schedule), http.StatusOK, "")
+	var everyone []<-chan protocol.ScriptRunPayload
+	for _, conn := range machines {
+		everyone = append(everyone, serveScript(t, conn, "up 3 days\n", protocol.ScriptResult{}))
+	}
+	var started api.RunScriptResponse
+	admin.browser.do(http.MethodPost, scriptPath+"/run", onTag).decode(t, &started)
+	for _, machine := range everyone {
+		<-machine
+	}
+	server.app.Scripts.Wait()
+	var batch api.ScriptBatchDetails
+	admin.browser.do(http.MethodGet, "/api/script-batches/"+strconv.FormatInt(started.BatchID, 10), nil).decode(t, &batch)
+	if len(batch.Runs) != 2 {
+		t.Errorf("ran on %d machines, want 2", len(batch.Runs))
+	}
+
+	// The script is now scheduled on the tag: changing it needs the check.
+	server.clock.Advance(16 * time.Minute)
+	save.Body = "uptime; id"
+	expect(t, admin.browser.do(http.MethodPut, scriptPath, save), http.StatusForbidden, "step_up_required")
+	expect(t, admin.browser.do(http.MethodPost, "/api/auth/step-up", api.TOTPCodeRequest{TOTPCode: server.code(admin.totpSecret)}), http.StatusOK, "")
+	expect(t, admin.browser.do(http.MethodPut, scriptPath, save), http.StatusOK, "")
 }

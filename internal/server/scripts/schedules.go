@@ -94,7 +94,9 @@ func (s *Service) Schedules(ctx context.Context) ([]Schedule, error) {
 	return list, err
 }
 
-// SaveSchedule adds a schedule (ID 0) or changes one, and audits it.
+// SaveSchedule adds a schedule (ID 0) or changes one, and audits it. A
+// schedule that is on and can reach more than one machine needs a recent
+// second-factor check (SEC-07): it will run the script on them unattended.
 func (s *Service) SaveSchedule(ctx context.Context, actor auth.Session, request auth.RequestInfo, schedule Schedule) (Schedule, error) {
 	if err := auth.Authorize(actor, auth.PermissionRunScripts); err != nil {
 		return Schedule{}, err
@@ -105,6 +107,11 @@ func (s *Service) SaveSchedule(ctx context.Context, actor auth.Session, request 
 	}
 	if _, err := s.GetScript(ctx, schedule.ScriptID); err != nil {
 		return Schedule{}, &InvalidError{"scriptId", "choose a script from the library"}
+	}
+	if schedule.Enabled && schedule.Target.reachesMany() {
+		if err := s.requireStepUp(actor); err != nil {
+			return Schedule{}, err
+		}
 	}
 	err = s.database.Write(ctx, func(tx *sql.Tx) error {
 		if schedule.ID == 0 {

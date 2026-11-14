@@ -11,6 +11,7 @@ import (
 
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/audit"
+	"github.com/aazam476/sentinel/internal/server/auth"
 	"github.com/aazam476/sentinel/internal/server/fleet"
 	"github.com/aazam476/sentinel/internal/server/hub"
 )
@@ -65,6 +66,11 @@ type Clock interface {
 	Now() time.Time
 }
 
+// StepUp checks a recent second-factor check (auth.Service, SEC-07).
+type StepUp interface {
+	RequireRecentSecondFactor(session auth.Session) error
+}
+
 // Options configures a Service.
 type Options struct {
 	Database Database
@@ -75,6 +81,9 @@ type Options struct {
 	Logger   *slog.Logger
 	// Alerts hears how scheduled runs end; nil leaves them unwatched.
 	Alerts Alerts
+	// StepUp is asked before anything that makes a script run on more
+	// than one machine (stepup.go). Without it, those are refused.
+	StepUp StepUp
 }
 
 // Alerts raises an alert when a scheduled run fails and resolves it when
@@ -92,6 +101,7 @@ type Service struct {
 	clock    Clock
 	logger   *slog.Logger
 	alerts   Alerts
+	stepUp   StepUp
 
 	mutex sync.Mutex
 	// live holds the runs going now, by run ID.
@@ -104,7 +114,7 @@ type Service struct {
 func New(options Options) *Service {
 	return &Service{
 		database: options.Database, audit: options.AuditLog, hub: options.Hub, fleet: options.Fleet,
-		clock: options.Clock, logger: options.Logger, alerts: options.Alerts, live: map[int64]*liveRun{},
+		clock: options.Clock, logger: options.Logger, alerts: options.Alerts, stepUp: options.StepUp, live: map[int64]*liveRun{},
 	}
 }
 

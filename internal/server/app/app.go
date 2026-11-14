@@ -218,7 +218,7 @@ func buildServices(database *store.Store, options Options) (services, error) {
 	})
 	built.scripts = scripts.New(scripts.Options{
 		Database: database, AuditLog: auditLog, Hub: scripts.HubOf(built.hub), Fleet: built.fleet, Clock: options.Clock, Logger: options.Logger,
-		Alerts: built.alerts,
+		Alerts: built.alerts, StepUp: built.auth,
 	})
 	return built, nil
 }

@@ -246,6 +246,107 @@ describe('Scripts', () => {
     });
   });
 
+  it('SEC-07: asks to confirm it’s you before running on several machines, then runs', async () => {
+    withScripts();
+    const user = userEvent.setup();
+    let attempts = 0;
+    server.use(
+      http.post(apiPath('scripts/7/run'), () => {
+        attempts++;
+        return attempts === 1
+          ? apiError(403, 'step_up_required', 'confirm it’s you first')
+          : json({ batchId: 3 });
+      }),
+      http.post(apiPath('auth/step-up'), () => json(adminSession)),
+    );
+    renderApp('/scripts/7');
+    await user.click(await screen.findByRole('button', { name: 'Run…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Run Uptime' });
+    await user.click(within(dialog).getByRole('radio', { name: 'Machines with a tag' }));
+    await user.selectOptions(within(dialog).getByRole('combobox', { name: 'Tag' }), 'homelab');
+    await user.click(within(dialog).getByRole('button', { name: 'Run' }));
+
+    const stepUp = await screen.findByRole('dialog', { name: /Confirm/ });
+    // The step-up dialog asks; the refusal isn't also shown as an error.
+    expect(screen.queryByText(/confirm it’s you first/i)).not.toBeInTheDocument();
+    await user.type(within(stepUp).getByRole('textbox'), '123456');
+    await user.click(within(stepUp).getByRole('button', { name: /Confirm/ }));
+    expect(await screen.findByRole('region', { name: 'Run of Uptime' })).toBeVisible();
+    expect(attempts).toBe(2);
+  }, 20_000);
+
+  it('SEC-07: asks to confirm it’s you before saving a schedule on a tag, then saves', async () => {
+    withScripts();
+    const user = userEvent.setup();
+    const saved: Schedule = {
+      id: 1,
+      scriptId: 7,
+      scriptName: 'Uptime',
+      cron: '0 3 * * *',
+      timezone: 'UTC',
+      target: { kind: 'tag', value: 'homelab' },
+      enabled: true,
+      nextRunAt: fixtureNow + 3_600_000,
+      lastRunAt: null,
+    };
+    let schedules: Schedule[] = [];
+    let attempts = 0;
+    server.use(
+      http.get(apiPath('schedules'), () => json({ schedules })),
+      http.post(apiPath('schedules'), () => {
+        attempts++;
+        if (attempts === 1) {
+          return apiError(403, 'step_up_required', 'confirm it’s you first');
+        }
+        schedules = [saved];
+        return json(saved);
+      }),
+      http.post(apiPath('auth/step-up'), () => json(adminSession)),
+    );
+    renderApp('/scripts/schedules');
+    await user.click(await screen.findByRole('button', { name: 'New schedule' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New schedule' });
+    await user.selectOptions(within(dialog).getByRole('combobox', { name: 'Tag' }), 'homelab');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    const stepUp = await screen.findByRole('dialog', { name: /Confirm/ });
+    await user.type(within(stepUp).getByRole('textbox'), '123456');
+    await user.click(within(stepUp).getByRole('button', { name: /Confirm/ }));
+    expect(await screen.findByRole('listitem', { name: 'Schedule of Uptime' })).toBeVisible();
+    expect(await screen.findByText('Schedule saved')).toBeVisible();
+    expect(attempts).toBe(2);
+  }, 20_000);
+
+  it('SEC-07: asks to confirm it’s you before changing a script a schedule runs widely, then saves', async () => {
+    withScripts();
+    const user = userEvent.setup();
+    const sent: string[] = [];
+    server.use(
+      http.put(apiPath('scripts/7'), async ({ request }) => {
+        sent.push(await request.text());
+        return sent.length === 1
+          ? apiError(403, 'step_up_required', 'confirm it’s you first')
+          : json({ ...uptime, description: 'Changed' });
+      }),
+      http.post(apiPath('auth/step-up'), () => json(adminSession)),
+    );
+    renderApp('/scripts/7');
+    const description = await screen.findByRole('textbox', { name: 'Description' });
+    await user.clear(description);
+    await user.type(description, 'Changed');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    const stepUp = await screen.findByRole('dialog', { name: /Confirm/ });
+    expect(screen.queryByText(/confirm it’s you first/i)).not.toBeInTheDocument();
+    await user.type(within(stepUp).getByRole('textbox'), '123456');
+    await user.click(within(stepUp).getByRole('button', { name: /Confirm/ }));
+    expect(await screen.findByText('Saved Uptime')).toBeVisible();
+    // The same change is sent again, not a stale or empty one.
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toBe(sent[0]);
+    expect(sent[1]).toContain('"description":"Changed"');
+  }, 20_000);
+
   it('tells viewers scripts aren’t theirs', async () => {
     signedInAs(viewerSession);
     renderApp('/scripts');

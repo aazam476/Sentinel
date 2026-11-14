@@ -90,14 +90,24 @@ func containsFold(list []string, value string) bool {
 }
 
 // Start runs a script on the target's machines, for a person, and returns
-// the batch's ID at once; the runs carry on in the background.
+// the batch's ID at once; the runs carry on in the background. On more
+// than one machine it needs a recent second-factor check (SEC-07).
 func (s *Service) Start(ctx context.Context, actor auth.Session, request auth.RequestInfo, scriptID int64, target Target) (int64, error) {
 	if err := auth.Authorize(actor, auth.PermissionRunScripts); err != nil {
 		return 0, err
 	}
+	planned, err := s.planBatch(ctx, scriptID, target)
+	if err != nil {
+		return 0, err
+	}
+	if len(planned.agents) > 1 {
+		if err := s.requireStepUp(actor); err != nil {
+			return 0, err
+		}
+	}
 	userID := actor.UserID
 	entry := audit.Entry{UserID: &userID, Username: actor.Username, Action: "script.run", Outcome: audit.OutcomeSuccess, IP: request.IP}
-	return s.start(ctx, scriptID, target, starter{userID: &userID, entry: entry})
+	return s.begin(ctx, planned, starter{userID: &userID, entry: entry})
 }
 
 // starter is who or what started a batch.
@@ -107,19 +117,44 @@ type starter struct {
 	entry      audit.Entry
 }
 
-func (s *Service) start(ctx context.Context, scriptID int64, target Target, by starter) (int64, error) {
+// plannedBatch is a script and the machines it is about to run on.
+type plannedBatch struct {
+	script Script
+	target Target
+	agents []fleet.Agent
+}
+
+// planBatch finds the script and the target's machines.
+func (s *Service) planBatch(ctx context.Context, scriptID int64, target Target) (plannedBatch, error) {
 	script, err := s.GetScript(ctx, scriptID)
 	if err != nil {
-		return 0, err
+		return plannedBatch{}, err
 	}
 	agents, err := s.resolve(ctx, target)
 	if err != nil {
+		return plannedBatch{}, err
+	}
+	return plannedBatch{script: script, target: target, agents: agents}, nil
+}
+
+// start runs a script on the target's machines for a schedule, which
+// was checked when it was saved (stepup.go).
+func (s *Service) start(ctx context.Context, scriptID int64, target Target, by starter) (int64, error) {
+	planned, err := s.planBatch(ctx, scriptID, target)
+	if err != nil {
 		return 0, err
 	}
+	return s.begin(ctx, planned, by)
+}
+
+// begin records the batch and its runs, then starts the script on every
+// machine that can run it.
+func (s *Service) begin(ctx context.Context, planned plannedBatch, by starter) (int64, error) {
+	script, target, agents := planned.script, planned.target, planned.agents
 	now := s.clock.Now().UnixMilli()
 	var batchID int64
 	runs := make([]int64, len(agents))
-	err = s.database.Write(ctx, func(tx *sql.Tx) error {
+	err := s.database.Write(ctx, func(tx *sql.Tx) error {
 		result, err := tx.ExecContext(ctx, `INSERT INTO script_batches (script_id, script_name, language, body, started_by, schedule_id, target, started_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, script.ID, script.Name, script.Language, script.Body, by.userID, by.scheduleID, target.String(), now)
 		if err != nil {
