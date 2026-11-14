@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -281,6 +282,18 @@ func TestHandshakeRefusals(t *testing.T) {
 		}
 	})
 
+	t.Run("a message bigger than any step of the handshake is refused, before the sender has proven who it is", func(t *testing.T) {
+		h := newHarness(t)
+		agent := h.dial(t)
+		agent.send(protocol.Message{Type: protocol.TypeEnroll}, protocol.EnrollPayload{
+			Token: strings.Repeat("a", 100<<10), PublicKey: agent.key.Public().(ed25519.PublicKey), Hostname: "x", OS: "linux",
+			Arch: "amd64", AgentVersion: "v1", ProtocolVersion: protocol.CurrentVersion,
+		})
+		if got := agent.closeStatus(); got != websocket.StatusMessageTooBig {
+			t.Errorf("close status = %d, want StatusMessageTooBig", got)
+		}
+	})
+
 	t.Run("an agent that doesn't finish the handshake in time is dropped", func(t *testing.T) {
 		h := newHarness(t)
 		agent := h.dial(t)
@@ -391,6 +404,20 @@ func TestConnection(t *testing.T) {
 		agent.send(protocol.Message{Type: protocol.TypePing, ID: id}, nil)
 		if pong := agent.read(); pong.Type != protocol.TypePong || pong.ID != id {
 			t.Errorf("got %+v, want a pong for %s", pong, id)
+		}
+	})
+
+	t.Run("reads megabytes from an agent that has proven who it is", func(t *testing.T) {
+		h := newHarness(t)
+		agent := h.online(t)
+		agent.answerSystemInfo(protocol.SystemInfo{Hostname: "nas-01"})
+		// An answer no one waits for any more, as after a timeout: it is
+		// read and dropped, and the connection carries on.
+		late := protocol.Message{Type: protocol.TypeResponse, ID: protocol.NewID(h.clock.Now())}
+		agent.send(late, protocol.FileTextPayload{Path: "/var/log/syslog", Content: strings.Repeat("<", protocol.MaxTextFile)})
+		agent.send(protocol.Message{Type: protocol.TypePing}, nil)
+		if pong := agent.read(); pong.Type != protocol.TypePong {
+			t.Errorf("got %+v, want a pong", pong)
 		}
 	})
 

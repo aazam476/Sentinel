@@ -64,8 +64,12 @@ func ReadAny(ctx context.Context, conn *websocket.Conn) (message Message, frame 
 	return message, nil, err
 }
 
-// WriteFrame sends data on a stream as one binary frame.
+// WriteFrame sends data on a stream as one binary frame. A frame over
+// MaxMessageSize isn't sent: the other side would close the connection.
 func WriteFrame(ctx context.Context, conn *websocket.Conn, stream StreamID, data []byte) error {
+	if len(data)+frameHeaderSize > MaxMessageSize {
+		return fmt.Errorf("send stream %d data: %w: %d bytes", stream, ErrTooLarge, len(data))
+	}
 	if err := conn.Write(ctx, websocket.MessageBinary, EncodeFrame(stream, data)); err != nil {
 		return fmt.Errorf("send stream %d data: %w", stream, err)
 	}

@@ -3,10 +3,15 @@
 package files
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/aazam476/sentinel/internal/protocol"
 )
 
 func TestWithin(t *testing.T) {
@@ -72,4 +77,47 @@ func TestEntryType(t *testing.T) {
 			t.Errorf("%v: got %s, want %s", mode, got, want)
 		}
 	}
+}
+
+func TestDescribeEntries(t *testing.T) {
+	// Twenty files whose names alone come to 4,000 bytes.
+	folder := t.TempDir()
+	for i := range 20 {
+		name := strings.Repeat(string(rune('a'+i)), 200)
+		if err := os.WriteFile(filepath.Join(folder, name), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dirEntries, err := os.ReadDir(folder)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("describes every entry when they fit in one message", func(t *testing.T) {
+		entries, truncated := describeEntries(folder, dirEntries, maxListBytes)
+		if len(entries) != 20 || truncated {
+			t.Errorf("got %d entries, truncated %v", len(entries), truncated)
+		}
+	})
+
+	t.Run("leaves out what would make the listing too big to send, and says so", func(t *testing.T) {
+		const budget = 4_000
+		entries, truncated := describeEntries(folder, dirEntries, budget)
+		if len(entries) == 0 || len(entries) >= 20 || !truncated {
+			t.Fatalf("got %d entries, truncated %v", len(entries), truncated)
+		}
+		encoded, err := json.Marshal(protocol.FileListResultPayload{Entries: entries})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if overhead := len(`{"path":"","parent":"","entries":[],"truncated":false}`); len(encoded) > budget+overhead {
+			t.Errorf("the listing is %d bytes encoded, over the %d it may be", len(encoded), budget)
+		}
+	})
+
+	t.Run("an empty folder is an empty list, not a missing one", func(t *testing.T) {
+		if entries, truncated := describeEntries(t.TempDir(), nil, maxListBytes); entries == nil || len(entries) != 0 || truncated {
+			t.Errorf("got %v, truncated %v", entries, truncated)
+		}
+	})
 }

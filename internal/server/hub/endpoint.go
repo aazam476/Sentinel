@@ -15,9 +15,14 @@ import (
 	"github.com/aazam476/sentinel/internal/shared/clock"
 )
 
-// maxFrameSize is the largest WebSocket message read: one control message.
-// Stream frames (a later milestone) stay under it too.
+// maxFrameSize is the largest WebSocket message read from an agent: one
+// control message or stream frame.
 const maxFrameSize = protocol.MaxMessageSize
+
+// maxHandshakeSize is the largest message read before an agent has proven
+// who it is. Enrollment and the handshake are a few hundred bytes; anyone
+// can open this endpoint, so they get no more room than that needs.
+const maxHandshakeSize = 64 << 10
 
 // ServeHTTP is the /agent/connect endpoint. It upgrades to a WebSocket,
 // runs the handshake and then serves the connection until it ends.
@@ -40,7 +45,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.CloseNow() //nolint:errcheck // the connection is over either way
-	conn.SetReadLimit(maxFrameSize)
+	conn.SetReadLimit(maxHandshakeSize)
 
 	ip := middleware.ClientInfoFrom(r.Context()).IP.String()
 	handshakeCtx, cancel := clock.WithTimeout(r.Context(), h.clock, HandshakeTimeout)
@@ -50,6 +55,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.closeAfterFailedHandshake(conn, ip, err)
 		return
 	}
+	conn.SetReadLimit(maxFrameSize)
 	h.serve(r.Context(), newConnection(h, conn, agent, hello))
 }
 

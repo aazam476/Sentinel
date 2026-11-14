@@ -28,6 +28,8 @@ const (
 	// ErrorDockerUnavailable: the agent found no Docker (or Podman) socket,
 	// or couldn't talk to it.
 	ErrorDockerUnavailable ErrorCode = "docker_unavailable"
+	// ErrorTooLarge: the answer is over MaxMessageSize, so it wasn't sent.
+	ErrorTooLarge ErrorCode = "too_large"
 )
 
 // Error is the error of a failed response.

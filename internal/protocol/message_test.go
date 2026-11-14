@@ -3,6 +3,7 @@
 package protocol_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -29,7 +30,7 @@ func TestDecode(t *testing.T) {
 		{name: "refuses unknown fields", data: `{"type":"ping","extra":1}`, wantErr: "unknown field"},
 		{name: "refuses data after the message", data: `{"type":"ping"}{"type":"pong"}`, wantErr: "unexpected data"},
 		{name: "refuses something that isn't JSON", data: `ping`, wantErr: "decode message"},
-		{name: "refuses a message over 1 MiB", data: `{"type":"ping","payload":"` + strings.Repeat("a", protocol.MaxMessageSize) + `"}`, wantErr: "limit"},
+		{name: "refuses a message over the size limit", data: `{"type":"ping","payload":"` + strings.Repeat("a", protocol.MaxMessageSize) + `"}`, wantErr: "limit"},
 	}
 
 	for _, test := range tests {
@@ -52,6 +53,32 @@ func TestEncode(t *testing.T) {
 	t.Run("refuses an invalid message", func(t *testing.T) {
 		if _, err := protocol.Encode(protocol.Message{Type: protocol.TypeRequest}); err == nil {
 			t.Error("Encode accepted a request without an ID or action")
+		}
+	})
+
+	t.Run("refuses a message the other side would close the connection over", func(t *testing.T) {
+		tooMuch, err := protocol.WithPayload(protocol.Message{Type: protocol.TypeResponse, ID: exampleID}, strings.Repeat("a", protocol.MaxMessageSize))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := protocol.Encode(tooMuch); !errors.Is(err, protocol.ErrTooLarge) {
+			t.Errorf("Encode error = %v, want ErrTooLarge", err)
+		}
+	})
+
+	t.Run("carries the largest text file the editor opens, however it encodes", func(t *testing.T) {
+		// Go's JSON writes < as six bytes, the most any character takes.
+		file := protocol.FileTextPayload{Path: "/srv/page.html", Content: strings.Repeat("<", protocol.MaxTextFile)}
+		message, err := protocol.WithPayload(protocol.Message{Type: protocol.TypeResponse, ID: exampleID}, file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		encoded, err := protocol.Encode(message)
+		if err != nil {
+			t.Fatalf("Encode refused it: %v", err)
+		}
+		if _, err := protocol.Decode(encoded); err != nil {
+			t.Errorf("Decode refused it: %v", err)
 		}
 	})
 }

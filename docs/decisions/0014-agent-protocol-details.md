@@ -1,6 +1,6 @@
 # 0014 — Agent protocol details
 
-**Date:** 2026-11-08 · **Status:** Accepted
+**Date:** 2026-11-08 · **Status:** Accepted; the message size limit was raised by ADR 0045
 
 ## Context
 

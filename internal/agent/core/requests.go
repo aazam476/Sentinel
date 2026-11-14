@@ -69,7 +69,15 @@ func (c *connection) answer(ctx context.Context, request protocol.Message) {
 	if hasNext {
 		payload = struct{}{}
 	}
-	if err := c.send(ctx, response, payload); err != nil {
+	err := c.send(ctx, response, payload)
+	if errors.Is(err, protocol.ErrTooLarge) {
+		// The server hears why, rather than wait for an answer that can't
+		// come; sending it would have cost the whole connection.
+		response.Error = &protocol.Error{Code: protocol.ErrorTooLarge,
+			Message: "The machine's answer is too large to send. Ask for less: a shorter time, fewer lines, a smaller file."}
+		err = c.send(ctx, response, nil)
+	}
+	if err != nil {
 		c.agent.options.Logger.Debug("could not answer a request", "action", request.Action, "error", err)
 	}
 	if hasNext {

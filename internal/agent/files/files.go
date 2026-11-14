@@ -3,6 +3,7 @@
 package files
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +22,11 @@ import (
 // maxEntries is the most entries one listing sends; a folder with more is
 // marked truncated rather than sent in a message too big to deliver.
 const maxEntries = 5000
+
+// maxListBytes is the most a listing's entries may come to once encoded,
+// well inside what one message carries: 5,000 entries with long names, deep
+// in the tree, would otherwise be too much to send at all.
+const maxListBytes = protocol.MaxMessageSize / 2
 
 // Manager does what the file manager asks, within the local policy.
 type Manager struct {
@@ -64,21 +70,41 @@ func (m *Manager) List(path string) (protocol.FileListResultPayload, error) {
 	if err != nil {
 		return protocol.FileListResultPayload{}, describe(err, folder)
 	}
-	result := protocol.FileListResultPayload{Path: folder, Entries: []protocol.FileEntry{}}
+	result := protocol.FileListResultPayload{Path: folder}
 	if !m.guard.isStart(folder) {
 		result.Parent = filepath.Dir(folder)
 	}
-	for _, dirEntry := range dirEntries {
-		if len(result.Entries) == maxEntries {
-			result.Truncated = true
-			break
-		}
-		if entry, err := describeEntry(filepath.Join(folder, dirEntry.Name())); err == nil {
-			result.Entries = append(result.Entries, entry)
-		}
-	}
+	result.Entries, result.Truncated = describeEntries(folder, dirEntries, maxListBytes)
 	sortEntries(result.Entries)
 	return result, nil
+}
+
+// describeEntries describes a folder's entries, as many as fit: at most
+// maxEntries, and no more than come to budget bytes once encoded. It says
+// whether it left any out.
+func describeEntries(folder string, dirEntries []os.DirEntry, budget int) (entries []protocol.FileEntry, truncated bool) {
+	entries = []protocol.FileEntry{}
+	size := 0
+	for _, dirEntry := range dirEntries {
+		if len(entries) == maxEntries {
+			return entries, true
+		}
+		entry, err := describeEntry(filepath.Join(folder, dirEntry.Name()))
+		if err != nil {
+			continue // gone since the folder was read
+		}
+		if size += encodedSize(entry); size > budget {
+			return entries, true
+		}
+		entries = append(entries, entry)
+	}
+	return entries, false
+}
+
+// encodedSize is how many bytes an entry takes in a listing's message.
+func encodedSize(entry protocol.FileEntry) int {
+	encoded, _ := json.Marshal(entry) // a struct of strings and numbers always encodes
+	return len(encoded) + len(",")
 }
 
 // starts lists where browsing begins: the allowed folders, or the roots.

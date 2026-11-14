@@ -33,10 +33,21 @@ const (
 	TypeWelcome   MessageType = "welcome"
 )
 
-// MaxMessageSize is the largest control message either side accepts. Bulk
-// data travels in binary stream frames, so anything bigger is a bug or an
-// attack.
-const MaxMessageSize = 1 << 20
+// MaxMessageSize is the largest control message, or stream frame, either
+// side sends or accepts. Bulk data travels in chunks and stream frames far
+// smaller than this; the largest thing one message carries is a text file
+// for the editor (MaxTextFile, 1 MiB), which JSON can make six times
+// longer: a control character, or a < in Go's encoding, becomes six bytes.
+//
+// A side that receives more closes the connection, which ends every
+// terminal and transfer on it, so neither side ever sends more: Encode
+// refuses with ErrTooLarge instead. See
+// docs/decisions/0045-message-size-limit.md.
+const MaxMessageSize = 8 << 20
+
+// ErrTooLarge means a message or stream frame is over MaxMessageSize and
+// wasn't sent. It is never reassigned.
+var ErrTooLarge = errors.New("too large to send in one message")
 
 // Message is the envelope of every control message.
 type Message struct {
@@ -85,6 +96,9 @@ func Encode(message Message) ([]byte, error) {
 	encoded, err := json.Marshal(message)
 	if err != nil {
 		return nil, fmt.Errorf("encode message: %w", err)
+	}
+	if len(encoded) > MaxMessageSize {
+		return nil, fmt.Errorf("encode %s %s: %w: %d bytes is over the %d byte limit", message.Type, message.Action, ErrTooLarge, len(encoded), MaxMessageSize)
 	}
 	return encoded, nil
 }

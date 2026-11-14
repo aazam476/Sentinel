@@ -52,6 +52,8 @@ func (h *handlers) writeAgentError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, errorCodeMachineOffline, "The machine went offline before it answered.")
 	case errors.Is(err, hub.ErrTimeout):
 		writeError(w, http.StatusGatewayTimeout, errorCodeMachineTimeout, "The machine didn’t answer in time.")
+	case errors.Is(err, protocol.ErrTooLarge):
+		writeError(w, http.StatusRequestEntityTooLarge, errorCodeTooLarge, "That is too large to send to the machine.")
 	case errors.As(err, &agentErr):
 		status, code := agentErrorStatus(agentErr.Code)
 		writeError(w, status, code, agentErr.Message)
@@ -75,6 +77,8 @@ func agentErrorStatus(code protocol.ErrorCode) (int, string) {
 		return http.StatusConflict, errorCodeConflict
 	case protocol.ErrorDockerUnavailable:
 		return http.StatusServiceUnavailable, errorCodeNoDocker
+	case protocol.ErrorTooLarge:
+		return http.StatusRequestEntityTooLarge, errorCodeTooLarge
 	default:
 		return http.StatusBadGateway, errorCodeAgentFailed
 	}

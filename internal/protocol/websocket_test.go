@@ -100,6 +100,25 @@ func TestWebSocketMessages(t *testing.T) {
 		}
 	})
 
+	t.Run("nothing over the size limit is sent, so the connection stays up", func(t *testing.T) {
+		client, server := pipe(t)
+		server.SetReadLimit(protocol.MaxMessageSize)
+		tooMuch := strings.Repeat("a", protocol.MaxMessageSize)
+		if err := protocol.WriteMessage(t.Context(), client, protocol.Message{Type: protocol.TypeWelcome}, tooMuch); !errors.Is(err, protocol.ErrTooLarge) {
+			t.Errorf("WriteMessage error = %v, want ErrTooLarge", err)
+		}
+		if err := protocol.WriteFrame(t.Context(), client, 3, []byte(tooMuch)); !errors.Is(err, protocol.ErrTooLarge) {
+			t.Errorf("WriteFrame error = %v, want ErrTooLarge", err)
+		}
+		// The other side never saw them: the next message arrives.
+		if err := protocol.WriteMessage(t.Context(), client, protocol.Message{Type: protocol.TypePing}, nil); err != nil {
+			t.Fatal(err)
+		}
+		if message, err := protocol.ReadMessage(t.Context(), server); err != nil || message.Type != protocol.TypePing {
+			t.Errorf("got %+v (%v), want the ping", message, err)
+		}
+	})
+
 	t.Run("WriteFrame reports a closed connection", func(t *testing.T) {
 		client, _ := pipe(t)
 		_ = client.CloseNow()

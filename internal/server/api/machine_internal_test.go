@@ -4,6 +4,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -31,6 +32,8 @@ func TestWriteAgentError(t *testing.T) {
 		{"an agent too old to know the action", &protocol.Error{Code: protocol.ErrorUnknownAction}, http.StatusNotImplemented, errorCodeUnsupported},
 		{"a state Docker refuses in", &protocol.Error{Code: protocol.ErrorConflict}, http.StatusConflict, errorCodeConflict},
 		{"a machine without Docker", &protocol.Error{Code: protocol.ErrorDockerUnavailable}, http.StatusServiceUnavailable, errorCodeNoDocker},
+		{"an answer too large for the machine to send", &protocol.Error{Code: protocol.ErrorTooLarge}, http.StatusRequestEntityTooLarge, errorCodeTooLarge},
+		{"a request too large to send to the machine", fmt.Errorf("encode request: %w", protocol.ErrTooLarge), http.StatusRequestEntityTooLarge, errorCodeTooLarge},
 		{"a failure on the machine", &protocol.Error{Code: protocol.ErrorInternal, Message: "systemctl: exit status 1"}, http.StatusBadGateway, errorCodeAgentFailed},
 		{"a failure on the server", errors.New("encode: broken"), http.StatusInternalServerError, errorCodeInternal},
 	}
