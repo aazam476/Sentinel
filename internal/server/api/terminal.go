@@ -41,6 +41,8 @@ type shellTarget struct {
 	// capability is the local policy switch it needs, and what names it
 	// in the refusal.
 	capability, what string
+	// permission is what the user needs to open it, and to keep it open.
+	permission auth.Permission
 	// action and payload open it on the agent.
 	action  string
 	payload func(stream protocol.StreamID, request terminalRequest) any
@@ -52,7 +54,7 @@ type shellTarget struct {
 
 // machineShell is the machine's own shell (§9.2).
 func machineShell() shellTarget {
-	return shellTarget{capability: "terminal", what: "The terminal", action: protocol.ActionTerminalOpen,
+	return shellTarget{capability: "terminal", what: "The terminal", permission: auth.PermissionUseTerminal, action: protocol.ActionTerminalOpen,
 		payload: func(stream protocol.StreamID, request terminalRequest) any {
 			return protocol.TerminalOpenPayload{StreamID: stream, Cols: request.cols, Rows: request.rows, ResumeSessionID: request.resume, User: request.user}
 		},
@@ -61,7 +63,7 @@ func machineShell() shellTarget {
 
 // containerShell is a shell in a container (§9.4).
 func containerShell(container string) shellTarget {
-	return shellTarget{capability: "docker", what: "Docker", action: protocol.ActionDockerContainerExec,
+	return shellTarget{capability: "docker", what: "Docker", permission: auth.PermissionManageDocker, action: protocol.ActionDockerContainerExec,
 		payload: func(stream protocol.StreamID, request terminalRequest) any {
 			return protocol.ContainerExecPayload{ID: container, StreamID: stream, Cols: request.cols, Rows: request.rows,
 				ResumeSessionID: request.resume, User: request.user}
@@ -108,7 +110,7 @@ func (h *handlers) handleShell(w http.ResponseWriter, r *http.Request, session a
 		return // Accept has already answered
 	}
 	defer conn.CloseNow() //nolint:errcheck // the session is over either way
-	h.runTerminal(r.Context(), conn, session, agent, request, requestInfo(r), target)
+	h.runTerminal(r.Context(), conn, terminalSession{who: viewerOf(r, session), agent: agent, request: request, target: target})
 }
 
 // checkTerminal applies the permission, step-up (SEC-07), online and local
@@ -140,16 +142,27 @@ func (h *handlers) checkTerminal(w http.ResponseWriter, r *http.Request, session
 	return agent, request, true
 }
 
+// terminalSession is a shell about to be opened: who for, on which
+// machine, and how.
+type terminalSession struct {
+	who     viewer
+	agent   fleet.Agent
+	request terminalRequest
+	target  shellTarget
+}
+
 // runTerminal opens the shell on the agent and relays it until it ends,
-// auditing the start and the end (SEC-40).
-func (h *handlers) runTerminal(ctx context.Context, conn *websocket.Conn, session auth.Session, agent fleet.Agent, request terminalRequest, client auth.RequestInfo, target shellTarget) {
+// auditing the start and the end (SEC-40). The shell ends with the session
+// that opened it (SEC-06).
+func (h *handlers) runTerminal(ctx context.Context, conn *websocket.Conn, terminal terminalSession) {
+	session, client, agent, target := terminal.who.session, terminal.who.client, terminal.agent, terminal.target
 	details := func(more map[string]any) map[string]any {
 		maps.Copy(more, target.details)
 		return more
 	}
 	var opened protocol.TerminalOpenedPayload
 	stream, err := h.hub.OpenStream(ctx, agent.ID, target.action, func(id protocol.StreamID) any {
-		return target.payload(id, request)
+		return target.payload(id, terminal.request)
 	}, &opened)
 	if err != nil {
 		h.auditMachine(ctx, session, agent, client, target.auditPrefix+".open", outcomeOf(err), details(map[string]any{"error": err.Error()}))
@@ -159,6 +172,12 @@ func (h *handlers) runTerminal(ctx context.Context, conn *websocket.Conn, sessio
 	h.terminals.Attached(opened.SessionID, session.UserID, agent.ID)
 	h.auditMachine(ctx, session, agent, client, target.auditPrefix+".open", audit.OutcomeStarted,
 		details(map[string]any{"sessionId": opened.SessionID, "resumed": opened.Resumed}))
+	// Closing the stream, not the browser's connection, ends the shell on
+	// the machine at once and tells the browser why.
+	stopWatching := h.endWithSession(ctx, terminal.who, sessionWatch{permission: target.permission, inUse: true}, func(reason string) {
+		stream.Close(context.WithoutCancel(ctx), reason)
+	})
+	defer stopWatching()
 
 	startedAt := h.clock.Now()
 	resize := func(ctx context.Context, cols, rows uint16) error {

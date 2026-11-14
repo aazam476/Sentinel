@@ -55,9 +55,17 @@ alone (still Argon2id-hashed, rate-limited and step-up-checked).
 
 **SEC-06 Sessions.** 256-bit random tokens in `HttpOnly`, `Secure`, `SameSite=Strict` cookies,
 stored only as hashes; 12-hour idle and 7-day absolute timeouts; users list and revoke them
-(`auth/sessions.go`, `tokens.go`).
+(`auth/sessions.go`, `tokens.go`). A terminal, a desktop session or a followed log ends within
+30 seconds of its session ending or losing the role it needed: signing out, revoking,
+disabling or demoting the user closes the shell on the machine too (`api/viewers.go`,
+ADR 0044).
 *Tests:* `TestSEC06_SessionsExpire`, `TestSEC06_SessionTokensAreStoredHashed`,
-`TestSEC06_UsersCanListAndRevokeTheirSessions`, `TestSEC06_SessionsOverHTTP`.
+`TestSEC06_UsersCanListAndRevokeTheirSessions`, `TestSEC06_SessionsOverHTTP`,
+`TestSEC06_ATerminalEndsWithTheSessionThatOpenedIt`,
+`TestSEC06_ADesktopSessionEndsWithTheSessionThatOpenedIt`,
+`TestSEC06_AFollowedLogEndsWithTheSessionThatOpenedIt`.
+*Limits:* an open terminal or desktop session counts as using the session, so it is the
+7-day limit, not the idle timeout, that ends one left open.
 
 **SEC-07 Step-up.** Opening a terminal or a desktop session, running a script on more than one
 machine, changing users, roles or the 2FA requirement, and adding or removing a second factor

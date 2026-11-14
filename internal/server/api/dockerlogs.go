@@ -40,6 +40,13 @@ func (h *handlers) handleFollowLogs(w http.ResponseWriter, r *http.Request, sess
 		return
 	}
 	defer stream.Close(context.WithoutCancel(r.Context()), "the viewer left")
+	// A followed log ends with the session that opened it, like the event
+	// stream; reading a log isn't using the session, so it may still idle
+	// out.
+	stopWatching := h.endWithSession(r.Context(), viewerOf(r, session), sessionWatch{permission: auth.PermissionViewFleet}, func(reason string) {
+		stream.Close(context.WithoutCancel(r.Context()), reason)
+	})
+	defer stopWatching()
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")

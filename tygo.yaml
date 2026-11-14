@@ -12,6 +12,7 @@ packages:
       - "server.go"
       - "requests.go"
       - "health.go"
+      - "viewers.go"
     frontmatter: |
       // SPDX-License-Identifier: Apache-2.0
       //

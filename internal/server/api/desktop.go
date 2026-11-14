@@ -43,7 +43,7 @@ func (h *handlers) handleDesktop(w http.ResponseWriter, r *http.Request, session
 		return // Accept has already answered
 	}
 	defer conn.CloseNow() //nolint:errcheck // the session is over either way
-	h.runDesktop(r.Context(), conn, session, agent, r.URL.Query().Get("viewOnly") == "true", requestInfo(r))
+	h.runDesktop(r.Context(), conn, desktopSession{who: viewerOf(r, session), agent: agent, viewOnly: r.URL.Query().Get("viewOnly") == "true"})
 }
 
 // checkDesktop applies the step-up (SEC-07), local policy, online and
@@ -82,9 +82,19 @@ func desktopAvailability(agent fleet.Agent) (bool, string) {
 	return desktop.Available, desktop.Reason
 }
 
+// desktopSession is a remote desktop session about to start: who for, on
+// which machine, and whether they may only look.
+type desktopSession struct {
+	who      viewer
+	agent    fleet.Agent
+	viewOnly bool
+}
+
 // runDesktop starts the session on the agent and relays it, auditing the
-// start and the end (SEC-40).
-func (h *handlers) runDesktop(ctx context.Context, conn *websocket.Conn, session auth.Session, agent fleet.Agent, viewOnly bool, client auth.RequestInfo) {
+// start and the end (SEC-40). It ends with the session that opened it
+// (SEC-06).
+func (h *handlers) runDesktop(ctx context.Context, conn *websocket.Conn, desktop desktopSession) {
+	session, client, agent, viewOnly := desktop.who.session, desktop.who.client, desktop.agent, desktop.viewOnly
 	var started protocol.DesktopStartedPayload
 	iceServers := h.iceServers()
 	stream, err := h.hub.OpenStream(ctx, agent.ID, protocol.ActionDesktopSessionStart, func(id protocol.StreamID) any {
@@ -98,6 +108,12 @@ func (h *handlers) runDesktop(ctx context.Context, conn *websocket.Conn, session
 	h.auditMachine(ctx, session, agent, client, "desktop.open", audit.OutcomeStarted, map[string]any{
 		"source": started.Source, "viewOnly": viewOnly,
 	})
+	// Closing the stream stops the agent sharing the screen, over WebRTC
+	// too, and the relay then tells the browser why.
+	stopWatching := h.endWithSession(ctx, desktop.who, sessionWatch{permission: auth.PermissionUseDesktop, inUse: true}, func(reason string) {
+		stream.Close(context.WithoutCancel(ctx), reason)
+	})
+	defer stopWatching()
 	ready, _ := encodeDesktopReady(started, iceServers) // a struct of strings and numbers always encodes
 	if err := conn.Write(ctx, websocket.MessageText, ready); err != nil {
 		stream.Close(context.WithoutCancel(ctx), "the viewer left")
