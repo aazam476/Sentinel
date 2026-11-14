@@ -31,7 +31,13 @@ but not a 10 GB file going to a browser on a slow link.
   partial file and says how much arrived. A chunk must start where the upload is, so a chunk
   repeated after a lost answer is refused, not written twice. The file appears at its
   destination only when complete, never half-written. An upload won't replace an existing file
-  unless asked.
+  unless asked; a file it does replace keeps its mode, as a saved text file does.
+- **The partial file is never a link.** Its name can be worked out, and the agent writes it as
+  root, so it is only opened if it is a regular file with no other name: not a symbolic link,
+  a hard link, a folder or a pipe. Its size and mode are read and set on the open file, not
+  through its name. Otherwise a link under that name (left by someone who can write the
+  folder, or moved there with the file manager itself) would send the upload's data, and a
+  mode of 0644, to whatever it points to, outside the allowed folders.
 - **SEC-25**: `[files] allowed_paths` in the policy file. Every path is checked after resolving
   symbolic links, so a link inside an allowed folder can't lead outside it, and `..` can't climb
   out. A new file's folder is resolved and checked the same way. Deleting a link removes the link

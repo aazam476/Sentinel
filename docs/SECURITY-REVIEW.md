@@ -178,8 +178,11 @@ show it.
 
 **SEC-25 File paths.** The policy's `allowed_paths` confine the file manager; paths are cleaned
 and checked after resolving symlinks, so `..` and links can't leave them
-(`internal/agent/files/paths.go`).
-*Tests:* `TestSEC25_PathRestrictions`, policy parsing tests, the Playwright file manager test.
+(`internal/agent/files/paths.go`). An upload's partial file, whose name can be worked out, is
+only opened if it is a regular file with no other name, so a link put there can't send the
+upload's data or its mode outside them (`upload.go`).
+*Tests:* `TestSEC25_PathRestrictions`, `TestSEC25_AnUploadNeverWritesThroughALink`, policy
+parsing tests, the Playwright file manager test.
 
 **SEC-26 No listening port.** The agent only dials out. The Windows and macOS desktop helper
 talks to the agent over the child process's pipes, and remote desktop's WebRTC connections are

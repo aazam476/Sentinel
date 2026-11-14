@@ -92,7 +92,7 @@ func (c *connection) fileError(err error) *protocol.Error {
 	case errors.Is(err, files.ErrNotFound), errors.Is(err, files.ErrNoUpload):
 		code = protocol.ErrorNotFound
 	case errors.Is(err, files.ErrExists), errors.Is(err, files.ErrChanged), errors.Is(err, files.ErrNotEmpty),
-		errors.Is(err, files.ErrWrongOffset), errors.Is(err, files.ErrIncomplete):
+		errors.Is(err, files.ErrWrongOffset), errors.Is(err, files.ErrIncomplete), errors.Is(err, files.ErrPartialInTheWay):
 		code = protocol.ErrorConflict
 	case errors.Is(err, files.ErrInvalidPath), errors.Is(err, files.ErrProtected), errors.Is(err, files.ErrNotText),
 		errors.Is(err, files.ErrIsFolder), errors.Is(err, files.ErrNotFolder), errors.Is(err, files.ErrTooLong):
