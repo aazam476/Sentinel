@@ -336,6 +336,44 @@ func TestTestChannel(t *testing.T) {
 	})
 }
 
+func TestNtfyTitle(t *testing.T) {
+	// What a failed script printed comes from the machine, which may send
+	// anything: here two lines, a control character and far too much text.
+	failure := "backup: can't reach the vault\r\nretrying\x00 later. " + strings.Repeat("And again. ", 100)
+	h := newHarness(t)
+	phone := saveChannel(t, h, alerts.Channel{Name: "Phone", Type: alerts.ChannelNtfy, Enabled: true,
+		Config: alerts.ChannelConfig{Server: h.receiver.url, Topic: "homelab"}})
+	h.saveRule(t, alerts.Rule{Name: "Failed scripts", Type: alerts.RuleScriptFailed, Enabled: true,
+		Target: alerts.RuleTarget{Kind: "all"}, ChannelIDs: []int64{phone.ID}})
+
+	if err := h.service.RecordScheduledRun(t.Context(), h.agentID, 7, "backup", failure); err != nil {
+		t.Fatal(err)
+	}
+	h.service.Wait()
+
+	got := h.receiver.take()
+	if len(got) != 1 {
+		t.Fatalf("%d notifications arrived, want the one about the failed script", len(got))
+	}
+	title := got[0].Headers.Get("Title")
+	t.Run("carries what the machine sent on one line, without control characters", func(t *testing.T) {
+		want := "Warning on nas: Scheduled script backup failed: backup: can't reach the vault  retrying  later. And again."
+		if !strings.HasPrefix(title, want) {
+			t.Errorf("the title is %q, want it to start with %q", title, want)
+		}
+	})
+	t.Run("is cut to a length every ntfy server takes", func(t *testing.T) {
+		if len(title) > 300 || !strings.HasSuffix(title, "…") {
+			t.Errorf("the title is %d bytes and ends %q", len(title), title[max(0, len(title)-12):])
+		}
+	})
+	t.Run("leaves the whole message in the notification's text", func(t *testing.T) {
+		if !strings.Contains(got[0].Body, "retrying") || strings.Count(got[0].Body, "And again.") != 100 {
+			t.Errorf("the text is %q", got[0].Body)
+		}
+	})
+}
+
 func TestEmail(t *testing.T) {
 	t.Run("sends a plain-text email, signing in when a username is set", func(t *testing.T) {
 		h := newHarness(t)

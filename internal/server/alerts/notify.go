@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Notification events.
@@ -28,6 +30,10 @@ const (
 
 // sendTimeout bounds one notification; a slow channel can't hold up others.
 const sendTimeout = 15 * time.Second
+
+// maxHeaderTitle is the longest title, in characters, sent as a header.
+// Servers refuse long headers, and the whole message is in the text.
+const maxHeaderTitle = 200
 
 // Notification is what a channel is told about an alert.
 type Notification struct {
@@ -132,11 +138,30 @@ func (s *Service) sendNtfy(ctx context.Context, config ChannelConfig, n Notifica
 	case n.Severity == Critical:
 		priority, tag = "5", "rotating_light"
 	}
-	headers := map[string]string{"Title": n.title(), "Priority": priority, "Tags": tag}
+	headers := map[string]string{"Title": headerText(n.title(), maxHeaderTitle), "Priority": priority, "Tags": tag}
 	if config.Token != "" {
 		headers["Authorization"] = "Bearer " + config.Token
 	}
 	return s.post(ctx, config.Server+"/"+config.Topic, []byte(n.Message), headers)
+}
+
+// headerText makes text fit to send as an HTTP header's value. An alert's
+// text holds names and errors a machine reported, which can be anything: a
+// header can't carry a line break or another control character, so each
+// becomes a space, and what is over limit characters is cut. Left as it
+// was, one line break from a machine would stop the notification about it
+// from being sent at all.
+func headerText(text string, limit int) string {
+	text = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, text)
+	if utf8.RuneCountInString(text) <= limit {
+		return text
+	}
+	return string([]rune(text)[:limit-1]) + "…"
 }
 
 // sendEmail sends a plain-text email over SMTP.
