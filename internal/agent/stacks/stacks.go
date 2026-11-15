@@ -18,12 +18,6 @@ import (
 	"github.com/aazam476/sentinel/internal/protocol"
 )
 
-// Limits on the files a stack may have.
-const (
-	maxComposeSize = 256 << 10
-	maxEnvSize     = 64 << 10
-)
-
 // File names inside a stack's folder.
 const (
 	composeFile = "compose.yaml"

@@ -123,8 +123,10 @@ from the public URL's origin; the agents' endpoint refuses any request with an `
 `TestSEC14_ServesUnderAConfiguredBasePath`, `TestSEC14_PageWorksUnderABasePath`.
 
 **SEC-15 Input, SQL, shells.** Request bodies are decoded strictly (unknown fields refused,
-sizes capped) and validated; every query uses parameters; external programs are run directly
-with argument lists, never through a shell (`api/requests.go`, `internal/agent/command`).
+sizes capped at 64 KiB, or at what its text can take for the three requests that carry a
+file's text, ADR 0045) and validated; every query uses parameters; external programs are run
+directly with argument lists, never through a shell (`api/requests.go`,
+`internal/agent/command`).
 Every parser of untrusted input is fuzzed (`make fuzz`).
 *Tests:* `TestSEC15_RequestBodiesAreValidated`, the fuzz targets, golden-output tests of every
 command the agent runs.

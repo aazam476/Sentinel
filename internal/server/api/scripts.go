@@ -190,7 +190,7 @@ func (h *handlers) handleSaveScript(w http.ResponseWriter, r *http.Request, sess
 		return
 	}
 	var request SaveScriptRequest
-	if !decodeJSON(w, r, &request) {
+	if !decodeText(w, r, scripts.MaxBodyBytes, &request) {
 		return
 	}
 	saved, err := h.scripts.SaveScript(r.Context(), session, requestInfo(r), scripts.Script{

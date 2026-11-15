@@ -252,7 +252,7 @@ func (h *handlers) handleGetStack(w http.ResponseWriter, r *http.Request, sessio
 // audit entry names the stack, never the files' contents.
 func (h *handlers) handleSaveStack(w http.ResponseWriter, r *http.Request, session auth.Session) {
 	var request SaveStackRequest
-	if !decodeJSON(w, r, &request) {
+	if !decodeText(w, r, protocol.MaxComposeFile+protocol.MaxEnvFile, &request) {
 		return
 	}
 	name := r.PathValue("name")

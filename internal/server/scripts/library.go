@@ -31,9 +31,11 @@ type InvalidError struct {
 
 func (e *InvalidError) Error() string { return e.Field + ": " + e.Reason }
 
-// Limits on scripts.
+// MaxBodyBytes is the longest script the library keeps.
+const MaxBodyBytes = 256 << 10
+
+// Other limits on scripts.
 const (
-	maxScriptBody   = 256 << 10
 	maxNameLength   = 100
 	maxDescription  = 1000
 	defaultTimeout  = 600
@@ -81,7 +83,7 @@ func (s *Script) validate() error {
 		return &InvalidError{"targetOS", "choose any, linux, darwin or windows"}
 	case s.TimeoutSeconds < 1 || s.TimeoutSeconds > maxTimeoutHours*3600:
 		return &InvalidError{"timeoutSeconds", "choose from 1 second to 24 hours"}
-	case strings.TrimSpace(s.Body) == "" || len(s.Body) > maxScriptBody:
+	case strings.TrimSpace(s.Body) == "" || len(s.Body) > MaxBodyBytes:
 		return &InvalidError{"body", "write a script of up to 256 KB"}
 	case !utf8.ValidString(s.Body):
 		return &InvalidError{"body", "the script must be text"}

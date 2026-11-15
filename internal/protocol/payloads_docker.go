@@ -277,6 +277,14 @@ type StackFilesPayload struct {
 	Services []StackService `json:"services"`
 }
 
+// Limits on a stack's files, each of which travels whole in one message.
+const (
+	// MaxComposeFile is the largest compose file a stack may have.
+	MaxComposeFile = 256 << 10
+	// MaxEnvFile is the largest .env file a stack may have.
+	MaxEnvFile = 64 << 10
+)
+
 // StackSavePayload writes a stack's compose file and .env, after checking
 // them with `docker compose config`. A new name creates the stack.
 type StackSavePayload struct {

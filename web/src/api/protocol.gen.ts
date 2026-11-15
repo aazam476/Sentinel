@@ -701,6 +701,14 @@ export interface StackFilesPayload {
   services: StackService[];
 }
 /**
+ * MaxComposeFile is the largest compose file a stack may have.
+ */
+export const MaxComposeFile = 256 << 10;
+/**
+ * MaxEnvFile is the largest .env file a stack may have.
+ */
+export const MaxEnvFile = 64 << 10;
+/**
  * StackSavePayload writes a stack's compose file and .env, after checking
  * them with `docker compose config`. A new name creates the stack.
  */

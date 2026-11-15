@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/aazam476/sentinel/internal/protocol"
 	"github.com/aazam476/sentinel/internal/server/api"
 	"github.com/aazam476/sentinel/internal/server/hub"
+	"github.com/aazam476/sentinel/internal/server/scripts"
 )
 
 // serveScript answers the next script.run as the agent does: at once,
@@ -88,6 +90,25 @@ func TestScripts(t *testing.T) {
 		}
 		if got := auditActions(t, f.server, "script."); !slices.Equal(got, []string{"script.save:success", "script.run:success"}) {
 			t.Errorf("audit = %v", got)
+		}
+	})
+
+	t.Run("saves a script as long as a script may be, and explains why a longer one isn't", func(t *testing.T) {
+		f := newTerminalFixture(t)
+		line := `echo "backing up" && restic backup /srv` + "\n"
+		save := api.SaveScriptRequest{Name: "Long", Language: "sh", Body: strings.Repeat(line, scripts.MaxBodyBytes/len(line))}
+		got := f.admin.browser.do(http.MethodPost, "/api/scripts", save)
+		expect(t, got, http.StatusOK, "")
+		var script api.Script
+		got.decode(t, &script)
+		if script.Body != save.Body {
+			t.Errorf("kept %d bytes of the script, want %d", len(script.Body), len(save.Body))
+		}
+		save.Name, save.Body = "Longer", save.Body+line
+		got = f.admin.browser.do(http.MethodPost, "/api/scripts", save)
+		expect(t, got, http.StatusBadRequest, "invalid_input")
+		if !strings.Contains(string(got.body), "256 KB") {
+			t.Errorf("the refusal doesn't name the limit: %s", got.body)
 		}
 	})
 

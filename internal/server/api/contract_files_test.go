@@ -223,6 +223,36 @@ func TestFiles(t *testing.T) {
 		readers.Wait()
 	})
 
+	t.Run("opens and saves a text file as large as the editor takes", func(t *testing.T) {
+		f := newTerminalFixture(t)
+		dir := t.TempDir()
+		serveFiles(t, f.agent, files.New(nil))
+		path := filepath.Join(dir, "page.html")
+		// Quotes, tags and line ends all take more room as JSON.
+		line := `<p class="note">A line of the page.</p>` + "\n"
+		content := strings.Repeat(line, protocol.MaxTextFile/len(line))
+		save := protocol.FileTextPayload{Path: path, Content: content}
+		expect(t, f.admin.browser.do(http.MethodPut, filesPath(f, "/text", nil), save), http.StatusOK, "")
+		if saved, err := os.ReadFile(path); err != nil || string(saved) != content {
+			t.Fatalf("the file holds %d bytes (%v), want %d", len(saved), err, len(content))
+		}
+		var opened protocol.FileTextPayload
+		f.admin.browser.do(http.MethodGet, filesPath(f, "/text", url.Values{"path": {path}}), nil).decode(t, &opened)
+		if opened.Content != content {
+			t.Errorf("opened %d bytes, want %d", len(opened.Content), len(content))
+		}
+
+		// More than the editor takes is refused before the machine is asked,
+		// and a body no text file could need isn't read to its end.
+		opened.Content = strings.Repeat("a", protocol.MaxTextFile+1)
+		expect(t, f.admin.browser.do(http.MethodPut, filesPath(f, "/text", nil), opened), http.StatusRequestEntityTooLarge, "too_large")
+		opened.Content = strings.Repeat("a", 7*protocol.MaxTextFile)
+		expect(t, f.admin.browser.do(http.MethodPut, filesPath(f, "/text", nil), opened), http.StatusRequestEntityTooLarge, "body_too_large")
+		if got := auditActions(t, f.server, "file."); !slices.Equal(got, []string{"file.text.write:success"}) {
+			t.Errorf("audit = %v", got)
+		}
+	})
+
 	t.Run("audits a change the agent refused", func(t *testing.T) {
 		f := newTerminalFixture(t)
 		serveFiles(t, f.agent, files.New(nil))

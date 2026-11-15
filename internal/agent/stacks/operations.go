@@ -21,12 +21,12 @@ func (m *Manager) Get(ctx context.Context, name string) (protocol.StackFilesPayl
 	files := protocol.StackFilesPayload{Name: name, Managed: stack.Managed, Editable: stack.Editable,
 		Services: []protocol.StackService{}}
 	if stack.Editable {
-		if files.Compose, err = readFile(stack.ConfigFiles[0], maxComposeSize); err != nil {
+		if files.Compose, err = readFile(stack.ConfigFiles[0], protocol.MaxComposeFile); err != nil {
 			return protocol.StackFilesPayload{}, err
 		}
 	}
 	if stack.Managed {
-		if files.Env, err = readFile(filepath.Join(m.dir, name, envFile), maxEnvSize); err != nil {
+		if files.Env, err = readFile(filepath.Join(m.dir, name, envFile), protocol.MaxEnvFile); err != nil {
 			return protocol.StackFilesPayload{}, err
 		}
 	}
@@ -49,8 +49,8 @@ func (m *Manager) Save(ctx context.Context, request protocol.StackSavePayload) e
 	}
 	m.saving.Lock()
 	defer m.saving.Unlock()
-	if len(request.Compose) > maxComposeSize || len(request.Env) > maxEnvSize {
-		return fmt.Errorf("%w: the compose file is limited to %d KB and .env to %d KB", ErrInvalid, maxComposeSize>>10, maxEnvSize>>10)
+	if len(request.Compose) > protocol.MaxComposeFile || len(request.Env) > protocol.MaxEnvFile {
+		return fmt.Errorf("%w: the compose file is limited to %d KB and .env to %d KB", ErrInvalid, protocol.MaxComposeFile>>10, protocol.MaxEnvFile>>10)
 	}
 	stack, err := m.find(ctx, request.Name)
 	if err != nil {

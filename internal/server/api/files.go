@@ -108,7 +108,11 @@ func (h *handlers) fileChange(w http.ResponseWriter, r *http.Request, session au
 
 func (h *handlers) handleSaveText(w http.ResponseWriter, r *http.Request, session auth.Session) {
 	var request protocol.FileTextPayload
-	if !decodeJSON(w, r, &request) {
+	if !decodeText(w, r, protocol.MaxTextFile, &request) {
+		return
+	}
+	if len(request.Content) > protocol.MaxTextFile {
+		writeError(w, http.StatusRequestEntityTooLarge, errorCodeTooLarge, "Only text files of up to 1 MB can be saved from the browser.")
 		return
 	}
 	h.fileChange(w, r, session, protocol.ActionFileWriteText, request, new(protocol.FileEntry),

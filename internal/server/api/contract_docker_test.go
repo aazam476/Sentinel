@@ -212,6 +212,22 @@ func TestDockerImagesAndStacks(t *testing.T) {
 		}
 	})
 
+	t.Run("saves stack files as large as a stack's may be", func(t *testing.T) {
+		f := newTerminalFixture(t)
+		f.agent.SetReadLimit(protocol.MaxMessageSize) // as the real agent does
+		line := `      - "traefik.http.routers.blog.rule=Host(\"blog.example.com\")"` + "\n"
+		save := api.SaveStackRequest{
+			Compose: strings.Repeat(line, protocol.MaxComposeFile/len(line)),
+			Env:     strings.Repeat("A=b\n", protocol.MaxEnvFile/len("A=b\n")),
+		}
+		asked := answerNext(t, f.agent, nil, nil)
+		expect(t, f.admin.browser.do(http.MethodPut, dockerPath(f, "/stacks/blog"), save), http.StatusNoContent, "")
+		var sent protocol.StackSavePayload
+		if err := json.Unmarshal([]byte((<-asked).payload), &sent); err != nil || sent.Compose != save.Compose || sent.Env != save.Env {
+			t.Errorf("the agent got %d and %d bytes (%v), want %d and %d", len(sent.Compose), len(sent.Env), err, len(save.Compose), len(save.Env))
+		}
+	})
+
 	t.Run("saves, checks and deploys stacks, auditing changes but not their files", func(t *testing.T) {
 		f := newTerminalFixture(t)
 		asked := answerNext(t, f.agent, nil, nil)

@@ -26,6 +26,10 @@ it answered". Opening the same file again did the same again.
 The read limit also applied before the handshake: anyone who could reach `/agent/connect`
 could have the server read 1 MiB per message without proving anything.
 
+The API had the same gap one step earlier. It read at most 64 KiB of any JSON body, so a
+text file, a script or a compose file larger than that could be opened but never saved: the
+browser was told "The request is too large."
+
 ## Decision
 
 - **Neither side sends what the other would refuse.** `protocol.Encode` and
@@ -42,6 +46,12 @@ could have the server read 1 MiB per message without proving anything.
 - **Before an agent has proven who it is, the server reads at most 64 KiB per message.** The
   messages of enrollment and the handshake are a few hundred bytes. The limit rises to
   `MaxMessageSize` once the handshake succeeds.
+- **The API reads a body as large as its text can be as JSON** for the three requests that
+  carry a file's text: saving a text file (1 MiB), a script (256 KB) and a stack's files
+  (256 KB and 64 KB). That is six times the text plus the usual 64 KiB, and only for someone
+  signed in with the permission the request needs. Every other request stays at 64 KiB. The
+  text's own limit is checked after decoding, by the server for a text file and a script, and
+  by the agent for a stack.
 
 ## Consequences
 
