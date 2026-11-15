@@ -347,6 +347,49 @@ func TestUpdate(t *testing.T) {
 	})
 }
 
+func TestUpdatesToTheNewestBuildNeverGoBackwards(t *testing.T) {
+	// The first machine runs v1.2.0, installed by hand; the newest build
+	// hosted here is still v1.1.0.
+	ahead := func(t *testing.T) *harness {
+		t.Helper()
+		h := newHarness(t)
+		h.add(t, "v1.1.0", "linux")
+		h.agents[0].AgentVersion = "v1.2.0"
+		h.service = h.newService("")
+		return h
+	}
+
+	t.Run("automatic updates leave a machine that runs something newer alone", func(t *testing.T) {
+		h := ahead(t)
+		if err := h.service.SetAutoUpdate(t.Context(), h.admin, auth.RequestInfo{}, true); err != nil {
+			t.Fatal(err)
+		}
+		if err := h.service.RunAuto(t.Context()); err != nil || len(h.hub.asked) != 0 {
+			t.Errorf("asked %+v (%v), want no one asked to go back to v1.1.0", h.hub.asked, err)
+		}
+	})
+
+	t.Run("updating every machine skips it, and says why", func(t *testing.T) {
+		h := ahead(t)
+		outcome, err := h.service.Update(t.Context(), h.admin, auth.RequestInfo{}, updates.Target{Kind: "all"}, "")
+		if err != nil || len(outcome.Started) != 0 || len(h.hub.asked) != 0 {
+			t.Errorf("started %v, asked %+v, %v", outcome.Started, h.hub.asked, err)
+		}
+		if reason := outcome.Skipped[h.agents[0].PublicID]; !strings.Contains(reason, "v1.2.0") || !strings.Contains(reason, "newer") {
+			t.Errorf("skipped because %q", reason)
+		}
+	})
+
+	t.Run("an admin can still put a chosen older version on a machine", func(t *testing.T) {
+		h := ahead(t)
+		target := updates.Target{Kind: "agent", Value: h.agents[0].PublicID}
+		outcome, err := h.service.Update(t.Context(), h.admin, auth.RequestInfo{}, target, "v1.1.0")
+		if err != nil || len(outcome.Started) != 1 || len(h.hub.asked) != 1 || h.hub.asked[0].Version != "v1.1.0" {
+			t.Errorf("started %v, asked %+v, %v", outcome.Started, h.hub.asked, err)
+		}
+	})
+}
+
 func TestSEC32_RecordResult(t *testing.T) {
 	h := newHarness(t)
 	agent := h.agents[0].ID

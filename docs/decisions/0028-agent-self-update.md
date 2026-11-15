@@ -1,6 +1,6 @@
 # 0028 — Agent self-update with rollback
 
-**Date:** 2026-11-09 · **Status:** Accepted
+**Date:** 2026-11-09 · **Status:** Accepted; an update to the newest build no longer goes backwards (ADR 0046)
 
 ## Context
 

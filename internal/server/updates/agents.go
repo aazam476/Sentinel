@@ -49,7 +49,8 @@ type Status struct {
 }
 
 // Update tells the target machines to update to version (the newest hosted
-// build if ""), and audits it.
+// build if ""), and audits it. Only a version named here can take a machine
+// back to something older than it runs.
 func (s *Service) Update(ctx context.Context, actor auth.Session, request auth.RequestInfo, target Target, version string) (Outcome, error) {
 	if err := auth.Authorize(actor, auth.PermissionManageMachines); err != nil {
 		return Outcome{}, err
@@ -106,7 +107,11 @@ func (s *Service) updateAgents(ctx context.Context, agents []fleet.Agent, versio
 	return outcome
 }
 
-// updateAgent starts one machine's update, or says why it didn't.
+// updateAgent starts one machine's update, or says why it didn't. With no
+// version named the machine gets the newest build, and only if that is
+// newer than what it runs: a machine installed by hand from a later
+// release must not be taken back to an older one, with the bugs fixed
+// since, just because the builds hosted here are behind.
 func (s *Service) updateAgent(ctx context.Context, agent fleet.Agent, version string) string {
 	if !s.options.Hub.IsOnline(agent.ID) {
 		return "it is offline"
@@ -115,8 +120,11 @@ func (s *Service) updateAgent(ctx context.Context, agent fleet.Agent, version st
 	if err != nil {
 		return fmt.Sprintf("there is no build for %s/%s", agent.OS, agent.Arch)
 	}
-	if build.Version == agent.AgentVersion {
+	switch {
+	case build.Version == agent.AgentVersion:
 		return "it already runs " + build.Version
+	case version == "" && compareVersions(build.Version, agent.AgentVersion) < 0:
+		return fmt.Sprintf("it runs %s, which is newer than the newest build here, %s", agent.AgentVersion, build.Version)
 	}
 	payload := protocol.AgentUpdatePayload{Version: build.Version, Path: build.Path(), Signature: string(build.signature)}
 	if err := s.options.Hub.Request(ctx, agent.ID, protocol.ActionAgentUpdate, payload, nil); err != nil {
@@ -226,7 +234,8 @@ func (s *Service) SetAutoUpdate(ctx context.Context, actor auth.Session, request
 
 // RunAuto updates every online machine to the newest build, if automatic
 // updates are on. The scheduler calls it every hour. A machine whose last
-// update to that version failed isn't asked again.
+// update to that version failed isn't asked again, and one that runs
+// something newer is left alone.
 func (s *Service) RunAuto(ctx context.Context) error {
 	enabled, err := s.AutoUpdate(ctx)
 	if err != nil || !enabled {
@@ -248,7 +257,7 @@ func (s *Service) RunAuto(ctx context.Context) error {
 		if last, found := statuses[agent.ID]; found && last.Version == build.Version && last.State != StateUpdated {
 			continue // tried already; an admin can retry by hand
 		}
-		if reason := s.updateAgent(ctx, agent, build.Version); reason == "" {
+		if reason := s.updateAgent(ctx, agent, ""); reason == "" {
 			s.options.Logger.Info("updating a machine automatically", "agent", agent.PublicID, "to", build.Version)
 		}
 	}
