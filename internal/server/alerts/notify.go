@@ -13,6 +13,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/mail"
 	"net/smtp"
 	"strconv"
 	"strings"
@@ -176,11 +177,11 @@ func (s *Service) sendEmail(ctx context.Context, config ChannelConfig, n Notific
 			return fmt.Errorf("sign in to the mail server: %w", err)
 		}
 	}
-	if err := client.Mail(config.From); err != nil {
+	if err := client.Mail(mailbox(config.From).Address); err != nil {
 		return fmt.Errorf("send the email: %w", err)
 	}
 	for _, to := range config.To {
-		if err := client.Rcpt(to); err != nil {
+		if err := client.Rcpt(mailbox(to).Address); err != nil {
 			return fmt.Errorf("send the email to %s: %w", to, err)
 		}
 	}
@@ -228,15 +229,42 @@ func (s *Service) dialSMTP(ctx context.Context, config ChannelConfig) (*smtp.Cli
 	return client, nil
 }
 
+// mailbox reads one of a channel's addresses, which may be written with a
+// name, as in "Ops <ops@example.com>": SMTP takes only the address. The
+// addresses were checked when the channel was saved; one that can't be
+// read is passed on as it is, for the mail server to refuse.
+func mailbox(address string) *mail.Address {
+	parsed, err := mail.ParseAddress(address)
+	if err != nil {
+		return &mail.Address{Address: address}
+	}
+	return parsed
+}
+
+// headerAddress writes an address for the From or To header: alone, or
+// after its name, which is encoded if it isn't plain ASCII.
+func headerAddress(address string) string {
+	parsed := mailbox(address)
+	if parsed.Name == "" {
+		return parsed.Address
+	}
+	return parsed.String()
+}
+
+// emailMessage is the email's headers and text. The SMTP client escapes
+// lines that start with a dot as it sends them.
 func emailMessage(config ChannelConfig, n Notification) []byte {
+	to := make([]string, len(config.To))
+	for i, address := range config.To {
+		to[i] = headerAddress(address)
+	}
 	var message strings.Builder
-	message.WriteString("From: " + config.From + "\r\n")
-	message.WriteString("To: " + strings.Join(config.To, ", ") + "\r\n")
-	message.WriteString("Subject: " + mime.QEncoding.Encode("utf-8", "[Sentinel] "+n.title()) + "\r\n")
+	message.WriteString("From: " + headerAddress(config.From) + "\r\n")
+	message.WriteString("To: " + strings.Join(to, ", ") + "\r\n")
+	message.WriteString("Subject: " + mime.QEncoding.Encode("utf-8", "[Sentinel] "+headerText(n.title(), maxHeaderTitle)) + "\r\n")
 	message.WriteString("Date: " + n.At.Format(time.RFC1123Z) + "\r\n")
 	message.WriteString("MIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n")
-	body := fmt.Sprintf("%s\r\n\r\nMachine: %s\r\nRule: %s\r\nSeverity: %s\r\nTime: %s\r\n",
+	fmt.Fprintf(&message, "%s\r\n\r\nMachine: %s\r\nRule: %s\r\nSeverity: %s\r\nTime: %s\r\n",
 		n.Message, n.Machine, n.Rule, n.Severity, n.At.UTC().Format(time.RFC3339))
-	message.WriteString(strings.ReplaceAll(body, "\r\n.", "\r\n.."))
 	return []byte(message.String())
 }

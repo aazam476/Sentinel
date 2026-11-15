@@ -394,6 +394,49 @@ func TestEmail(t *testing.T) {
 		}
 	})
 
+	t.Run("sends to the address inside a name, and shows the name in the email", func(t *testing.T) {
+		h := newHarness(t)
+		mail := newMailServer(t, false)
+		channel := saveChannel(t, h, alerts.Channel{Name: "Mail", Type: alerts.ChannelEmail, Enabled: true, Config: alerts.ChannelConfig{
+			SMTPHost: "127.0.0.1", SMTPPort: mail.port, SMTPSecurity: "none",
+			From: "Sentinel <sentinel@example.com>", To: []string{"Büro Nord <ops@example.com>", "me@example.com"},
+		}})
+		if err := h.service.TestChannel(t.Context(), h.admin, channel.ID); err != nil {
+			t.Fatal(err)
+		}
+		got := mail.transcript()
+		for _, want := range []string{"MAIL FROM:<sentinel@example.com>", "RCPT TO:<ops@example.com>", "RCPT TO:<me@example.com>",
+			`From: "Sentinel" <sentinel@example.com>`, `To: =?utf-8?q?B=C3=BCro_Nord?= <ops@example.com>, me@example.com`} {
+			if !strings.Contains(got, want) {
+				t.Errorf("the conversation has no %q:\n%s", want, got)
+			}
+		}
+	})
+
+	t.Run("a line of the message that starts with a dot arrives as it was written", func(t *testing.T) {
+		h := newHarness(t)
+		mail := newMailServer(t, false)
+		channel := saveChannel(t, h, alerts.Channel{Name: "Mail", Type: alerts.ChannelEmail, Enabled: true, Config: alerts.ChannelConfig{
+			SMTPHost: "127.0.0.1", SMTPPort: mail.port, SMTPSecurity: "none", From: "sentinel@example.com", To: []string{"ops@example.com"},
+		}})
+		h.saveRule(t, alerts.Rule{Name: "Failed scripts", Type: alerts.RuleScriptFailed, Enabled: true,
+			Target: alerts.RuleTarget{Kind: "all"}, ChannelIDs: []int64{channel.ID}})
+		if err := h.service.RecordScheduledRun(t.Context(), h.agentID, 7, "backup", "it printed\r\n.config is missing"); err != nil {
+			t.Fatal(err)
+		}
+		h.service.Wait()
+		// On the wire such a line gets one more dot, which the mail server
+		// takes off again: two dots, not three.
+		got := mail.transcript()
+		if !strings.Contains(got, "\n..config is missing") || strings.Contains(got, "...config") {
+			t.Errorf("the line was sent as:\n%s", got)
+		}
+		// The subject is one line, whatever the message holds.
+		if !strings.Contains(got, "Subject: [Sentinel] Warning on nas: Scheduled script backup failed: it printed  .config is missing\n") {
+			t.Errorf("the subject isn't the message on one line:\n%s", got)
+		}
+	})
+
 	t.Run("refuses to send without encryption when STARTTLS is required but not offered", func(t *testing.T) {
 		h := newHarness(t)
 		mail := newMailServer(t, false)
