@@ -141,30 +141,66 @@ func session(t *testing.T, options desktop.Options, out desktop.Output) (chan []
 	return inbound, done
 }
 
+// settle waits until a session on a fake clock has read every message sent
+// to it and is waiting for the time of its next frame. The session reads
+// messages and frame ticks in whatever order they come, so a test that
+// wants a frame drawn after its messages moves the clock only once the
+// session has settled; and once it has settled again, that frame was sent.
+// Waiting for a length of time instead fails on a busy machine.
+func settle(t *testing.T, clock *fakeclock.Clock, inbound chan []byte) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	for len(inbound) > 0 {
+		select {
+		case <-ctx.Done():
+			t.Fatal("the session stopped reading its messages")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	// The frame timer is the session's only one: armed, it has dealt with
+	// the last tick and with the messages it read before that.
+	if err := clock.WaitForTimers(ctx, 1); err != nil {
+		t.Fatalf("the session isn't waiting for its next frame: %v", err)
+	}
+}
+
+// stepFrame acknowledges the last frame, moves the clock one frame on and
+// takes in everything the session then sent, so the view is up to date.
+func stepFrame(t *testing.T, clock *fakeclock.Clock, inbound chan []byte, out *streamOutput, view *screen) {
+	t.Helper()
+	inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopAck})
+	settle(t, clock, inbound)
+	clock.Advance(100 * time.Millisecond)
+	settle(t, clock, inbound)
+	for {
+		select {
+		case data := <-out.updates:
+			view.apply(t, data)
+		default:
+			return
+		}
+	}
+}
+
 func TestFallbackOverTheStream(t *testing.T) {
 	clock := fakeclock.New(time.Now())
 	out := newStreamOutput()
 	inbound, _ := session(t, desktop.Options{Clock: clock}, out)
 	var view screen
-
-	// Nothing is sent until the browser says where.
-	clock.Advance(time.Second)
-	inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopFallback})
-	// nextFrame moves the clock one frame on, then takes in everything the
-	// session sent, so the view is up to date.
 	nextFrame := func() {
 		t.Helper()
-		inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopAck})
-		clock.Advance(100 * time.Millisecond)
-		for {
-			select {
-			case data := <-out.updates:
-				view.apply(t, data)
-			case <-time.After(50 * time.Millisecond):
-				return
-			}
-		}
+		stepFrame(t, clock, inbound, out, &view)
 	}
+
+	// Nothing is sent until the browser says where.
+	settle(t, clock, inbound)
+	clock.Advance(time.Second)
+	settle(t, clock, inbound)
+	if sent := len(out.updates); sent != 0 {
+		t.Errorf("%d screen updates were sent before the browser said where", sent)
+	}
+	inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopFallback})
 	nextFrame()
 	nextFrame()
 	if _, tiles := view.count(); tiles < 4*3 {
@@ -503,16 +539,7 @@ func TestMonitors(t *testing.T) {
 	var view screen
 	nextFrame := func() {
 		t.Helper()
-		inbound <- control(protocol.DesktopControlMessage{Type: protocol.DesktopAck})
-		clock.Advance(100 * time.Millisecond)
-		for {
-			select {
-			case data := <-out.updates:
-				view.apply(t, data)
-			case <-time.After(50 * time.Millisecond):
-				return
-			}
-		}
+		stepFrame(t, clock, inbound, out, &view)
 	}
 	size := func() image.Point {
 		view.mutex.Lock()
