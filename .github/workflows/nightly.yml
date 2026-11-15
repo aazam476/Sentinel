@@ -28,7 +28,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y zfsutils-linux
           sudo modprobe zfs
-          zfs version
+          # As root: right after the module loads, /dev/zfs can still be
+          # root-only, until udev has opened it up for everyone.
+          sudo zfs version
       - name: Compile the test as the runner user, then run it as root
         run: |
           go test -c -tags zfs -o storage.test ./internal/agent/storage
