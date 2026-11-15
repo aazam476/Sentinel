@@ -188,6 +188,11 @@ func TestFiles(t *testing.T) {
 		if err := os.Symlink("/etc/hostname", filepath.Join(links, "link")); err != nil {
 			t.Fatal(err)
 		}
+		// Read back, since Windows spells the target its own way.
+		target, err := os.Readlink(filepath.Join(links, "link"))
+		if err != nil || target == "" {
+			t.Fatalf("the link points to %q: %v", target, err)
+		}
 		for _, name := range []string{"a.txt", "b.txt"} {
 			if err := os.WriteFile(filepath.Join(texts, name), []byte("the text of "+name), 0o600); err != nil {
 				t.Fatal(err)
@@ -199,8 +204,8 @@ func TestFiles(t *testing.T) {
 			return listing.Entries
 		}
 		// What one listing says about a link must not show up in the next.
-		if got := list(links); len(got) != 1 || got[0].Target != "/etc/hostname" {
-			t.Fatalf("the folder with the link lists as %+v", got)
+		if got := list(links); len(got) != 1 || got[0].Target != target {
+			t.Fatalf("the folder with the link lists as %+v, want the target %q", got, target)
 		}
 		if got := list(texts); len(got) != 2 || got[0].Target != "" || got[1].Target != "" {
 			t.Errorf("a folder of plain files lists as %+v, with the link of the folder listed before it", got)
