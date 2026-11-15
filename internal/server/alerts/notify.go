@@ -177,11 +177,11 @@ func (s *Service) sendEmail(ctx context.Context, config ChannelConfig, n Notific
 			return fmt.Errorf("sign in to the mail server: %w", err)
 		}
 	}
-	if err := client.Mail(mailbox(config.From).Address); err != nil {
+	if err := client.Mail(bareAddress(config.From)); err != nil {
 		return fmt.Errorf("send the email: %w", err)
 	}
 	for _, to := range config.To {
-		if err := client.Rcpt(mailbox(to).Address); err != nil {
+		if err := client.Rcpt(bareAddress(to)); err != nil {
 			return fmt.Errorf("send the email to %s: %w", to, err)
 		}
 	}
@@ -230,9 +230,9 @@ func (s *Service) dialSMTP(ctx context.Context, config ChannelConfig) (*smtp.Cli
 }
 
 // mailbox reads one of a channel's addresses, which may be written with a
-// name, as in "Ops <ops@example.com>": SMTP takes only the address. The
-// addresses were checked when the channel was saved; one that can't be
-// read is passed on as it is, for the mail server to refuse.
+// name, as in "Ops <ops@example.com>". The addresses were checked when the
+// channel was saved; one that can't be read is passed on as it is, for the
+// mail server to refuse.
 func mailbox(address string) *mail.Address {
 	parsed, err := mail.ParseAddress(address)
 	if err != nil {
@@ -241,12 +241,21 @@ func mailbox(address string) *mail.Address {
 	return parsed
 }
 
+// bareAddress is an address without the name written around it, which is
+// all SMTP's MAIL and RCPT commands take. The parser hands the address
+// over with its quotes taken off, so it is written out again: the part
+// before the @ in "night shift"@example.com needs them.
+func bareAddress(address string) string {
+	written := (&mail.Address{Address: mailbox(address).Address}).String()
+	return strings.TrimSuffix(strings.TrimPrefix(written, "<"), ">")
+}
+
 // headerAddress writes an address for the From or To header: alone, or
 // after its name, which is encoded if it isn't plain ASCII.
 func headerAddress(address string) string {
 	parsed := mailbox(address)
 	if parsed.Name == "" {
-		return parsed.Address
+		return bareAddress(address)
 	}
 	return parsed.String()
 }

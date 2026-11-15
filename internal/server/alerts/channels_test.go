@@ -399,14 +399,17 @@ func TestEmail(t *testing.T) {
 		mail := newMailServer(t, false)
 		channel := saveChannel(t, h, alerts.Channel{Name: "Mail", Type: alerts.ChannelEmail, Enabled: true, Config: alerts.ChannelConfig{
 			SMTPHost: "127.0.0.1", SMTPPort: mail.port, SMTPSecurity: "none",
-			From: "Sentinel <sentinel@example.com>", To: []string{"Büro Nord <ops@example.com>", "me@example.com"},
+			From: "Sentinel <sentinel@example.com>",
+			To:   []string{"Büro Nord <ops@example.com>", "me@example.com", `"night shift"@example.com`},
 		}})
 		if err := h.service.TestChannel(t.Context(), h.admin, channel.ID); err != nil {
 			t.Fatal(err)
 		}
 		got := mail.transcript()
 		for _, want := range []string{"MAIL FROM:<sentinel@example.com>", "RCPT TO:<ops@example.com>", "RCPT TO:<me@example.com>",
-			`From: "Sentinel" <sentinel@example.com>`, `To: =?utf-8?q?B=C3=BCro_Nord?= <ops@example.com>, me@example.com`} {
+			// An address that needs its quotes keeps them.
+			`RCPT TO:<"night shift"@example.com>`, `From: "Sentinel" <sentinel@example.com>`,
+			`To: =?utf-8?q?B=C3=BCro_Nord?= <ops@example.com>, me@example.com, "night shift"@example.com`} {
 			if !strings.Contains(got, want) {
 				t.Errorf("the conversation has no %q:\n%s", want, got)
 			}
