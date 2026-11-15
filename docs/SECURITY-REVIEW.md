@@ -243,10 +243,13 @@ JSON, and verify the chain in the UI or with `sentinel-server audit verify`.
 with AES-256-GCM using `<data dir>/secret.key` (0600), outside the database
 (`internal/server/secrets`). They are never sent back to the browser, and a channel's stored
 password or token is kept through an edit only while the channel still points at the server
-it was given for (ADR 0047).
+it was given for (ADR 0047). The database file, with its password hashes and the audit log,
+is created with mode 0600 and made so again each time it is opened, whatever the data
+directory allows (`store.makePrivate`).
 *Tests:* `TestSEC42_SecretsAreEncryptedWithAKeyOutsideTheDatabase`,
 `TestSEC42_NotificationChannelSecretsAreStoredEncrypted`,
-`TestSEC42_AStoredSecretIsOnlyKeptForTheServerItWasGivenFor`.
+`TestSEC42_AStoredSecretIsOnlyKeptForTheServerItWasGivenFor`,
+`TestTheDatabaseIsForItsOwnerAlone`.
 
 **SEC-43 No terminal recording.** Terminal sessions aren't recorded: the server relays bytes
 without keeping them, and only the session's start, end, duration and byte counts are

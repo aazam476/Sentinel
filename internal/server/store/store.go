@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -42,9 +43,38 @@ type writeJob struct {
 	result chan error
 }
 
+// privateFile is the mode of the database's files: for their owner alone.
+const privateFile = 0o600
+
+// makePrivate creates the database file for its owner alone, or makes an
+// existing one so, along with the files SQLite keeps beside it. Left to
+// itself SQLite creates them readable by everyone the folder lets in, and
+// gives its write-ahead log the database's mode. The data directory is
+// private when the server or its installer made it, but not when it was
+// there already: a folder made by hand, a mounted volume. The files hold
+// password hashes, the audit log and everything known about the fleet.
+func makePrivate(path string) error {
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, privateFile) //nolint:gosec // G304: the database path the operator configured
+	if err != nil {
+		return fmt.Errorf("create database %s: %w", path, err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("create database %s: %w", path, err)
+	}
+	for _, name := range []string{path, path + "-wal", path + "-shm"} {
+		// A file that isn't there yet gets the database's mode from SQLite;
+		// one this user doesn't own stays as its owner left it.
+		_ = os.Chmod(name, privateFile)
+	}
+	return nil
+}
+
 // Open opens (creating if needed) the SQLite database at path, applies
 // pending migrations and starts the writer goroutine.
 func Open(ctx context.Context, path string, clock Clock) (*Store, error) {
+	if err := makePrivate(path); err != nil {
+		return nil, err
+	}
 	writeDB, err := openConnection(ctx, path, false)
 	if err != nil {
 		return nil, err
