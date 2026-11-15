@@ -47,6 +47,12 @@ show_session_indicator = true
 - Each agent has its own Ed25519 key, kept in a directory only root/SYSTEM can read. Every
   connection starts with both sides signing the other's random challenge, so neither can be
   impersonated, even through a proxy that terminates TLS.
+- That check covers the start of a connection, not what follows it. Whatever ends the TLS
+  connection in front of the server, such as a reverse proxy or a tunnel service, can read and
+  change everything after the check: terminal sessions, files, and the commands sent to
+  machines. **Treat it as part of the server.** For the same reason, only give an agent an
+  `http://` address for a server on the same machine: on a network, anyone between the two
+  could take the connection over once it is open, and run commands as root.
 - The install command carries the server key's fingerprint, and, for a server using its own
   self-signed certificate, the certificate key's fingerprint. Copy it exactly: the agent
   refuses a server that doesn't match.

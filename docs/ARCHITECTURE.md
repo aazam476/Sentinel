@@ -63,7 +63,8 @@ client certificates. So instead of mutual TLS, the agent and server prove their 
 4. Only then does the server send `welcome`.
 
 This works through any proxy and lets the agent detect an impostor server even when someone
-else terminates TLS.
+else terminates TLS. It protects the start of the connection only: what follows is protected
+by TLS, so whoever terminates TLS can read and change it (ADR 0017).
 
 ## How a request flows
 
