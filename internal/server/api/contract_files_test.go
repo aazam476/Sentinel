@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/coder/websocket"
@@ -51,6 +52,7 @@ func answerFile(m *files.Manager, message protocol.Message) (any, error) {
 	decode := func(target any) error { return json.Unmarshal(message.Payload, target) }
 	var path protocol.FilePathPayload
 	var read protocol.FileReadPayload
+	var text protocol.FileTextPayload
 	var begin protocol.FileUploadBeginPayload
 	var write protocol.FileUploadWritePayload
 	var id protocol.FileUploadIDPayload
@@ -67,6 +69,12 @@ func answerFile(m *files.Manager, message protocol.Message) (any, error) {
 	case protocol.ActionFileMkdir:
 		_ = decode(&path)
 		return nil, m.Mkdir(path.Path)
+	case protocol.ActionFileReadText:
+		_ = decode(&path)
+		return m.ReadText(path.Path)
+	case protocol.ActionFileWriteText:
+		_ = decode(&text)
+		return m.WriteText(text)
 	case protocol.ActionFileUploadBegin:
 		_ = decode(&begin)
 		return m.BeginUpload(begin)
@@ -171,6 +179,48 @@ func TestFiles(t *testing.T) {
 		if got := auditActions(t, f.server, "file."); !slices.Equal(got, []string{"file.upload:success"}) {
 			t.Errorf("audit = %v", got)
 		}
+	})
+
+	t.Run("answers each request with its own answer, never another's", func(t *testing.T) {
+		f := newTerminalFixture(t)
+		links, texts := t.TempDir(), t.TempDir()
+		serveFiles(t, f.agent, files.New(nil))
+		if err := os.Symlink("/etc/hostname", filepath.Join(links, "link")); err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range []string{"a.txt", "b.txt"} {
+			if err := os.WriteFile(filepath.Join(texts, name), []byte("the text of "+name), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		list := func(folder string) []protocol.FileEntry {
+			var listing protocol.FileListResultPayload
+			f.admin.browser.do(http.MethodGet, filesPath(f, "", url.Values{"path": {folder}}), nil).decode(t, &listing)
+			return listing.Entries
+		}
+		// What one listing says about a link must not show up in the next.
+		if got := list(links); len(got) != 1 || got[0].Target != "/etc/hostname" {
+			t.Fatalf("the folder with the link lists as %+v", got)
+		}
+		if got := list(texts); len(got) != 2 || got[0].Target != "" || got[1].Target != "" {
+			t.Errorf("a folder of plain files lists as %+v, with the link of the folder listed before it", got)
+		}
+
+		// Nor may two people reading at once get each other's file.
+		var readers sync.WaitGroup
+		for _, name := range []string{"a.txt", "b.txt"} {
+			readers.Go(func() {
+				for range 25 {
+					var text protocol.FileTextPayload
+					got := f.admin.browser.do(http.MethodGet, filesPath(f, "/text", url.Values{"path": {filepath.Join(texts, name)}}), nil)
+					if err := json.Unmarshal(got.body, &text); err != nil || text.Content != "the text of "+name {
+						t.Errorf("reading %s got %q (%v)", name, text.Content, err)
+						return
+					}
+				}
+			})
+		}
+		readers.Wait()
 	})
 
 	t.Run("audits a change the agent refused", func(t *testing.T) {

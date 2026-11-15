@@ -52,9 +52,9 @@ func (h *handlers) addFileRoutes(mux *http.ServeMux) {
 		return h.withPermission(auth.PermissionManageFiles, handler)
 	}
 	const base = "/api/agents/{id}/files"
-	mux.HandleFunc("GET "+base, files(h.fileQuery(protocol.ActionFileList, new(protocol.FileListResultPayload))))
-	mux.HandleFunc("GET "+base+"/stat", files(h.fileQuery(protocol.ActionFileStat, new(protocol.FileEntry))))
-	mux.HandleFunc("GET "+base+"/text", files(h.fileQuery(protocol.ActionFileReadText, new(protocol.FileTextPayload))))
+	mux.HandleFunc("GET "+base, files(fileQuery[protocol.FileListResultPayload](h, protocol.ActionFileList)))
+	mux.HandleFunc("GET "+base+"/stat", files(fileQuery[protocol.FileEntry](h, protocol.ActionFileStat)))
+	mux.HandleFunc("GET "+base+"/text", files(fileQuery[protocol.FileTextPayload](h, protocol.ActionFileReadText)))
 	mux.HandleFunc("PUT "+base+"/text", files(h.handleSaveText))
 	mux.HandleFunc("GET "+base+"/download", files(h.handleDownload))
 	mux.HandleFunc("POST "+base+"/mkdir", files(h.handleMkdir))
@@ -67,15 +67,18 @@ func (h *handlers) addFileRoutes(mux *http.ServeMux) {
 }
 
 // fileQuery returns a handler asking the agent about the path in the
-// query string, answering with the agent's answer as it is.
-func (h *handlers) fileQuery(action string, result any) func(http.ResponseWriter, *http.Request, auth.Session) {
+// query string, answering with the agent's answer, an Answer, as it is.
+// Each request decodes into an Answer of its own: one shared by them all
+// would carry parts of one request's answer into the next, and requests
+// made at the same time would write over each other's.
+func fileQuery[Answer any](h *handlers, action string) func(http.ResponseWriter, *http.Request, auth.Session) {
 	return func(w http.ResponseWriter, r *http.Request, session auth.Session) {
 		agent, ok := h.onlineMachine(w, r, session)
 		if !ok {
 			return
 		}
-		answer := result
-		if err := h.ask(r.Context(), agent, action, protocol.FilePathPayload{Path: r.URL.Query().Get("path")}, answer); err != nil {
+		var answer Answer
+		if err := h.ask(r.Context(), agent, action, protocol.FilePathPayload{Path: r.URL.Query().Get("path")}, &answer); err != nil {
 			h.writeAgentError(w, err)
 			return
 		}
