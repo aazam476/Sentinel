@@ -214,6 +214,57 @@ func TestSEC42_NotificationChannelSecretsAreStoredEncrypted(t *testing.T) {
 	})
 }
 
+func TestSEC42_AStoredSecretIsOnlyKeptForTheServerItWasGivenFor(t *testing.T) {
+	password := "hunter2-smtp" //nolint:gosec // G101: a test password, checked to stay with its mail server
+	mail := alerts.Channel{Name: "Mail", Type: alerts.ChannelEmail, Enabled: true, Config: alerts.ChannelConfig{
+		SMTPHost: "mail.example.com", SMTPUsername: "sentinel", SMTPPassword: password,
+		From: "sentinel@example.com", To: []string{"ops@example.com"},
+	}}
+	phone := alerts.Channel{Name: "Phone", Type: alerts.ChannelNtfy, Enabled: true,
+		Config: alerts.ChannelConfig{Server: "https://ntfy.example.com", Topic: "homelab", Token: "tk_secret"}}
+	secretOf := func(config alerts.ChannelConfig) string { return config.SMTPPassword + config.Token }
+	cases := []struct {
+		name   string
+		stored alerts.Channel
+		// change edits the channel as the browser would send it back: with
+		// its secret left empty.
+		change func(config *alerts.ChannelConfig)
+		want   string
+	}{
+		{"keeps the password when the recipients change", mail, func(c *alerts.ChannelConfig) { c.To = []string{"me@example.com"} }, "hunter2-smtp"},
+		{"keeps the password when the username changes", mail, func(c *alerts.ChannelConfig) { c.SMTPUsername = "alerts" }, "hunter2-smtp"},
+		{"keeps the password when the mail server is only spelled differently", mail, func(c *alerts.ChannelConfig) { c.SMTPHost = "Mail.Example.com" }, "hunter2-smtp"},
+		{"drops the password when the mail server changes", mail, func(c *alerts.ChannelConfig) { c.SMTPHost = "mail.attacker.example" }, ""},
+		{"drops the password when the mail server's port changes", mail, func(c *alerts.ChannelConfig) { c.SMTPPort = 2525 }, ""},
+		{"stores a new password given with a new mail server", mail, func(c *alerts.ChannelConfig) {
+			c.SMTPHost, c.SMTPPassword = "smtp.example.org", "another"
+		}, "another"},
+		{"keeps the token when the topic changes", phone, func(c *alerts.ChannelConfig) { c.Topic = "servers" }, "tk_secret"},
+		{"keeps the token when the server is given with a slash at its end", phone, func(c *alerts.ChannelConfig) { c.Server += "/" }, "tk_secret"},
+		{"drops the token when the ntfy server changes", phone, func(c *alerts.ChannelConfig) { c.Server = "https://ntfy.attacker.example" }, ""},
+		{"drops the token when the ntfy server stops using TLS", phone, func(c *alerts.ChannelConfig) { c.Server = "http://ntfy.example.com" }, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			edit := saveChannel(t, h, tc.stored)
+			edit.Config.SMTPPassword, edit.Config.Token = "", ""
+			tc.change(&edit.Config)
+			saved := saveChannel(t, h, edit)
+			channels, err := h.service.Channels(t.Context())
+			if err != nil || len(channels) != 1 {
+				t.Fatalf("got %+v, %v", channels, err)
+			}
+			if got := secretOf(channels[0].Config); got != tc.want {
+				t.Errorf("the stored secret is %q, want %q", got, tc.want)
+			}
+			if got := secretOf(saved.Config); got != tc.want {
+				t.Errorf("the saved channel carries %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestTestChannel(t *testing.T) {
 	t.Run("posts a webhook notification as JSON and records it was sent", func(t *testing.T) {
 		h := newHarness(t)

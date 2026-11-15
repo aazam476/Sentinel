@@ -146,17 +146,29 @@ func validURL(field, address string) error {
 	return nil
 }
 
-// keepSecrets fills in secrets left empty in an edit with the ones stored,
-// since the browser never sees them to send them back.
-func (c *ChannelConfig) keepSecrets(stored ChannelConfig) {
-	if c.SMTPPassword == "" {
-		c.SMTPPassword = stored.SMTPPassword
-	}
-	if c.Token == "" {
-		c.Token = stored.Token
-	}
+// keepAddress fills in a webhook's address left empty in an edit with the
+// one stored, since the browser never sees it to send it back.
+func (c *ChannelConfig) keepAddress(stored ChannelConfig) {
 	if c.URL == "" {
 		c.URL = stored.URL
+	}
+}
+
+// keepSecrets fills in a password or token left empty in an edit with the
+// one stored, but only while it would still go where it was given for: the
+// same mail server and port, or the same ntfy server. Both settings have
+// been validated, so their defaults are filled in.
+//
+// An edit that points the channel somewhere else has to give the secret
+// again. Otherwise whoever can change a channel could have its stored
+// password sent to a server of their choosing, which is what keeping these
+// settings write-only is there to prevent (SEC-42).
+func (c *ChannelConfig) keepSecrets(stored ChannelConfig) {
+	if c.SMTPPassword == "" && strings.EqualFold(c.SMTPHost, stored.SMTPHost) && c.SMTPPort == stored.SMTPPort {
+		c.SMTPPassword = stored.SMTPPassword
+	}
+	if c.Token == "" && c.Server == stored.Server {
+		c.Token = stored.Token
 	}
 }
 
@@ -210,19 +222,22 @@ func (s *Service) SaveChannel(ctx context.Context, actor auth.Session, request a
 		return Channel{}, err
 	}
 	err := s.database.Write(ctx, func(tx *sql.Tx) error {
+		var stored ChannelConfig
 		if channel.ID != 0 {
-			stored, err := s.readChannels(ctx, tx, `SELECT `+channelColumns+` FROM notification_channels WHERE id = ?`, channel.ID)
+			found, err := s.readChannels(ctx, tx, `SELECT `+channelColumns+` FROM notification_channels WHERE id = ?`, channel.ID)
 			if err != nil {
 				return err
 			}
-			if len(stored) == 0 {
+			if len(found) == 0 {
 				return ErrNotFound
 			}
-			channel.Config.keepSecrets(stored[0].Config)
+			stored = found[0].Config
+			channel.Config.keepAddress(stored)
 		}
 		if err := channel.validate(); err != nil {
 			return err
 		}
+		channel.Config.keepSecrets(stored) // after validate, which fills in the defaults compared
 		if err := s.writeChannel(ctx, tx, &channel); err != nil {
 			return err
 		}

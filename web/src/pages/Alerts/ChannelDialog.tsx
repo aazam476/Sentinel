@@ -15,7 +15,7 @@ import dialogStyles from '../../components/StepUpDialog/StepUpDialog.module.css'
 import systemStyles from '../Machine/SystemTab.module.css';
 import styles from '../Scripts/Scripts.module.css';
 import alertStyles from './Alerts.module.css';
-import { channelTypes } from './alertText';
+import { channelTypes, pointsElsewhere } from './alertText';
 
 interface ChannelDialogProps {
   channel?: NotificationChannel;
@@ -29,7 +29,8 @@ interface ChannelDialogProps {
 /**
  * ChannelDialog adds or changes a notification channel. Secrets (the SMTP
  * password, the ntfy token, webhook addresses) are never shown again;
- * left empty in a change, the stored ones are kept.
+ * left empty in a change, the stored ones are kept, except a password or
+ * token when the change points the channel at another server.
  */
 export function ChannelDialog({ channel, onClose, onSave }: ChannelDialogProps) {
   const [draft, setDraft] = useState<SaveNotificationChannelRequest>(
@@ -45,6 +46,13 @@ export function ChannelDialog({ channel, onClose, onSave }: ChannelDialogProps) 
   const [recipients, setRecipients] = useState((channel?.config.to ?? []).join(', '));
   const [error, setError] = useState<unknown>();
   const keeps = channel?.hasSecret === true ? 'Leave empty to keep the one stored.' : undefined;
+  // A stored password or token stays with the server it was given for.
+  const keepsSecret =
+    channel !== undefined &&
+    keeps !== undefined &&
+    pointsElsewhere(draft.type, channel.config, draft.config)
+      ? 'The one stored was for the server before. Enter this server’s, or leave it empty for none.'
+      : keeps;
   const setConfig = (change: Partial<NotificationChannelConfig>) => {
     setDraft({ ...draft, config: { ...draft.config, ...change } });
   };
@@ -101,7 +109,7 @@ export function ChannelDialog({ channel, onClose, onSave }: ChannelDialogProps) 
               <EmailFields
                 config={draft.config}
                 recipients={recipients}
-                passwordHint={keeps}
+                passwordHint={keepsSecret}
                 onChange={setConfig}
                 onRecipients={setRecipients}
               />
@@ -155,7 +163,7 @@ export function ChannelDialog({ channel, onClose, onSave }: ChannelDialogProps) 
                   type="password"
                   autoComplete="off"
                   value={draft.config.token ?? ''}
-                  hint={keeps}
+                  hint={keepsSecret}
                   onChange={(event) => {
                     setConfig({ token: event.target.value });
                   }}

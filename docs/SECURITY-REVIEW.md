@@ -241,9 +241,12 @@ JSON, and verify the chain in the UI or with `sentinel-server audit verify`.
 
 **SEC-42 Secrets at rest.** SMTP passwords, registry credentials and webhook URLs are sealed
 with AES-256-GCM using `<data dir>/secret.key` (0600), outside the database
-(`internal/server/secrets`).
+(`internal/server/secrets`). They are never sent back to the browser, and a channel's stored
+password or token is kept through an edit only while the channel still points at the server
+it was given for (ADR 0047).
 *Tests:* `TestSEC42_SecretsAreEncryptedWithAKeyOutsideTheDatabase`,
-`TestSEC42_NotificationChannelSecretsAreStoredEncrypted`.
+`TestSEC42_NotificationChannelSecretsAreStoredEncrypted`,
+`TestSEC42_AStoredSecretIsOnlyKeptForTheServerItWasGivenFor`.
 
 **SEC-43 No terminal recording.** Terminal sessions aren't recorded: the server relays bytes
 without keeping them, and only the session's start, end, duration and byte counts are

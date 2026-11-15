@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { AlertRule, AlertRuleTarget } from '../../api/types.gen';
+import type { AlertRule, AlertRuleTarget, NotificationChannelConfig } from '../../api/types.gen';
 
 /** ruleTypes are the kinds of rule, as the rule dialog offers them. */
 export const ruleTypes = [
@@ -26,6 +26,41 @@ export const channelTypes = [
   { value: 'ntfy', label: 'ntfy' },
   { value: 'discord', label: 'Discord' },
 ] as const;
+
+/** defaultMailPorts are the ports the server fills in for each kind of security. */
+const defaultMailPorts: Record<string, number> = { starttls: 587, tls: 465, none: 25 };
+
+function mailPort(config: NotificationChannelConfig): number | undefined {
+  return config.smtpPort ?? defaultMailPorts[config.smtpSecurity ?? 'starttls'];
+}
+
+function ntfyServer(config: NotificationChannelConfig): string {
+  const given = config.server ?? '';
+  return given === '' ? 'https://ntfy.sh' : given.trim().replace(/\/+$/, '');
+}
+
+/**
+ * pointsElsewhere says whether a change would send a channel's stored
+ * password or token somewhere other than where it was given for: another
+ * mail server or port, or another ntfy server. The server keeps a stored
+ * secret only while this is false, so the dialog says which it will be.
+ */
+export function pointsElsewhere(
+  type: string,
+  stored: NotificationChannelConfig,
+  change: NotificationChannelConfig,
+): boolean {
+  switch (type) {
+    case 'email':
+      return (
+        (change.smtpHost ?? '').toLowerCase() !== (stored.smtpHost ?? '').toLowerCase() ||
+        mailPort(change) !== mailPort(stored)
+      );
+    case 'ntfy':
+      return ntfyServer(change) !== ntfyServer(stored);
+  }
+  return false;
+}
 
 export function labelOf(list: readonly { value: string; label: string }[], value: string): string {
   return list.find((item) => item.value === value)?.label ?? value;

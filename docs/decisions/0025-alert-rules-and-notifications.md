@@ -1,6 +1,6 @@
 # 0025 — Alert rules and notifications
 
-**Date:** 2026-11-09 · **Status:** Accepted
+**Date:** 2026-11-09 · **Status:** Accepted; a stored secret is now kept only for the server it was given for (ADR 0047)
 
 ## Context
 

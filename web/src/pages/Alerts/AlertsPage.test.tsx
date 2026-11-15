@@ -13,7 +13,7 @@ import {
 } from '../../test/fixtures/normal/fixtures';
 import { renderApp } from '../../test/renderApp';
 import { apiError, apiPath, json, server, signedInAs } from '../../test/server';
-import { describeCondition, describeTarget } from './alertText';
+import { describeCondition, describeTarget, pointsElsewhere } from './alertText';
 
 const nas = agents[0];
 
@@ -241,9 +241,67 @@ describe('Alerts', () => {
       expect(sent).toEqual([{ type: 'webhook', name: 'Ops', enabled: true, config: {} }]);
     });
   });
+
+  it('SEC-42: says the stored password stays behind when the mail server changes', async () => {
+    withAlerts();
+    const user = userEvent.setup();
+    const mail: NotificationChannel = {
+      ...opsHook,
+      id: 6,
+      type: 'email',
+      name: 'Mail',
+      config: {
+        smtpHost: 'mail.example.com',
+        smtpPort: 587,
+        smtpSecurity: 'starttls',
+        smtpUsername: 'sentinel',
+        from: 'sentinel@example.com',
+        to: ['ops@example.com'],
+      },
+      summary: 'mail.example.com to ops@example.com',
+    };
+    server.use(http.get(apiPath('notification-channels'), () => json({ channels: [mail] })));
+    renderApp('/alerts/channels');
+    await user.click(await screen.findByRole('button', { name: 'Mail' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Change channel' });
+    const stays = 'Leave empty to keep the one stored.';
+    const leaves =
+      'The one stored was for the server before. Enter this server’s, or leave it empty for none.';
+    expect(within(dialog).getByText(stays)).toBeVisible();
+
+    const host = within(dialog).getByRole('textbox', { name: 'Mail server' });
+    await user.clear(host);
+    await user.type(host, 'smtp.example.org');
+    expect(within(dialog).getByText(leaves)).toBeVisible();
+    expect(within(dialog).queryByText(stays)).not.toBeInTheDocument();
+
+    await user.clear(host);
+    await user.type(host, 'mail.example.com');
+    expect(within(dialog).getByText(stays)).toBeVisible();
+  }, 20_000);
 });
 
 describe('alert text', () => {
+  it.each([
+    ['email', { smtpHost: 'Mail.Example.com', smtpSecurity: 'starttls' }, false],
+    ['email', { smtpHost: 'mail.example.com', smtpPort: 587 }, false],
+    ['email', { smtpHost: 'smtp.example.org', smtpPort: 587 }, true],
+    ['email', { smtpHost: 'mail.example.com', smtpSecurity: 'tls' }, true],
+    ['email', { smtpHost: 'mail.example.com', smtpPort: 2525 }, true],
+    ['ntfy', { server: 'https://ntfy.example.com/' }, false],
+    ['ntfy', { server: 'http://ntfy.example.com' }, true],
+    ['ntfy', {}, true],
+    ['webhook', { url: 'https://hooks.example.org' }, false],
+  ])('a change of a %s channel to %j points elsewhere: %s', (type, change, want) => {
+    const stored = {
+      smtpHost: 'mail.example.com',
+      smtpPort: 587,
+      smtpSecurity: 'starttls',
+      server: 'https://ntfy.example.com',
+    };
+    expect(pointsElsewhere(type, stored, change)).toBe(want);
+  });
+
   it.each([
     [
       {
