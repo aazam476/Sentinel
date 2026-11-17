@@ -149,6 +149,7 @@ type change struct {
 // newest message) and the rest are resolved. It notifies the channels of
 // each alert's rule about what started and resolved.
 func (s *Service) reconcile(ctx context.Context, in scope, conditions []Condition) (bool, error) {
+	conditions = bounded(conditions)
 	now := s.clock.Now().UnixMilli()
 	var changes []change
 	changed := false

@@ -236,6 +236,7 @@ func (a *App) Start(ctx context.Context) {
 			scheduler.Job{Name: "package update check", Interval: 24 * time.Hour, Run: func(ctx context.Context) error { return a.Alerts.CheckPackages(ctx, a.Hub) }},
 			scheduler.Job{Name: "scheduled scripts", Interval: time.Minute, Run: a.Scripts.RunDue},
 			scheduler.Job{Name: "alert rules", Interval: time.Minute, Run: a.Alerts.Evaluate},
+			scheduler.Job{Name: "alert cleanup", Interval: time.Hour, Run: a.Alerts.Prune},
 			scheduler.Job{Name: "agent auto-update", Interval: time.Hour, Run: a.Updates.RunAuto},
 		)
 		a.Hub.Shutdown()
