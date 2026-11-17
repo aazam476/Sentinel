@@ -16,6 +16,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	pionturn "github.com/pion/turn/v5"
@@ -42,7 +43,17 @@ type Options struct {
 	FirstPort, LastPort uint16
 	Clock               Clock
 	Logger              *slog.Logger
+	// OwnAddresses lists this machine's addresses, which the relay won't
+	// send to; nil reads them from the network interfaces.
+	OwnAddresses func() []netip.Addr
 }
+
+// Quotas on allocations: a remote desktop session's credentials are used
+// by its browser and its agent, which each need one or two.
+const (
+	maxAllocationsPerUser = 4
+	maxAllocations        = 200
+)
 
 // Relay is a running TURN server.
 type Relay struct {
@@ -53,6 +64,10 @@ type Relay struct {
 	port    int
 	clock   Clock
 	logger  *slog.Logger
+	// own are this machine's addresses: relaying to them would reach the
+	// server's own services from outside.
+	own   map[netip.Addr]bool
+	quota quota
 }
 
 // Start listens on options.Listen and relays for holders of credentials
@@ -62,14 +77,20 @@ func Start(ctx context.Context, options Options) (*Relay, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listen for TURN on %s: %w", options.Listen, err)
 	}
-	relay := &Relay{conn: conn, secret: make([]byte, 32), relayIP: options.RelayIP, clock: options.Clock, logger: options.Logger}
+	relay := &Relay{conn: conn, secret: make([]byte, 32), relayIP: options.RelayIP, clock: options.Clock, logger: options.Logger,
+		own: ownAddresses(options), quota: quota{perUser: map[string]int{}}}
 	_, _ = rand.Read(relay.secret) // crypto/rand.Read never fails
 	if address, ok := conn.LocalAddr().(*net.UDPAddr); ok {
 		relay.port = address.Port
 	}
 	relay.server, err = pionturn.NewServer(pionturn.ServerConfig{
-		Realm:       realm,
-		AuthHandler: relay.authenticate,
+		Realm:        realm,
+		AuthHandler:  relay.authenticate,
+		QuotaHandler: relay.quota.allow,
+		EventHandler: pionturn.EventHandler{
+			OnAllocationCreated: func(_, _ net.Addr, _, username, _ string, _ net.Addr, _ int) { relay.quota.add(username, 1) },
+			OnAllocationDeleted: func(_, _ net.Addr, _, username, _ string) { relay.quota.add(username, -1) },
+		},
 		PacketConnConfigs: []pionturn.PacketConnConfig{{
 			PacketConn:            conn,
 			RelayAddressGenerator: relayAddresses(options),
@@ -165,11 +186,69 @@ func (r *Relay) permitted(_ net.Addr, peer net.IP) bool {
 	}
 	address = address.Unmap()
 	switch {
+	case r.own[address], address == r.relayIP && !address.IsLoopback():
+		return false
 	case address.IsLoopback():
 		return r.relayIP.IsLoopback()
 	case address.IsLinkLocalUnicast(), address.IsMulticast(), address.IsUnspecified(), address.IsInterfaceLocalMulticast():
 		return false
 	default:
 		return true
+	}
+}
+
+// ownAddresses is the set of addresses the relay won't send to.
+func ownAddresses(options Options) map[netip.Addr]bool {
+	list := options.OwnAddresses
+	if list == nil {
+		list = interfaceAddresses
+	}
+	own := map[netip.Addr]bool{}
+	for _, address := range list() {
+		if !address.IsLoopback() {
+			own[address.Unmap()] = true
+		}
+	}
+	return own
+}
+
+// interfaceAddresses are the addresses of this machine's network
+// interfaces.
+func interfaceAddresses() []netip.Addr {
+	networks, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil
+	}
+	var addresses []netip.Addr
+	for _, network := range networks {
+		if prefix, err := netip.ParsePrefix(network.String()); err == nil {
+			addresses = append(addresses, prefix.Addr())
+		}
+	}
+	return addresses
+}
+
+// quota counts allocations, per user and in all.
+type quota struct {
+	mutex   sync.Mutex
+	perUser map[string]int
+	total   int
+}
+
+// allow says whether a user may have another allocation.
+func (q *quota) allow(username, _ string, _ net.Addr) bool {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+	return q.perUser[username] < maxAllocationsPerUser && q.total < maxAllocations
+}
+
+// add counts an allocation made (1) or ended (-1).
+func (q *quota) add(username string, change int) {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+	q.perUser[username] += change
+	q.total += change
+	if q.perUser[username] <= 0 {
+		delete(q.perUser, username)
 	}
 }

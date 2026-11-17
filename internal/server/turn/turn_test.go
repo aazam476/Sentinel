@@ -22,6 +22,9 @@ func start(t *testing.T, clock *fakeclock.Clock, relayIP string) *turn.Relay {
 	t.Helper()
 	relay, err := turn.Start(t.Context(), turn.Options{
 		Listen: "127.0.0.1:0", RelayIP: netip.MustParseAddr(relayIP), Clock: clock, Logger: slog.New(slog.DiscardHandler),
+		OwnAddresses: func() []netip.Addr {
+			return []netip.Addr{netip.MustParseAddr("192.0.2.10"), netip.MustParseAddr("2001:db8::10")}
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -122,6 +125,9 @@ func TestPermitted(t *testing.T) {
 		{"won't relay to link-local addresses", public, "169.254.169.254", false},
 		{"won't relay to multicast", public, "224.0.0.251", false},
 		{"won't relay to an unspecified address", public, "0.0.0.0", false},
+		{"won't relay to the server's own addresses", public, "192.0.2.10", false},
+		{"won't relay to the server's own IPv6 address", public, "2001:db8::10", false},
+		{"won't relay to the address it relays from", public, "203.0.113.7", false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -224,5 +230,49 @@ func TestRelayPorts(t *testing.T) {
 func TestStart(t *testing.T) {
 	if _, err := turn.Start(t.Context(), turn.Options{Listen: "not an address", Clock: fakeclock.New(time.Now())}); err == nil {
 		t.Error("started on a bad address")
+	}
+}
+
+// holdAllocation allocates and keeps the allocation until the test ends.
+func holdAllocation(t *testing.T, server protocol.ICEServer) error {
+	t.Helper()
+	conn, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	turnAddress := strings.TrimSuffix(strings.TrimPrefix(server.URLs[0], "turn:"), "?transport=udp")
+	client, err := pionturn.NewClient(&pionturn.ClientConfig{
+		TURNServerAddr: turnAddress, Conn: conn, Username: server.Username, Password: server.Credential, Realm: "sentinel",
+		RTO: 50 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(client.Close)
+	if err := client.Listen(); err != nil {
+		t.Fatal(err)
+	}
+	relayed, err := client.Allocate()
+	if err != nil {
+		return err //nolint:wrapcheck // the test looks at it as it is
+	}
+	t.Cleanup(func() { _ = relayed.Close() })
+	return nil
+}
+
+func TestQuota(t *testing.T) {
+	relay := start(t, fakeclock.New(time.Now()), "127.0.0.1")
+	session := relay.ICEServer(time.Hour)
+	for index := range 4 {
+		if err := holdAllocation(t, session); err != nil {
+			t.Fatalf("allocation %d: %v", index+1, err)
+		}
+	}
+	if err := holdAllocation(t, session); err == nil {
+		t.Error("a fifth allocation for one session's credentials was allowed")
+	}
+	if err := holdAllocation(t, relay.ICEServer(time.Hour)); err != nil {
+		t.Errorf("another session was refused: %v", err)
 	}
 }
