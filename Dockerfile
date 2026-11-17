@@ -11,10 +11,10 @@
 # user, CA certificates (for ACME and fetching releases) and tzdata.
 # The data directory must exist in the image, owned by the nonroot user, so
 # a new volume mounted on it is writable; distroless has no shell to make it.
-FROM gcr.io/distroless/static-debian12:debug-nonroot AS folders
+FROM gcr.io/distroless/static-debian12:debug-nonroot@sha256:d5563cc7f2f44313f332e91138cc8c6a158899afeeeab2fce3b0f9ccdb3cf9ee AS folders
 RUN ["/busybox/mkdir", "-p", "/tmp/out/var/lib/sentinel"]
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 
 ARG VERSION
 ARG TARGETARCH

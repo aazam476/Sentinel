@@ -9,6 +9,7 @@ SHELL := bash
 GO ?= go
 NPM ?= npm
 FUZZTIME ?= 30s
+GOVULNCHECK_VERSION ?= v1.9.0
 WEB_DIST := internal/server/web/dist
 EXE := $(if $(filter Windows_NT,$(OS)),.exe,)
 
@@ -74,6 +75,10 @@ lint-go: ## gofmt, go vet and golangci-lint
 	golangci-lint run --build-tags integration ./...
 
 .PHONY: lint-web
+.PHONY: vuln
+vuln: ## Known vulnerabilities in the code's Go dependencies and the standard library
+	GOTOOLCHAIN=$$($(GO) env GOVERSION) $(GO) run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
+
 lint-web: web/node_modules ## eslint, tsc and prettier
 	cd web && $(NPM) run lint
 	cd web && $(NPM) run typecheck
