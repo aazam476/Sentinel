@@ -44,7 +44,15 @@ func (s *Service) Enroll(ctx context.Context, input EnrollInput) (Agent, error) 
 		}
 		if reason != "" {
 			refusal = reason
-			return s.audit.RecordInTx(ctx, tx, enrollAudit(input, audit.OutcomeFailure, map[string]any{"reason": reason}))
+			record, heldBack := s.refusals.Allow("agent.enroll", input.IP)
+			if !record {
+				return nil
+			}
+			details := map[string]any{"reason": reason}
+			if heldBack > 0 {
+				details["heldBack"] = heldBack
+			}
+			return s.audit.RecordInTx(ctx, tx, enrollAudit(input, audit.OutcomeFailure, details))
 		}
 		enrolled, err = s.insertAgent(ctx, tx, row, tokenID)
 		if err != nil {

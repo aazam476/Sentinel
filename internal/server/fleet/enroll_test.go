@@ -5,6 +5,7 @@ package fleet_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -136,4 +137,24 @@ func TestEnroll(t *testing.T) {
 			t.Errorf("enrolled at %d, last seen %v", agent.EnrolledAt, agent.LastSeenAt)
 		}
 	})
+}
+
+func TestSEC40_RefusedEnrollmentsCantFillTheAuditLog(t *testing.T) {
+	h := newHarness(t)
+	for index := range 500 {
+		input := enrollInput(t, "not-a-token")
+		input.IP = fmt.Sprintf("198.51.%d.%d", index/250, index%250)
+		if _, err := h.service.Enroll(t.Context(), input); !errors.Is(err, fleet.ErrEnrollmentRefused) {
+			t.Fatalf("err = %v", err)
+		}
+	}
+	refused := 0
+	for _, action := range h.auditActions(t) {
+		if strings.HasPrefix(action, "agent.enroll") {
+			refused++
+		}
+	}
+	if refused == 0 || refused > 60 {
+		t.Errorf("500 refused enrollments from 500 addresses wrote %d rows, want between 1 and 60", refused)
+	}
 }

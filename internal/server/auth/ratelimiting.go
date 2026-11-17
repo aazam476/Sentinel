@@ -38,7 +38,11 @@ func (s *Service) checkRateLimit(ctx context.Context, username string, request R
 	}
 
 	err := &TooManyAttemptsError{RetryAfter: wait}
-	entry := auditEntry(request, "auth.login", audit.OutcomeDenied, map[string]any{"reason": "rate_limited"})
+	details, record := s.throttled(request, map[string]any{"reason": "rate_limited"})
+	if !record {
+		return err
+	}
+	entry := auditEntry(request, "auth.login", audit.OutcomeDenied, details)
 	entry.Username = truncate(username, maxAuditedUsernameLength)
 	if recordErr := s.audit.Record(ctx, entry); recordErr != nil {
 		return recordErr
@@ -62,7 +66,11 @@ func (s *Service) checkNotLocked(user User) error {
 // auditRefusal records a login refused because the account is locked, and
 // returns err.
 func (s *Service) auditRefusal(ctx context.Context, user User, username string, request RequestInfo, err error) error {
-	entry := forUser(auditEntry(request, "auth.login", audit.OutcomeDenied, map[string]any{"reason": "account_locked"}), user.ID, username)
+	details, record := s.throttled(request, map[string]any{"reason": "account_locked"})
+	if !record {
+		return err
+	}
+	entry := forUser(auditEntry(request, "auth.login", audit.OutcomeDenied, details), user.ID, username)
 	if recordErr := s.audit.Record(ctx, entry); recordErr != nil {
 		return recordErr
 	}
@@ -76,14 +84,23 @@ func (s *Service) recordFailedAttempt(ctx context.Context, attempt failedAttempt
 	s.ipLimiter.RecordFailure(ipKey(attempt.request.IP))
 	locked := s.usernameLimit.RecordFailure(usernameKey(attempt.username))
 
+	// A failure against a real account has its own row: the account locks
+	// after a few. Ones against names that don't exist are throttled, since
+	// nothing else limits them across many addresses.
+	details, record := map[string]any{"reason": attempt.reason}, true
+	if attempt.user.ID == 0 {
+		details, record = s.throttled(attempt.request, details)
+	}
 	err := s.database.Write(ctx, func(tx *sql.Tx) error {
-		entry := auditEntry(attempt.request, attempt.action, audit.OutcomeFailure, map[string]any{"reason": attempt.reason})
+		entry := auditEntry(attempt.request, attempt.action, audit.OutcomeFailure, details)
 		entry.Username = truncate(attempt.username, maxAuditedUsernameLength)
 		if attempt.user.ID != 0 {
 			entry = forUser(entry, attempt.user.ID, attempt.username)
 		}
-		if err := s.audit.RecordInTx(ctx, tx, entry); err != nil {
-			return err
+		if record {
+			if err := s.audit.RecordInTx(ctx, tx, entry); err != nil {
+				return err
+			}
 		}
 		if locked && attempt.user.ID != 0 {
 			return s.lockAccount(ctx, tx, attempt)
@@ -120,4 +137,16 @@ func (s *Service) resetRateLimit(username string) {
 // audited name, so huge typed usernames can't bloat the limiter's memory.
 func usernameKey(username string) string {
 	return "user:" + strings.ToLower(truncate(username, maxAuditedUsernameLength))
+}
+
+// throttled says whether to audit a refused or failed sign-in attempt
+// (see audit.Throttle), adding how many were held back from the same
+// network since the last one recorded. Every kind of sign-in refusal
+// shares one count.
+func (s *Service) throttled(request RequestInfo, details map[string]any) (map[string]any, bool) {
+	record, heldBack := s.refusals.Allow("sign-in", request.IP)
+	if heldBack > 0 {
+		details["heldBack"] = heldBack
+	}
+	return details, record
 }

@@ -39,11 +39,14 @@ type Service struct {
 	database Database
 	audit    AuditLog
 	clock    Clock
+	// refusals keeps failed enrollments from filling the audit log.
+	refusals *audit.Throttle
 }
 
 // NewService returns a Service.
 func NewService(options Options) *Service {
-	return &Service{database: options.Database, audit: options.AuditLog, clock: options.Clock}
+	return &Service{database: options.Database, audit: options.AuditLog, clock: options.Clock,
+		refusals: audit.NewThrottle(options.Clock, audit.DefaultThrottleLimits())}
 }
 
 func (s *Service) now() int64 {

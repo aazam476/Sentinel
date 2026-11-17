@@ -4,9 +4,12 @@ package auth_test
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/aazam476/sentinel/internal/server/audit"
 	"github.com/aazam476/sentinel/internal/server/auth"
 )
 
@@ -122,4 +125,36 @@ func TestSEC05_UnknownUsernamesAreLimitedToo(t *testing.T) {
 // maxWait is longer than any backoff before a lock.
 func maxWait() time.Duration {
 	return 16 * time.Minute
+}
+
+func TestSEC40_RefusedLoginsCantFillTheAuditLog(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.setUpAdmin(t)
+	for index := range 300 {
+		client := auth.RequestInfo{IP: fmt.Sprintf("2001:db8:%x::1", index), UserAgent: "flood"}
+		for range 5 {
+			_, _ = h.service.Login(t.Context(), auth.LoginInput{Username: "nobody", Password: "wrong-password-here"}, client)
+		}
+	}
+	rows := 0
+	for _, action := range h.auditActions(t) {
+		if strings.HasPrefix(action, "auth.login") {
+			rows++
+		}
+	}
+	if rows == 0 || rows > 120 {
+		t.Errorf("1,500 refused logins wrote %d rows, want between 1 and 120 (a minute's cap per kind)", rows)
+	}
+
+	t.Run("and the next row says how many it stood in for", func(t *testing.T) {
+		h.clock.Advance(time.Hour)
+		_, _ = h.service.Login(t.Context(), auth.LoginInput{Username: "nobody", Password: "wrong-password-here"},
+			auth.RequestInfo{IP: "2001:db8:12b::1", UserAgent: "flood"}) // the last network, held back by the cap
+		var last audit.Record
+		_ = h.auditLog.All(t.Context(), func(record audit.Record) error { last = record; return nil })
+		if !strings.Contains(string(last.Details), `"heldBack":`) {
+			t.Errorf("last row = %s, want a held-back count", last.Details)
+		}
+	})
 }

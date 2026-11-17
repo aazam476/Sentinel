@@ -48,13 +48,15 @@ type RequestInfo struct {
 
 // Service implements sign-in, sessions and user management.
 type Service struct {
-	database       Database
-	secrets        Encrypter
-	audit          AuditRecorder
-	clock          Clock
-	hasher         *passwordHasher
-	policy         *passwordPolicy
-	ipLimiter      *limiter
+	database  Database
+	secrets   Encrypter
+	audit     AuditRecorder
+	clock     Clock
+	hasher    *passwordHasher
+	policy    *passwordPolicy
+	ipLimiter *limiter
+	// refusals keeps unauthenticated clients from filling the audit log.
+	refusals       *audit.Throttle
 	usernameLimit  *limiter
 	setupTokenPath string
 	pendingSetups  *pendingSetups
@@ -73,6 +75,7 @@ func NewService(options Options) *Service {
 		hasher:         newPasswordHasher(),
 		policy:         newPasswordPolicy(),
 		ipLimiter:      newLimiter(options.Clock, false),
+		refusals:       audit.NewThrottle(options.Clock, audit.DefaultThrottleLimits()),
 		usernameLimit:  newLimiter(options.Clock, true),
 		setupTokenPath: filepath.Join(options.DataDir, setupTokenFileName),
 		pendingSetups:  newPendingSetups(options.Clock),
