@@ -143,3 +143,11 @@
 .token > button {
   flex-shrink: 0;
 }
+
+.warning {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-medium);
+  background: var(--color-warning-surface);
+  font-size: var(--font-size-small);
+}

@@ -2,6 +2,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type ChangeEvent } from 'react';
 
+import { askForStepUp } from '../../../api/stepUp';
 import { isApiError } from '../../../api/client';
 import { cancelUpload, fileKeys, uploadFile } from '../../../api/files';
 import { Button } from '../../../components/Button/Button';
@@ -62,6 +63,9 @@ export function Uploads({
       .catch((error: unknown) => {
         if (controller.signal.aborted) {
           return;
+        }
+        if (isApiError(error, 'step_up_required')) {
+          askForStepUp();
         }
         update(
           upload.key,

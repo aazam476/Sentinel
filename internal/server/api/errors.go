@@ -28,6 +28,7 @@ const (
 	errorCodeInvalidCode        = "invalid_code"
 	errorCodeSetupNotAvailable  = "setup_not_available"
 	errorCodeSetupExpired       = "setup_expired"
+	errorCodeSetupNotHere       = "setup_not_allowed_here"
 	errorCodeNotAuthenticated   = "not_authenticated"
 	errorCodeWrongLoginStep     = "wrong_login_step"
 	errorCodeStepUpRequired     = "step_up_required"

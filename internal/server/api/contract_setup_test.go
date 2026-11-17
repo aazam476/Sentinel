@@ -4,10 +4,12 @@ package api_test
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/aazam476/sentinel/internal/server/api"
+	"github.com/aazam476/sentinel/internal/server/config"
 )
 
 func TestSEC02_SetupOverHTTP(t *testing.T) {
@@ -96,4 +98,67 @@ func assertSessionCookie(t *testing.T, got response) {
 		return
 	}
 	t.Errorf("no sentinel_session cookie in %v", got.header)
+}
+
+// beginSetupFrom starts setup with the given Host, Origin and forwarded
+// client address.
+func beginSetupFrom(t *testing.T, server *testServer, host, forwardedFor string) response {
+	t.Helper()
+	body := strings.NewReader(`{"username":"admin","password":"` + strongPassword + `"}`)
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.server.URL+"/api/setup/begin", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Host = host
+	request.Header.Set("Origin", "https://"+host)
+	request.Header.Set("Content-Type", "application/json")
+	if forwardedFor != "" {
+		request.Header.Set("X-Forwarded-For", forwardedFor)
+		request.Header.Set("X-Forwarded-Proto", "https")
+	}
+	return server.newBrowser().send(request)
+}
+
+func TestSEC01_SetupOnlyFromWhereItCantBeATakeover(t *testing.T) {
+	t.Parallel()
+	viaProxy := func(allowed ...string) func(*config.File) {
+		return func(file *config.File) {
+			file.TrustedProxies = []string{"127.0.0.1"}
+			file.SetupAllowedFrom = allowed
+		}
+	}
+
+	t.Run("refuses setup from the internet", func(t *testing.T) {
+		server := newTestServerWith(t, viaProxy())
+		host := strings.TrimPrefix(server.publicOrigin, "https://")
+		expect(t, beginSetupFrom(t, server, host, "203.0.113.9"), http.StatusForbidden, "setup_not_allowed_here")
+	})
+
+	t.Run("allows it from a private network", func(t *testing.T) {
+		server := newTestServerWith(t, viaProxy())
+		host := strings.TrimPrefix(server.publicOrigin, "https://")
+		expect(t, beginSetupFrom(t, server, host, "192.168.1.30"), http.StatusOK, "")
+	})
+
+	t.Run("allows it from wherever setup_allowed_from says", func(t *testing.T) {
+		server := newTestServerWith(t, viaProxy("203.0.113.0/24"))
+		host := strings.TrimPrefix(server.publicOrigin, "https://")
+		expect(t, beginSetupFrom(t, server, host, "203.0.113.9"), http.StatusOK, "")
+	})
+
+	withoutPublicURL := func(file *config.File) { file.PublicURL = "" }
+
+	t.Run("without public_url, refuses a browser that came by a public name (DNS rebinding)", func(t *testing.T) {
+		server := newTestServerWith(t, withoutPublicURL)
+		expect(t, beginSetupFrom(t, server, "sentinel.attacker.example", ""), http.StatusForbidden, "setup_not_allowed_here")
+	})
+
+	t.Run("without public_url, allows an address or a local name", func(t *testing.T) {
+		for _, host := range []string{"127.0.0.1:7443", "[::1]:7443", "localhost:7443", "nas:7443", "nas.local", "sentinel.home.arpa"} {
+			server := newTestServerWith(t, withoutPublicURL)
+			if got := beginSetupFrom(t, server, host, ""); got.status != http.StatusOK {
+				t.Errorf("Host %s: %d %s", host, got.status, got.body)
+			}
+		}
+	})
 }

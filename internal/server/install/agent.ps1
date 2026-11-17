@@ -18,7 +18,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Fingerprint,
     [string]$TlsFingerprint = '',
     [string]$InstallDir = (Join-Path $env:ProgramFiles 'Sentinel'),
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$InsecureHttp
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2
@@ -175,6 +176,7 @@ try {
     }
     $arguments = @('install', '--server', $Server, '--token', $Token, '--fingerprint', $Fingerprint)
     if ($TlsFingerprint -ne '') { $arguments += @('--tls-fingerprint', $TlsFingerprint) }
+    if ($InsecureHttp) { $arguments += '--insecure-http' }
     if ($DryRun) { $arguments += '--dry-run' }
     & $agent @arguments
     if ($LASTEXITCODE -ne 0) { Fail "sentinel-agent install failed with exit code $LASTEXITCODE" }

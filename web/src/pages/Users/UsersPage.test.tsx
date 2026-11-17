@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http } from 'msw';
+import { http, HttpResponse } from 'msw';
 
 import type { UserResponse } from '../../api/types.gen';
 import { findAccessibilityViolations } from '../../test/axe';
@@ -192,5 +192,46 @@ describe('Users', () => {
     expect(
       await screen.findByText(/Set up two-factor authentication for your own account first/i),
     ).toBeVisible();
+  });
+});
+
+describe('SEC-07 password reset', () => {
+  it('resets another user’s password, after a fresh check if needed, but never the admin’s own', async () => {
+    withUsers();
+    const resets: string[] = [];
+    let calls = 0;
+    server.use(
+      http.post(apiPath('users/:id/password'), async ({ params, request }) => {
+        calls += 1;
+        if (calls === 1) {
+          return apiError(403, 'step_up_required', 'Confirm it’s you first.');
+        }
+        resets.push(`${String(params.id)} ${await request.text()}`);
+        return new HttpResponse(null, { status: 204 });
+      }),
+      http.post(apiPath('auth/step-up'), () => json(adminSession)),
+    );
+    const user = userEvent.setup();
+    renderApp('/users');
+    const me = await screen.findByRole('listitem', { name: 'admin' });
+    expect(within(me).queryByRole('button', { name: 'Reset password' })).not.toBeInTheDocument();
+    const other = screen
+      .getAllByRole('listitem')
+      .find(
+        (item) => item !== me && within(item).queryByRole('button', { name: 'Reset password' }),
+      );
+    if (other === undefined) {
+      throw new Error('no other user to reset');
+    }
+    await user.click(within(other).getByRole('button', { name: 'Reset password' }));
+    const dialog = await screen.findByRole('dialog', { name: /Reset/ });
+    await user.type(within(dialog).getByLabelText('New password'), 'a-new-and-long-passphrase');
+    await user.click(within(dialog).getByRole('button', { name: 'Reset password' }));
+    const stepUp = await screen.findByRole('dialog', { name: /Confirm/ });
+    await user.type(within(stepUp).getByRole('textbox'), '123456');
+    await user.click(within(stepUp).getByRole('button', { name: /Confirm/ }));
+    expect(await screen.findByText(/Reset .*’s password/)).toBeVisible();
+    expect(resets).toHaveLength(1);
+    expect(resets[0]).toContain('"password":"a-new-and-long-passphrase"');
   });
 });

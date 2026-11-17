@@ -59,6 +59,8 @@ function useDockerChange<T>(id: string, change: (input: T) => Promise<unknown>) 
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: change,
+    // Saving and deploying stacks need a recent second factor (SEC-07).
+    meta: { stepUp: true },
     onSettled: () => queryClient.invalidateQueries({ queryKey: dockerKeys.all(id) }),
   });
 }

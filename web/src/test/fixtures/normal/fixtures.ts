@@ -188,6 +188,7 @@ export const nasDetails: AgentDetails = {
   desktopReason: 'Remote desktop is turned off by this machine’s local policy.',
   interfaces: [{ name: 'eth0', mac: 'aa:bb:cc:dd:ee:01', addresses: ['192.168.1.20/24'] }],
   canWake: false,
+  plainHttp: false,
 };
 
 export const enrollmentTokens: EnrollmentToken[] = [

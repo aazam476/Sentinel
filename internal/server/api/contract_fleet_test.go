@@ -215,8 +215,8 @@ func TestAgentsAPI(t *testing.T) {
 		got.decode(t, &details)
 		if details.CPUCores != 4 || len(details.Capabilities) != 1 || details.Capabilities[0].Enabled ||
 			details.Current == nil || details.Current.Values[metrics.CPUPercent] != 37 || details.Current.UptimeSeconds != 99 ||
-			len(details.Filesystems) != 1 {
-			t.Errorf("details = %+v", details)
+			len(details.Filesystems) != 1 || details.PlainHTTP {
+			t.Errorf("details = %+v (connected over HTTPS)", details)
 		}
 
 		series := admin.browser.do(http.MethodGet, fmt.Sprintf("/api/agents/%s/metrics?metric=%s&from=%d&to=%d",

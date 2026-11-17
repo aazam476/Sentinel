@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-import { QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryClient } from '@tanstack/react-query';
+
+import { stepUpOnError } from './stepUp';
 
 /** newQueryClient sets how the app caches server data. */
 export function newQueryClient(): QueryClient {
   return new QueryClient({
+    mutationCache: new MutationCache({ onError: stepUpOnError }),
     defaultOptions: {
       queries: {
         // A 4xx answer won't change by asking again; only retry once, and

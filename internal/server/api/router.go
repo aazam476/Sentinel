@@ -133,6 +133,7 @@ func (h *handlers) addSignInRoutes(mux *http.ServeMux) {
 // addAccountRoutes adds what a user manages about their own account.
 func (h *handlers) addAccountRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/step-up", h.signedIn(h.handleStepUp))
+	mux.HandleFunc("POST /api/auth/password", h.signedIn(h.handleChangePassword))
 	mux.HandleFunc("GET /api/auth/sessions", h.signedIn(h.handleListSessions))
 	mux.HandleFunc("DELETE /api/auth/sessions/{id}", h.signedIn(h.handleRevokeSession))
 	mux.HandleFunc("POST /api/auth/passkeys/registration/begin", h.anySession(h.handleBeginPasskeyRegistration))
@@ -152,13 +153,14 @@ func (h *handlers) addAdminRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/users", h.withPermission(auth.PermissionManageUsers, h.handleListUsers))
 	mux.HandleFunc("POST /api/users", h.withPermission(auth.PermissionManageUsers, h.handleCreateUser))
 	mux.HandleFunc("PATCH /api/users/{id}", h.withPermission(auth.PermissionManageUsers, h.handleUpdateUser))
+	mux.HandleFunc("POST /api/users/{id}/password", h.withPermission(auth.PermissionManageUsers, h.handleResetPassword))
 
 	mux.HandleFunc("GET /api/audit", h.withPermission(auth.PermissionViewAuditLog, h.handleListAudit))
 	mux.HandleFunc("GET /api/audit/verify", h.withPermission(auth.PermissionViewAuditLog, h.handleVerifyAudit))
 	mux.HandleFunc("GET /api/audit/export", h.withPermission(auth.PermissionViewAuditLog, h.handleExportAudit))
 
 	mux.HandleFunc("GET /api/enrollment-tokens", h.withPermission(auth.PermissionManageEnrollment, h.handleListEnrollmentTokens))
-	mux.HandleFunc("POST /api/enrollment-tokens", h.withPermission(auth.PermissionManageEnrollment, h.handleCreateEnrollmentToken))
+	mux.HandleFunc("POST /api/enrollment-tokens", h.withStepUp(auth.PermissionManageEnrollment, h.handleCreateEnrollmentToken))
 	mux.HandleFunc("DELETE /api/enrollment-tokens/{id}", h.withPermission(auth.PermissionManageEnrollment, h.handleRevokeEnrollmentToken))
 }
 
@@ -208,8 +210,10 @@ func (h *handlers) addDockerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE "+docker+"/networks/{name}", manage(h.handleRemoveNetwork))
 	mux.HandleFunc("GET "+docker+"/stacks", view(dockerList[protocol.StackListPayload](h, protocol.ActionDockerStackList)))
 	mux.HandleFunc("GET "+docker+"/stacks/{name}", manage(h.handleGetStack))
-	mux.HandleFunc("PUT "+docker+"/stacks/{name}", manage(h.handleSaveStack))
-	mux.HandleFunc("POST "+docker+"/stacks/{name}/{action}", manage(h.handleStackAction))
+	// A compose file can mount the host's disk: saving and deploying one
+	// gives root on the machine.
+	mux.HandleFunc("PUT "+docker+"/stacks/{name}", h.withStepUp(auth.PermissionManageDocker, h.handleSaveStack))
+	mux.HandleFunc("POST "+docker+"/stacks/{name}/{action}", h.withStepUp(auth.PermissionManageDocker, h.handleStackAction))
 	mux.HandleFunc("GET /api/registries", h.withPermission(auth.PermissionManageSettings, h.handleListRegistryLogins))
 	mux.HandleFunc("POST /api/registries", h.withPermission(auth.PermissionManageSettings, h.handleAddRegistryLogin))
 	mux.HandleFunc("DELETE /api/registries/{loginId}", h.withPermission(auth.PermissionManageSettings, h.handleRemoveRegistryLogin))

@@ -102,3 +102,10 @@
   padding: var(--space-4);
   color: var(--color-text-muted);
 }
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 28rem;
+}

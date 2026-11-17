@@ -46,6 +46,12 @@ type testServer struct {
 
 func newTestServer(t *testing.T) *testServer {
 	t.Helper()
+	return newTestServerWith(t, nil)
+}
+
+// newTestServerWith lets a test change server.toml before the server starts.
+func newTestServerWith(t *testing.T, change func(*config.File)) *testServer {
+	t.Helper()
 	httpServer := httptest.NewUnstartedServer(nil)
 	publicOrigin := "https://localhost:" + portOf(t, httpServer.Listener.Addr().String())
 	// A release channel on this machine: tests never reach the internet.
@@ -59,11 +65,15 @@ func newTestServer(t *testing.T) *testServer {
 		_, _ = w.Write(content.([]byte)) //nolint:gosec // G705: release files a test stored, served as bytes
 	}))
 	t.Cleanup(releases.Close)
-	settings, err := config.File{
+	file := config.File{
 		DataDir: t.TempDir(), Listen: "127.0.0.1:0", PublicURL: publicOrigin,
 		Updates: config.UpdatesFile{ReleaseURL: releases.URL + "/"},
 		TURN:    config.TURNFile{Listen: "127.0.0.1:0", RelayIP: "127.0.0.1"},
-	}.Resolve()
+	}
+	if change != nil {
+		change(&file)
+	}
+	settings, err := file.Resolve()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,6 +179,17 @@ func (b *browser) putRaw(path string, body []byte) response {
 	return b.send(request)
 }
 
+// poll sends a GET as a page does on its own, with nobody at the browser.
+func (b *browser) poll(path string) response {
+	b.t.Helper()
+	request, err := http.NewRequestWithContext(b.t.Context(), http.MethodGet, b.server.server.URL+path, nil)
+	if err != nil {
+		b.t.Fatal(err)
+	}
+	request.Header["X-Sentinel-Activity"] = nil
+	return b.send(request)
+}
+
 // doWith sends a request with extra headers, such as Range.
 func (b *browser) doWith(method, path string, body any, headers map[string]string) response {
 	b.t.Helper()
@@ -187,6 +208,11 @@ func (b *browser) doWith(method, path string, body any, headers map[string]strin
 
 func (b *browser) send(request *http.Request) response {
 	b.t.Helper()
+	// A test plays a person at the browser, so its requests are activity
+	// unless it says otherwise (SEC-06).
+	if _, set := request.Header["X-Sentinel-Activity"]; !set {
+		request.Header.Set("X-Sentinel-Activity", "1")
+	}
 	httpResponse, err := b.client.Do(request)
 	if err != nil {
 		b.t.Fatalf("%s %s: %v", request.Method, request.URL.Path, err)

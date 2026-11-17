@@ -135,6 +135,28 @@ func TestInstall(t *testing.T) {
 		}
 	})
 
+	t.Run("SEC-10: refuses a plain http:// server unless --insecure-http says so", func(t *testing.T) {
+		f := newFixture(t)
+		plain := server()
+		plain.URL = "http://sentinel.example.com"
+		for _, run := range []func(context.Context, setup.Options, setup.Server) error{setup.Enroll, setup.Install} {
+			if err := run(t.Context(), f.options, plain); !errors.Is(err, setup.ErrPlainHTTP) {
+				t.Errorf("err = %v, want ErrPlainHTTP", err)
+			}
+		}
+		if len(f.enrolled) != 0 {
+			t.Fatal("enrolled over plain HTTP without being told to")
+		}
+		plain.URL = "HTTP://sentinel.example.com"
+		if err := setup.Enroll(t.Context(), f.options, plain); !errors.Is(err, setup.ErrPlainHTTP) {
+			t.Errorf("an upper-case scheme got through: %v", err)
+		}
+		plain.URL, plain.InsecureHTTP = "http://sentinel.example.com", true
+		if err := setup.Enroll(t.Context(), f.options, plain); err != nil || len(f.enrolled) != 1 {
+			t.Errorf("with --insecure-http: %v, enrolled %d times", err, len(f.enrolled))
+		}
+	})
+
 	t.Run("refuses to enroll a machine twice", func(t *testing.T) {
 		f := newFixture(t)
 		if err := setup.Enroll(t.Context(), f.options, server()); err != nil {

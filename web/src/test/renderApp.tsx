@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import { CSPProvider } from '@base-ui/react/csp-provider';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { VirtuosoMockContext } from 'react-virtuoso';
 import { Toaster } from 'sonner';
 
+import { stepUpOnError } from '../api/stepUp';
 import { routes } from '../routing/routes';
 
 /**
@@ -15,6 +16,8 @@ import { routes } from '../routing/routes';
  */
 export function renderApp(path: string) {
   const queryClient = new QueryClient({
+    // As the app's own client: actions refused for a step-up open its dialog.
+    mutationCache: new MutationCache({ onError: stepUpOnError }),
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   const router = createMemoryRouter(routes, { initialEntries: [path] });

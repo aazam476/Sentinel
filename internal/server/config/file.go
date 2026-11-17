@@ -31,6 +31,9 @@ type File struct {
 	// TrustedProxies lists the proxies (IP addresses or CIDR ranges) whose
 	// X-Forwarded-* headers are believed.
 	TrustedProxies []string `toml:"trusted_proxies"`
+	// SetupAllowedFrom lists the networks first-time setup may be done
+	// from; empty means this machine and private networks.
+	SetupAllowedFrom []string `toml:"setup_allowed_from"`
 	// TLS configures HTTPS.
 	TLS TLSFile `toml:"tls"`
 	// Files configures the file manager.

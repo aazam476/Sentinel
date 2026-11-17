@@ -255,6 +255,21 @@ describe('machine view', () => {
     expect(screen.queryByRole('region', { name: 'Maintenance' })).toBeNull();
   });
 
+  it('SEC-10: warns that a machine connected over plain HTTP could be taken over', async () => {
+    signedInAs(adminSession);
+    withMachine({ ...nasDetails, plainHttp: true });
+    renderApp(path);
+    expect(await screen.findByRole('alert')).toHaveTextContent('connected over plain HTTP');
+  });
+
+  it('shows no such warning over HTTPS', async () => {
+    signedInAs(adminSession);
+    withMachine(nasDetails);
+    renderApp(path);
+    await screen.findByRole('heading', { name: nasDetails.name });
+    expect(screen.queryByText(/plain HTTP/)).not.toBeInTheDocument();
+  });
+
   it('§9.6 shows the network and wakes an offline machine through a neighbour', async () => {
     signedInAs(adminSession);
     withMachine({ ...nasDetails, online: false, current: null, canWake: true });

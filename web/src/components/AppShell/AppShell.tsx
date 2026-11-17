@@ -5,6 +5,7 @@ import { NavLink, Outlet, useMatch } from 'react-router';
 import { useFleetEvents } from '../../api/events';
 import { useLogout } from '../../api/session';
 import type { SessionResponse } from '../../api/types.gen';
+import { StepUpGate } from '../StepUpDialog/StepUpGate';
 import styles from './AppShell.module.css';
 
 interface AppShellProps {
@@ -85,6 +86,7 @@ export function AppShell({ session }: AppShellProps) {
       <main className={styles.main}>
         <Outlet context={session} />
       </main>
+      <StepUpGate secondFactors={session.secondFactors} />
     </div>
   );
 }

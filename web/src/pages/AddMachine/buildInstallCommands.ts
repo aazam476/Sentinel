@@ -29,6 +29,7 @@ export function installCommands(
   server: string,
 ): InstallCommand[] {
   const selfSigned = created.tlsFingerprint !== '';
+  const plain = isPlainHTTP(server);
   const flags = [
     `--server ${quote(server)}`,
     `--token ${quote(created.secret)}`,
@@ -36,6 +37,10 @@ export function installCommands(
   ];
   if (selfSigned) {
     flags.push(`--tls-fingerprint ${quote(created.tlsFingerprint)}`);
+  }
+  if (plain) {
+    // The agent refuses a plain http:// server unless told (SEC-10).
+    flags.push('--insecure-http');
   }
   const pin = selfSigned
     ? `--insecure --pinnedpubkey ${quote(curlPin(created.tlsFingerprint))} `
@@ -53,7 +58,8 @@ export function installCommands(
       where: 'In PowerShell run as Administrator:',
       command:
         `& ([scriptblock]::Create((iwr -UseBasicParsing '${server.replaceAll("'", "''")}/install/agent.ps1').Content)) ` +
-        `-Server ${psQuote(server)} -Token ${psQuote(created.secret)} -Fingerprint ${psQuote(created.serverFingerprint)}`,
+        `-Server ${psQuote(server)} -Token ${psQuote(created.secret)} -Fingerprint ${psQuote(created.serverFingerprint)}` +
+        (plain ? ' -InsecureHttp' : ''),
     });
   }
   commands.push(
@@ -69,6 +75,11 @@ export function installCommands(
     },
   );
   return commands;
+}
+
+/** isPlainHTTP says whether agents would reach the server without TLS. */
+export function isPlainHTTP(server: string): boolean {
+  return server.toLowerCase().startsWith('http://');
 }
 
 /**

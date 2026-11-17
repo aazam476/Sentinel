@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiRequest } from './client';
 import type {
+  ChangePasswordRequest,
   CreateUserRequest,
   UpdateUserRequest,
   UserResponse,
@@ -38,4 +39,22 @@ export function useUpdateUser() {
   return useUserChange(({ id, ...request }: UpdateUserRequest & { id: number }) =>
     apiRequest<UserResponse>(`api/users/${String(id)}`, { method: 'PATCH', body: request }),
   );
+}
+
+/** useResetPassword sets another user's password, for an admin. */
+export function useResetPassword() {
+  return useUserChange(({ id, password }: { id: number; password: string }) =>
+    apiRequest<undefined>(`api/users/${String(id)}/password`, {
+      method: 'POST',
+      body: { password },
+    }),
+  );
+}
+
+/** useChangePassword changes the signed-in user's own password. */
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (request: ChangePasswordRequest) =>
+      apiRequest<undefined>('api/auth/password', { method: 'POST', body: request }),
+  });
 }

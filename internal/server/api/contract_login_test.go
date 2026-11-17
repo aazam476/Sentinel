@@ -195,6 +195,28 @@ func TestSEC06_SessionsOverHTTP(t *testing.T) {
 		server.clock.Advance(13 * time.Hour)
 		expect(t, fresh.do(http.MethodGet, "/api/auth/session", nil), http.StatusUnauthorized, "not_authenticated")
 	})
+
+	t.Run("SEC-06: a page polling on its own doesn't keep an idle session open", func(t *testing.T) {
+		fresh := server.newBrowser()
+		expect(t, fresh.do(http.MethodPost, "/api/auth/login", api.LoginRequest{Username: "admin", Password: strongPassword}), http.StatusOK, "")
+		expect(t, fresh.do(http.MethodPost, "/api/auth/login/second-factor", api.SecondFactorRequest{TOTPCode: server.code(admin.totpSecret)}), http.StatusOK, "")
+		for range 11 {
+			server.clock.Advance(time.Hour)
+			expect(t, fresh.poll("/api/agents"), http.StatusOK, "")
+		}
+		server.clock.Advance(2 * time.Hour)
+		expect(t, fresh.poll("/api/agents"), http.StatusUnauthorized, "not_authenticated")
+	})
+
+	t.Run("SEC-06: someone using the page keeps the session open", func(t *testing.T) {
+		fresh := server.newBrowser()
+		expect(t, fresh.do(http.MethodPost, "/api/auth/login", api.LoginRequest{Username: "admin", Password: strongPassword}), http.StatusOK, "")
+		expect(t, fresh.do(http.MethodPost, "/api/auth/login/second-factor", api.SecondFactorRequest{TOTPCode: server.code(admin.totpSecret)}), http.StatusOK, "")
+		for range 13 {
+			server.clock.Advance(time.Hour)
+			expect(t, fresh.do(http.MethodGet, "/api/agents", nil), http.StatusOK, "")
+		}
+	})
 }
 
 func TestSEC07_StepUpOverHTTP(t *testing.T) {
@@ -222,4 +244,33 @@ func TestSEC07_StepUpOverHTTP(t *testing.T) {
 		}
 		expect(t, admin.browser.do(http.MethodPost, "/api/users", newUser), http.StatusCreated, "")
 	})
+}
+
+func TestSEC07_ChangesThatGiveRootNeedARecentSecondFactor(t *testing.T) {
+	t.Parallel()
+	server := newTestServer(t)
+	admin := server.setUpAdmin()
+	server.clock.Advance(16 * time.Minute)
+	const machine = "/api/agents/01JBX3K5Q7Z8M4N6P8R0T2V4W0"
+	routes := []struct {
+		method, path string
+		body         any
+	}{
+		{http.MethodPut, machine + "/files/text?path=/etc/hosts", map[string]string{"text": "x"}},
+		{http.MethodPost, machine + "/files/mkdir", map[string]string{"path": "/tmp/x"}},
+		{http.MethodPost, machine + "/files/rename", map[string]string{"from": "/a", "to": "/b"}},
+		{http.MethodDelete, machine + "/files?path=/tmp/x", nil},
+		{http.MethodPost, machine + "/files/uploads", map[string]any{"path": "/tmp/x", "size": 1}},
+		{http.MethodPut, machine + "/docker/stacks/web", map[string]string{"compose": "services: {}"}},
+		{http.MethodPost, machine + "/docker/stacks/web/up", nil},
+		{http.MethodPost, "/api/enrollment-tokens", api.CreateEnrollmentTokenRequest{}},
+		{http.MethodPost, "/api/agent-builds/fetch", nil},
+		{http.MethodPost, "/api/scripts", api.SaveScriptRequest{Name: "x", Language: "sh", Body: "id"}},
+		{http.MethodPut, "/api/scripts/1", api.SaveScriptRequest{Name: "x", Language: "sh", Body: "id"}},
+	}
+	for _, route := range routes {
+		t.Run(route.method+" "+route.path, func(t *testing.T) {
+			expect(t, admin.browser.do(route.method, route.path, route.body), http.StatusForbidden, "step_up_required")
+		})
+	}
 }

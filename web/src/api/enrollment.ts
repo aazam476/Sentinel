@@ -27,6 +27,7 @@ export function useCreateEnrollmentToken() {
         method: 'POST',
         body: request,
       }),
+    meta: { stepUp: true },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: tokensQueryKey }),
   });
 }

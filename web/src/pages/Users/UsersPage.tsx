@@ -4,7 +4,7 @@ import { useOutletContext } from 'react-router';
 import { toast } from 'sonner';
 
 import type { SessionResponse, UpdateUserRequest, UserResponse } from '../../api/types.gen';
-import { useCreateUser, useUpdateUser, useUsers } from '../../api/users';
+import { useCreateUser, useResetPassword, useUpdateUser, useUsers } from '../../api/users';
 import { Button } from '../../components/Button/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
 import { FormError } from '../../components/FormError/FormError';
@@ -16,6 +16,7 @@ import alertStyles from '../Alerts/Alerts.module.css';
 import systemStyles from '../Machine/SystemTab.module.css';
 import styles from '../Scripts/Scripts.module.css';
 import { AddUserDialog } from './AddUserDialog';
+import { ResetPasswordDialog } from './ResetPasswordDialog';
 import { TwoFactorSetting } from './TwoFactorSetting';
 import { roles } from './roles';
 
@@ -32,6 +33,8 @@ export function UsersPage() {
   const stepUp = useStepUpRetry();
   const [isAdding, setIsAdding] = useState(false);
   const [disabling, setDisabling] = useState<UserResponse>();
+  const reset = useResetPassword();
+  const [resetting, setResetting] = useState<UserResponse>();
 
   if (session.user.role !== 'admin') {
     return (
@@ -116,6 +119,16 @@ export function UsersPage() {
                         ))}
                       </select>
                     </label>
+                    {!isMe && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setResetting(user);
+                        }}
+                      >
+                        Reset password
+                      </Button>
+                    )}
                     {!isMe &&
                       (user.disabled ? (
                         <Button
@@ -165,6 +178,35 @@ export function UsersPage() {
                 }
               },
             });
+          }}
+        />
+      )}
+      {resetting !== undefined && (
+        <ResetPasswordDialog
+          user={resetting}
+          isBusy={reset.isPending}
+          onClose={() => {
+            setResetting(undefined);
+          }}
+          onReset={function resetPassword(password, failed) {
+            reset.mutate(
+              { id: resetting.id, password },
+              {
+                onSuccess: () => {
+                  toast.success(`Reset ${resetting.username}’s password`);
+                  setResetting(undefined);
+                },
+                onError: (error) => {
+                  if (
+                    !stepUp.handleError(error, () => {
+                      resetPassword(password, failed);
+                    })
+                  ) {
+                    failed(error);
+                  }
+                },
+              },
+            );
           }}
         />
       )}

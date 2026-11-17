@@ -52,6 +52,10 @@ func TestSEC21_AnEnrolledAgentAndTheServerProveTheirIdentities(t *testing.T) {
 		if !h.hub.IsOnline(id) {
 			t.Error("the agent isn't online")
 		}
+		// The harness serves plain HTTP: the machine page warns about it.
+		if !h.hub.IsPlainHTTP(id) || h.hub.IsPlainHTTP(id+1000) {
+			t.Error("a plain HTTP connection wasn't marked, or an unknown agent was")
+		}
 	})
 
 	t.Run("welcome tells the agent its heartbeat and metrics intervals", func(t *testing.T) {

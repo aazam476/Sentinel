@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { pageActivity } from './activity';
 import type { ErrorResponse } from './types.gen';
 
 /**
@@ -39,6 +40,8 @@ interface RequestOptions {
   /** form is sent as multipart form data; the browser sets its type. */
   form?: FormData;
   signal?: AbortSignal;
+  /** active says whether someone is using the page; tests replace it. */
+  active?: () => boolean;
 }
 
 /**
@@ -48,6 +51,10 @@ interface RequestOptions {
  */
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
+  if ((options.active ?? pageActivity.isActive)()) {
+    // Only this restarts the session's idle timeout (SEC-06).
+    headers['X-Sentinel-Activity'] = '1';
+  }
   const init: RequestInit = {
     method: options.method ?? 'GET',
     credentials: 'same-origin',

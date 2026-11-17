@@ -51,16 +51,20 @@ func (h *handlers) addFileRoutes(mux *http.ServeMux) {
 	files := func(handler func(http.ResponseWriter, *http.Request, auth.Session)) http.HandlerFunc {
 		return h.withPermission(auth.PermissionManageFiles, handler)
 	}
+	// Changing a machine's files, as root, needs a recent second factor.
+	write := func(handler func(http.ResponseWriter, *http.Request, auth.Session)) http.HandlerFunc {
+		return h.withStepUp(auth.PermissionManageFiles, handler)
+	}
 	const base = "/api/agents/{id}/files"
 	mux.HandleFunc("GET "+base, files(fileQuery[protocol.FileListResultPayload](h, protocol.ActionFileList)))
 	mux.HandleFunc("GET "+base+"/stat", files(fileQuery[protocol.FileEntry](h, protocol.ActionFileStat)))
 	mux.HandleFunc("GET "+base+"/text", files(fileQuery[protocol.FileTextPayload](h, protocol.ActionFileReadText)))
-	mux.HandleFunc("PUT "+base+"/text", files(h.handleSaveText))
+	mux.HandleFunc("PUT "+base+"/text", write(h.handleSaveText))
 	mux.HandleFunc("GET "+base+"/download", files(h.handleDownload))
-	mux.HandleFunc("POST "+base+"/mkdir", files(h.handleMkdir))
-	mux.HandleFunc("POST "+base+"/rename", files(h.handleRename))
-	mux.HandleFunc("DELETE "+base, files(h.handleDeleteFile))
-	mux.HandleFunc("POST "+base+"/uploads", files(h.handleBeginUpload))
+	mux.HandleFunc("POST "+base+"/mkdir", write(h.handleMkdir))
+	mux.HandleFunc("POST "+base+"/rename", write(h.handleRename))
+	mux.HandleFunc("DELETE "+base, write(h.handleDeleteFile))
+	mux.HandleFunc("POST "+base+"/uploads", write(h.handleBeginUpload))
 	mux.HandleFunc("PUT "+base+"/uploads/{upload}", files(h.handleUploadChunk))
 	mux.HandleFunc("POST "+base+"/uploads/{upload}/finish", files(h.handleFinishUpload))
 	mux.HandleFunc("DELETE "+base+"/uploads/{upload}", files(h.handleCancelUpload))

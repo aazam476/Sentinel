@@ -3,7 +3,7 @@ import type { CreateEnrollmentTokenResponse } from '../../api/types.gen';
 import { CopyButton } from '../../components/CopyButton/CopyButton';
 import { formatDateTime } from '../../formatting/formatting';
 import styles from './AddMachinePage.module.css';
-import { installCommands, serverURL } from './buildInstallCommands';
+import { installCommands, isPlainHTTP, serverURL } from './buildInstallCommands';
 
 interface InstallCommandsProps {
   created: CreateEnrollmentTokenResponse;
@@ -14,7 +14,8 @@ interface InstallCommandsProps {
  * and is never shown again, so this says so plainly.
  */
 export function InstallCommands({ created }: InstallCommandsProps) {
-  const commands = installCommands(created, serverURL(document.baseURI));
+  const server = serverURL(document.baseURI);
+  const commands = installCommands(created, server);
   const uses =
     created.token.maxUses === 1 ? 'one machine' : `up to ${String(created.token.maxUses)} machines`;
   return (
@@ -27,6 +28,13 @@ export function InstallCommands({ created }: InstallCommandsProps) {
         it. The command works for {uses} until {formatDateTime(created.token.expiresAt)}, and won’t
         be shown again.
       </p>
+      {isPlainHTTP(server) && (
+        <p className={styles.warning} role="alert">
+          This server is reached over plain HTTP, so anyone on the network between it and the
+          machine could take the machine over. The commands say so with --insecure-http. Use them
+          only where you trust every network in between, or set up HTTPS first.
+        </p>
+      )}
       {commands.map((command) => (
         <div key={command.system} className={styles.command}>
           <h3 className={styles.system}>{command.system}</h3>

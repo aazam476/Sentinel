@@ -156,20 +156,22 @@ func TestScripts(t *testing.T) {
 	})
 }
 
-// TestSEC07_AScriptOnMoreThanOneMachineNeedsARecentSecondFactorOverHTTP
-// checks the three ways a person can make a script run on several
-// machines: running it, scheduling it, and changing a script that is
-// scheduled. Each needs a second factor checked in the last 15 minutes;
-// one machine doesn't.
-func TestSEC07_AScriptOnMoreThanOneMachineNeedsARecentSecondFactorOverHTTP(t *testing.T) {
+// TestSEC07_RunningAScriptNeedsARecentSecondFactorOverHTTP checks the
+// ways a person can make a script run: running it, on one machine or many,
+// switching a schedule on, and changing a script that is scheduled. Each
+// needs a second factor checked in the last 15 minutes (ADR 0056).
+func TestSEC07_RunningAScriptNeedsARecentSecondFactorOverHTTP(t *testing.T) {
 	server := newTestServer(t)
 	admin := server.setUpAdmin()
+	token := createToken(t, admin, api.CreateEnrollmentTokenRequest{MaxUses: 2})
+	var script api.Script
+	save := api.SaveScriptRequest{Name: "Uptime", Language: "sh", Body: "uptime"}
+	admin.browser.do(http.MethodPost, "/api/scripts", save).decode(t, &script)
 	// The admin's check goes stale before the machines connect, so their
 	// connections don't sit silent while the clock moves.
 	server.clock.Advance(16 * time.Minute)
 	events, stop := server.app.Hub.Subscribe()
 	defer stop()
-	token := createToken(t, admin, api.CreateEnrollmentTokenRequest{MaxUses: 2})
 	machines := map[string]*websocket.Conn{}
 	tags := []string{"fleet"}
 	for range 2 {
@@ -182,27 +184,26 @@ func TestSEC07_AScriptOnMoreThanOneMachineNeedsARecentSecondFactorOverHTTP(t *te
 	for id := range machines {
 		one = id
 	}
-	var script api.Script
-	save := api.SaveScriptRequest{Name: "Uptime", Language: "sh", Body: "uptime"}
-	admin.browser.do(http.MethodPost, "/api/scripts", save).decode(t, &script)
 	scriptPath := "/api/scripts/" + strconv.FormatInt(script.ID, 10)
 	onTag := api.RunScriptRequest{Target: api.ScriptTarget{Kind: "tag", Value: "fleet"}}
 	schedule := api.SaveScheduleRequest{ScriptID: script.ID, Cron: "0 3 * * *", Timezone: "UTC", Target: onTag.Target, Enabled: true}
 
-	// Without a recent check: several machines are refused, one isn't.
+	// Without a recent check: running anywhere, even on one machine, and
+	// switching a schedule on are refused.
+	onOne := api.RunScriptRequest{Target: api.ScriptTarget{Kind: "agent", Value: one}}
 	expect(t, admin.browser.do(http.MethodPost, scriptPath+"/run", onTag), http.StatusForbidden, "step_up_required")
+	expect(t, admin.browser.do(http.MethodPost, scriptPath+"/run", onOne), http.StatusForbidden, "step_up_required")
 	expect(t, admin.browser.do(http.MethodPost, "/api/schedules", schedule), http.StatusForbidden, "step_up_required")
 	if got := auditActions(t, server, "script.run"); len(got) != 0 {
 		t.Fatalf("a refused run was recorded as run: %v", got)
 	}
-	ran := serveScript(t, machines[one], "up 3 days\n", protocol.ScriptResult{})
-	onOne := api.RunScriptRequest{Target: api.ScriptTarget{Kind: "agent", Value: one}}
-	expect(t, admin.browser.do(http.MethodPost, scriptPath+"/run", onOne), http.StatusOK, "")
-	<-ran
-	server.app.Scripts.Wait()
 
 	// After one: the schedule saves, and the script runs on both.
 	expect(t, admin.browser.do(http.MethodPost, "/api/auth/step-up", api.TOTPCodeRequest{TOTPCode: server.code(admin.totpSecret)}), http.StatusOK, "")
+	ran := serveScript(t, machines[one], "up 3 days\n", protocol.ScriptResult{})
+	expect(t, admin.browser.do(http.MethodPost, scriptPath+"/run", onOne), http.StatusOK, "")
+	<-ran
+	server.app.Scripts.Wait()
 	expect(t, admin.browser.do(http.MethodPost, "/api/schedules", schedule), http.StatusOK, "")
 	var everyone []<-chan protocol.ScriptRunPayload
 	for _, conn := range machines {

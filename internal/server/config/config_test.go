@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -426,4 +427,35 @@ func TestResolveTURN(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResolveSetupAllowedFrom(t *testing.T) {
+	t.Run("defaults to this machine and private networks, never the internet", func(t *testing.T) {
+		resolved, err := config.File{}.Resolve()
+		if err != nil {
+			t.Fatal(err)
+		}
+		contains := func(ip string) bool {
+			return slices.ContainsFunc(resolved.SetupAllowedFrom, func(p netip.Prefix) bool { return p.Contains(netip.MustParseAddr(ip)) })
+		}
+		for _, ip := range []string{"127.0.0.1", "::1", "10.1.2.3", "172.17.0.1", "192.168.1.5", "100.100.1.1", "fd12::1"} {
+			if !contains(ip) {
+				t.Errorf("%s isn't allowed by default", ip)
+			}
+		}
+		for _, ip := range []string{"203.0.113.9", "8.8.8.8", "2001:db8::1"} {
+			if contains(ip) {
+				t.Errorf("%s is allowed by default", ip)
+			}
+		}
+	})
+
+	t.Run("takes the listed networks instead", func(t *testing.T) {
+		resolved, err := config.File{SetupAllowedFrom: []string{"203.0.113.0/24"}}.Resolve()
+		if err != nil || len(resolved.SetupAllowedFrom) != 1 || resolved.SetupAllowedFrom[0].String() != "203.0.113.0/24" {
+			t.Errorf("got %v, %v", resolved.SetupAllowedFrom, err)
+		}
+		_, err = config.File{SetupAllowedFrom: []string{"anywhere"}}.Resolve()
+		assertError(t, err, "setup_allowed_from")
+	})
 }

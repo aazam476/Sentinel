@@ -70,6 +70,9 @@ type AgentDetails struct {
 	Interfaces []NetworkInterface `json:"interfaces"`
 	// CanWake says an online machine on its network can wake it now.
 	CanWake bool `json:"canWake"`
+	// PlainHTTP says the machine is connected without TLS, so anyone on
+	// the network path could run commands on it (SEC-10).
+	PlainHTTP bool `json:"plainHttp"`
 }
 
 // NetworkInterface is one of a machine's network interfaces.
@@ -179,6 +182,7 @@ func (h *handlers) writeAgentDetails(w http.ResponseWriter, r *http.Request, ses
 		return
 	}
 	details.CanWake = session.Role.Can(auth.PermissionControlPower) && h.canWake(r, session, agent)
+	details.PlainHTTP = h.hub.IsPlainHTTP(agent.ID)
 	writeJSON(w, http.StatusOK, details)
 }
 

@@ -15,8 +15,12 @@ their confirmed TOTP secret, after which setup refuses (`internal/server/auth/se
 *Tests:* `TestSetupIsOpenOnlyUntilAnAdminExists`, `TestSEC02_SetupOverHTTP`,
 `TestAFreshServerWaitsForTheFirstAdminWithoutASetupToken`, Playwright "a fresh install sends
 every page to setup and signs no one in".
-**Limits:** whoever reaches a fresh server first can create its admin. INSTALL.md says to set
-it up before exposing the port.
+Setup is refused from outside `setup_allowed_from` (by default this machine and private
+networks) and, without `public_url`, from a browser that reached the server by a public name,
+which is how a DNS-rebinding page would (ADR 0055).
+*Tests:* `TestSEC01_SetupOnlyFromWhereItCantBeATakeover`, `TestResolveSetupAllowedFrom`.
+**Limits:** on a private network, whoever reaches a fresh server first can still create its
+admin. INSTALL.md says to set it up straight away.
 
 **SEC-02 First admin.** Setup takes a username and a password of at least 12 characters not on
 the bundled common-password list, then requires TOTP enrollment and shows 10 one-time recovery
@@ -64,11 +68,17 @@ ADR 0044).
 `TestSEC06_ATerminalEndsWithTheSessionThatOpenedIt`,
 `TestSEC06_ADesktopSessionEndsWithTheSessionThatOpenedIt`,
 `TestSEC06_AFollowedLogEndsWithTheSessionThatOpenedIt`.
+Only requests made within a minute of someone using the page (`X-Sentinel-Activity`) restart
+the idle timeout, so a tab left polling still signs out (ADR 0050).
+*Tests:* add the two "SEC-06: … polling" cases in `TestSEC06_SessionsOverHTTP` and
+`web/src/api/activity.test.ts`.
 *Limits:* an open terminal or desktop session counts as using the session, so it is the
 7-day limit, not the idle timeout, that ends one left open.
 
-**SEC-07 Step-up.** Opening a terminal or a desktop session, running a script on more than one
-machine, changing users, roles or the 2FA requirement, and adding or removing a second factor
+**SEC-07 Step-up.** Opening a terminal or a desktop session, running any script, switching a
+schedule on, saving a script, changing files, saving or deploying stacks, hosting agent builds,
+creating enrollment tokens, installing package updates, changing users, roles, passwords or the
+2FA requirement, and adding or removing a second factor
 need a second factor checked within 15 minutes (or, for a user without one, the password
 re-entered); the UI asks for it in place and retries (`auth/stepup.go`, `twofactor.go`). For
 scripts that covers the three ways a person can put one on several machines: running it,
@@ -76,14 +86,16 @@ saving a schedule that is on and reaches more than one, and changing a script su
 runs (`internal/server/scripts/stepup.go`, ADR 0043).
 *Tests:* `TestSEC07_OpeningATerminalNeedsARecentSecondFactor`,
 `TestSEC07_OpeningADesktopNeedsARecentSecondFactor`, `TestSEC07_ChangingUsersNeedsARecentSecondFactor`,
-`TestSEC07_StepUpOverHTTP`, `TestSEC07_RunningAScriptOnMoreThanOneMachineNeedsARecentSecondFactor`,
-`TestSEC07_ScheduleThatReachesMoreThanOneMachineNeedsARecentSecondFactor`,
+`TestSEC07_StepUpOverHTTP`, `TestSEC07_RunningAScriptNeedsARecentSecondFactor`,
+`TestSEC07_SwitchingAScheduleOnNeedsARecentSecondFactor`,
 `TestSEC07_ChangingAScriptScheduledOnMoreThanOneMachineNeedsARecentSecondFactor`,
-`TestSEC07_AScriptOnMoreThanOneMachineNeedsARecentSecondFactorOverHTTP`, the password step-up in
+`TestSEC07_RunningAScriptNeedsARecentSecondFactorOverHTTP`, the password step-up in
 `TestSEC04_TwoFactorIsEachUsersChoiceByDefault` and `TestSEC04_TwoFactorIsOptionalOverHTTP`,
 `TestSEC05_PasswordStepUpIsRateLimited`, component tests of the step-up dialog in each place.
-*Limits:* a script on one machine, the file manager, Docker and stacks need no step-up,
-though each can do what a terminal can; SEC-07 doesn't list them.
+`TestSEC07_ChangesThatGiveRootNeedARecentSecondFactor`, `TestSEC07_ResetPassword`, and the
+app-wide step-up dialog in `AddMachinePage.test.tsx` (ADR 0056).
+*Limits:* container actions (start, stop, remove) and container shells' own step-up follow
+the terminal's; reading files and logs needs none.
 
 **SEC-08 Local recovery.** `sentinel-server reset-admin` works only as root or the data
 directory's owner, and the admin must set up 2FA again (`cmd/sentinel-server/resetadmin.go`,
@@ -134,9 +146,15 @@ command the agent runs.
 ## Agent security
 
 **SEC-20 Agent state.** The key and identity live in a directory only root (Linux, macOS) or
-SYSTEM and Administrators (Windows, by ACL) can use (`internal/agent/identity`).
+SYSTEM and Administrators (Windows, by ACL) can use (`internal/agent/identity`). The agent
+also makes the directory and everything in it its own, refusing links, so a folder someone
+made before the install can't stay theirs; on Windows the policy file must be owned by SYSTEM,
+Administrators or TrustedInstaller and changeable by no one else (ADR 0051).
 *Tests:* `TestSEC20_OnlyTheAgentsUserCanUseTheStateDirectory`,
-`TestSEC20_OnlySystemAndAdministratorsCanUseTheStateDirectory` (on the Windows CI job).
+`TestSEC20_AStateDirectoryMadeBySomeoneElseIsTakenOver`,
+`TestSEC22_OnWindowsOnlyAdministratorsMayOwnOrChangeThePolicyFile`,
+`TestSEC20_OnlySystemAndAdministratorsCanUseTheStateDirectory` and
+`TestSEC20_FilesLeftInTheStateDirectoryAreSecuredToo` (on the Windows CI job).
 
 **SEC-21 Mutual authentication and revocation.** Both sides sign the other's random challenge
 with Ed25519 on every connection; revoking a machine closes its live connection at once
@@ -259,9 +277,21 @@ audited. Recording, a later feature, doesn't exist.
 ## Beyond the list
 
 - **Remote desktop's TURN relay** issues credentials per session that expire after eight hours
-  and refuses to relay to loopback, link-local, multicast and unspecified addresses, so a
-  signed-in user can't use it to reach the server's own services or a cloud metadata endpoint
-  (ADR 0033; `internal/server/turn` tests).
+  and refuses to relay to loopback, link-local, multicast and unspecified addresses or to any
+  of the server's own addresses, so a signed-in user can't use it to reach the server's own
+  services or a cloud metadata endpoint. One session's credentials hold at most 4 allocations,
+  the relay 200 (ADRs 0033, 0052; `TestPermitted`, `TestQuota`).
+- **Refused sign-ins and enrollments** are audited at most once a minute per network, with a
+  count of the rest, so clients that aren't signed in can't fill the disk (ADR 0048;
+  `TestThrottle`, `TestSEC40_RefusedLoginsCantFillTheAuditLog`,
+  `TestSEC40_RefusedEnrollmentsCantFillTheAuditLog`).
+- **Alerts from machines** are bounded: 100 per report, trimmed text, resolved ones pruned
+  after 90 days or beyond 500 per machine (ADR 0049; `TestAMachineCantGrowTheAlertsWithoutBound`).
+- **Plain HTTP agents** must be enrolled with `--insecure-http`, and the machine page warns
+  while one is connected without TLS (ADR 0054; the "SEC-10" cases in the setup, install and
+  machine page tests).
+- **Supply chain:** actions are pinned by commit and base images by digest, and CI fails on
+  any vulnerability `govulncheck` finds the code can reach (ADR 0053).
 - **The clipboard** is shared only in sessions with control, never view-only, and capped at
   64 KiB (ADR 0035).
 - **What can't be checked here:** the 72-hour soak test, the manual QA checklist and fresh

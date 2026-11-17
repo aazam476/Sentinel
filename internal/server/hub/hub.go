@@ -122,6 +122,14 @@ func (h *Hub) IsOnline(agentID int64) bool {
 	return ok
 }
 
+// IsPlainHTTP reports whether the agent is connected without TLS.
+func (h *Hub) IsPlainHTTP(agentID int64) bool {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	connection, ok := h.connections[agentID]
+	return ok && connection.plainHTTP
+}
+
 // Online lists the agents connected right now, in no particular order.
 func (h *Hub) Online() []int64 {
 	h.mutex.Lock()

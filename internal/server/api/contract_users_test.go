@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aazam476/sentinel/internal/server/api"
 )
@@ -159,4 +160,42 @@ func userID(t *testing.T, admin admin, username string) string {
 	}
 	t.Fatalf("no user %s", username)
 	return ""
+}
+
+func TestPasswordsOverHTTP(t *testing.T) {
+	t.Parallel()
+	const fresh = "a-new-and-long-passphrase-42"
+
+	t.Run("a user changes their own password with the current one", func(t *testing.T) {
+		server := newTestServer(t)
+		admin := server.setUpAdmin()
+		expect(t, admin.browser.do(http.MethodPost, "/api/auth/password", api.ChangePasswordRequest{CurrentPassword: "wrong one!", NewPassword: fresh}),
+			http.StatusUnauthorized, "invalid_credentials")
+		expect(t, admin.browser.do(http.MethodPost, "/api/auth/password", api.ChangePasswordRequest{CurrentPassword: strongPassword, NewPassword: "short"}),
+			http.StatusBadRequest, "invalid_input")
+		expect(t, admin.browser.do(http.MethodPost, "/api/auth/password", api.ChangePasswordRequest{CurrentPassword: strongPassword, NewPassword: fresh}),
+			http.StatusNoContent, "")
+		expect(t, server.newBrowser().do(http.MethodPost, "/api/auth/login", api.LoginRequest{Username: "admin", Password: fresh}), http.StatusOK, "")
+	})
+
+	t.Run("SEC-07: an admin resets another user's password with a recent second factor", func(t *testing.T) {
+		server := newTestServer(t)
+		admin := server.setUpAdmin()
+		viewer := server.addUser(admin, "carol", "viewer")
+		var users api.UsersResponse
+		admin.browser.do(http.MethodGet, "/api/users", nil).decode(t, &users)
+		var carol int64
+		for _, user := range users.Users {
+			if user.Username == "carol" {
+				carol = user.ID
+			}
+		}
+		path := "/api/users/" + strconv.FormatInt(carol, 10) + "/password"
+		expect(t, viewer.do(http.MethodPost, path, api.ResetPasswordRequest{Password: fresh}), http.StatusForbidden, "forbidden")
+		expect(t, admin.browser.do(http.MethodPost, path, api.ResetPasswordRequest{Password: fresh}), http.StatusNoContent, "")
+		expect(t, viewer.do(http.MethodGet, "/api/auth/session", nil), http.StatusUnauthorized, "not_authenticated")
+		server.clock.Advance(16 * time.Minute)
+		expect(t, admin.browser.do(http.MethodPost, path, api.ResetPasswordRequest{Password: fresh}), http.StatusForbidden, "step_up_required")
+		expect(t, admin.browser.do(http.MethodPost, "/api/users/9999/password", api.ResetPasswordRequest{Password: fresh}), http.StatusForbidden, "step_up_required")
+	})
 }

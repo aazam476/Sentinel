@@ -19,7 +19,7 @@ func (h *harness) fresh() { h.stepUp.err = nil }
 // together lists machines for an "agents" target.
 func together(first, second string) string { return first + "," + second }
 
-func TestSEC07_RunningAScriptOnMoreThanOneMachineNeedsARecentSecondFactor(t *testing.T) {
+func TestSEC07_RunningAScriptNeedsARecentSecondFactor(t *testing.T) {
 	cases := []struct {
 		name string
 		// target is where the script runs, given the nas, the pc and the
@@ -28,9 +28,9 @@ func TestSEC07_RunningAScriptOnMoreThanOneMachineNeedsARecentSecondFactor(t *tes
 		machines   int
 		wantStepUp bool
 	}{
-		{"one machine needs no check", func(nas, _ string) scripts.Target { return scripts.Target{Kind: "agent", Value: nas} }, 1, false},
+		{"one machine needs one too", func(nas, _ string) scripts.Target { return scripts.Target{Kind: "agent", Value: nas} }, 1, true},
 		{"a tag on two machines needs one", func(_, _ string) scripts.Target { return scripts.Target{Kind: "tag", Value: "homelab"} }, 2, true},
-		{"a tag on one machine needs none", func(_, _ string) scripts.Target { return scripts.Target{Kind: "tag", Value: "edge"} }, 1, false},
+		{"a tag on one machine needs one", func(_, _ string) scripts.Target { return scripts.Target{Kind: "tag", Value: "edge"} }, 1, true},
 		{"two machines picked by hand need one", func(nas, pc string) scripts.Target {
 			return scripts.Target{Kind: "agents", Value: together(nas, pc)}
 		}, 2, true},
@@ -79,7 +79,7 @@ func TestSEC07_RunningAScriptOnMoreThanOneMachineNeedsARecentSecondFactor(t *tes
 	})
 }
 
-func TestSEC07_ScheduleThatReachesMoreThanOneMachineNeedsARecentSecondFactor(t *testing.T) {
+func TestSEC07_SwitchingAScheduleOnNeedsARecentSecondFactor(t *testing.T) {
 	cases := []struct {
 		name       string
 		target     func(nas, pc string) scripts.Target
@@ -94,10 +94,10 @@ func TestSEC07_ScheduleThatReachesMoreThanOneMachineNeedsARecentSecondFactor(t *
 		{"on two machines passed off as one", func(nas, pc string) scripts.Target {
 			return scripts.Target{Kind: "agent", Value: together(nas, pc)}
 		}, true, true},
-		{"on one machine", func(nas, _ string) scripts.Target { return scripts.Target{Kind: "agent", Value: nas} }, true, false},
+		{"on one machine", func(nas, _ string) scripts.Target { return scripts.Target{Kind: "agent", Value: nas} }, true, true},
 		{"on one machine named twice", func(nas, _ string) scripts.Target {
 			return scripts.Target{Kind: "agents", Value: together(nas, nas)}
-		}, true, false},
+		}, true, true},
 		{"on a tag, but paused", func(_, _ string) scripts.Target { return scripts.Target{Kind: "tag", Value: "homelab"} }, false, false},
 	}
 	for _, tc := range cases {

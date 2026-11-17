@@ -108,7 +108,7 @@ func (s *Service) SaveSchedule(ctx context.Context, actor auth.Session, request 
 	if _, err := s.GetScript(ctx, schedule.ScriptID); err != nil {
 		return Schedule{}, &InvalidError{"scriptId", "choose a script from the library"}
 	}
-	if schedule.Enabled && schedule.Target.reachesMany() {
+	if schedule.Enabled {
 		if err := s.requireStepUp(actor); err != nil {
 			return Schedule{}, err
 		}

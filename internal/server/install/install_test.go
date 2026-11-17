@@ -150,6 +150,13 @@ func TestSEC34_ShellInstallerVerifiesBeforeInstalling(t *testing.T) {
 		}
 	})
 
+	t.Run("passes --insecure-http on to the agent", func(t *testing.T) {
+		output, err := run(t, host(t, key, agent, runtime.GOOS, agent), "--insecure-http")
+		if err != nil || !strings.Contains(output, "--dry-run --insecure-http") {
+			t.Errorf("%v\n%s", err, output)
+		}
+	})
+
 	refusals := []struct {
 		name   string
 		builds func() fakeBuilds

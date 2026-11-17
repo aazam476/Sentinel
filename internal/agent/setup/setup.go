@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/aazam476/sentinel/internal/agent/core"
 	"github.com/aazam476/sentinel/internal/agent/identity"
@@ -56,7 +57,16 @@ type Server struct {
 	Token          string
 	Fingerprint    string
 	TLSFingerprint string
+	// InsecureHTTP allows a plain http:// server: anyone on the network
+	// path could then read and change everything between the two, and so
+	// run commands on this machine as root.
+	InsecureHTTP bool
 }
+
+// ErrPlainHTTP means the server's address is http:// and --insecure-http
+// wasn't given. It is never reassigned.
+var ErrPlainHTTP = errors.New("the server's address is plain http://: anyone on the network path could take over this machine; " +
+	"use the server's https:// address, or pass --insecure-http if every network between them is trusted")
 
 // ErrAlreadyEnrolled means the machine already has an agent identity. It
 // is never reassigned.
@@ -65,6 +75,9 @@ var ErrAlreadyEnrolled = errors.New("this machine is already enrolled; run `sent
 // Enroll registers the agent with the server and saves its identity and a
 // starter policy file, without installing the service.
 func Enroll(ctx context.Context, options Options, server Server) error {
+	if strings.HasPrefix(strings.ToLower(server.URL), "http://") && !server.InsecureHTTP {
+		return ErrPlainHTTP
+	}
 	if options.DryRun {
 		options.say("Would create %s, readable only by root, for the agent's key and identity", options.Paths.StateDir)
 		options.say("Would enroll with %s and check its key against %s", server.URL, server.Fingerprint)

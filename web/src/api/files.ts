@@ -39,6 +39,8 @@ function useFileChange<T, R>(id: string, change: (input: T) => Promise<R>) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: change,
+    // Changing files needs a recent second factor (SEC-07).
+    meta: { stepUp: true },
     onSettled: () => queryClient.invalidateQueries({ queryKey: fileKeys.all(id) }),
   });
 }

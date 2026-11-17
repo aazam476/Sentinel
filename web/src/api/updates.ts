@@ -26,6 +26,8 @@ function useUpdateChange<T, R>(change: (input: T) => Promise<R>) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: change,
+    // Hosting builds needs a recent second factor (SEC-07).
+    meta: { stepUp: true },
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: updateKeys.builds }),

@@ -100,10 +100,8 @@ func (s *Service) Start(ctx context.Context, actor auth.Session, request auth.Re
 	if err != nil {
 		return 0, err
 	}
-	if len(planned.agents) > 1 {
-		if err := s.requireStepUp(actor); err != nil {
-			return 0, err
-		}
+	if err := s.requireStepUp(actor); err != nil {
+		return 0, err
 	}
 	userID := actor.UserID
 	entry := audit.Entry{UserID: &userID, Username: actor.Username, Action: "script.run", Outcome: audit.OutcomeSuccess, IP: request.IP}

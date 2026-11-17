@@ -67,3 +67,14 @@ describe('installCommands', () => {
     expect(curlPin('SHA256:AAAA')).toBe('sha256//AAAA');
   });
 });
+
+describe('SEC-10 plain HTTP', () => {
+  it('adds --insecure-http to every command only for an http:// server', () => {
+    for (const command of installCommands(created, 'http://192.168.1.5:7443')) {
+      expect(command.command).toMatch(/--insecure-http|-InsecureHttp/);
+    }
+    for (const command of installCommands(created, 'https://sentinel.example.com')) {
+      expect(command.command).not.toMatch(/insecure-http|InsecureHttp/i);
+    }
+  });
+});

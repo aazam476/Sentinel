@@ -56,7 +56,9 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	conn.SetReadLimit(maxFrameSize)
-	h.serve(r.Context(), newConnection(h, conn, agent, hello))
+	connection := newConnection(h, conn, agent, hello)
+	connection.plainHTTP = !middleware.ClientInfoFrom(r.Context()).IsHTTPS
+	h.serve(r.Context(), connection)
 }
 
 func (h *Hub) closeAfterFailedHandshake(conn *websocket.Conn, ip string, err error) {

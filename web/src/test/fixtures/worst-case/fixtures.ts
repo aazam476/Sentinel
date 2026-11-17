@@ -328,6 +328,7 @@ export const worstMachine: AgentDetails = {
     addresses: [`172.17.${String(index)}.254/16`, `fd00:dead:beef:${index.toString(16)}::1/64`],
   })),
   canWake: true,
+  plainHttp: true,
 };
 
 export const worstTokens: EnrollmentToken[] = [

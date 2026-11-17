@@ -27,7 +27,7 @@ fail() {
 	exit 1
 }
 
-server="" token="" fingerprint="" tls_fingerprint="" install_dir="" dry_run=""
+server="" token="" fingerprint="" tls_fingerprint="" install_dir="" dry_run="" insecure_http=""
 while [ "$#" -gt 0 ]; do
 	case "$1" in
 	--server) server="${2:-}"; shift 2 ;;
@@ -36,6 +36,7 @@ while [ "$#" -gt 0 ]; do
 	--tls-fingerprint) tls_fingerprint="${2:-}"; shift 2 ;;
 	--install-dir) install_dir="${2:-}"; shift 2 ;;
 	--dry-run) dry_run="--dry-run"; shift ;;
+	--insecure-http) insecure_http="--insecure-http"; shift ;;
 	*) fail "unknown option $1; copy the command from the server's Add machine page" ;;
 	esac
 done
@@ -130,4 +131,5 @@ chmod 755 "$agent"
 set -- install --server "$server" --token "$token" --fingerprint "$fingerprint"
 [ -n "$tls_fingerprint" ] && set -- "$@" --tls-fingerprint "$tls_fingerprint"
 [ -n "$dry_run" ] && set -- "$@" --dry-run
+[ -n "$insecure_http" ] && set -- "$@" --insecure-http
 exec "$agent" "$@" ${SENTINEL_AGENT_FLAGS:-}

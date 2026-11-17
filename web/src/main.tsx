@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './App';
+import { pageActivity } from './api/activity';
 import { recoverFromPreloadErrors } from './routing/preloadRecovery';
 import './styles/tokens.css';
 import './styles/global.css';
@@ -13,6 +14,8 @@ const rootElement = document.getElementById('root');
 if (rootElement === null) {
   throw new Error('index.html is missing the #root element');
 }
+
+pageActivity.watch(window);
 
 recoverFromPreloadErrors(window, {
   storage: (() => {

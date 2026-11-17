@@ -22,6 +22,9 @@ type connection struct {
 	conn  *websocket.Conn
 	agent fleet.Agent
 	hello protocol.HelloPayload
+	// plainHTTP is set when the agent connected without TLS (SEC-10): the
+	// machine page warns that anyone on the path could take it over.
+	plainHTTP bool
 
 	// lastActivity is when the last message arrived, in Unix
 	// milliseconds; the heartbeat watchdog reads it.

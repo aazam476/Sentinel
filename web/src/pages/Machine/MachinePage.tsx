@@ -68,6 +68,12 @@ export function MachinePage() {
           ))}
         </p>
       </header>
+      {machine.plainHttp && (
+        <p className={styles.warning} role="alert">
+          This machine is connected over plain HTTP: anyone on the network between it and the server
+          could run commands on it. Enroll it again with the server’s https:// address.
+        </p>
+      )}
       <MachineTabs session={session} machine={machine} />
       <Outlet context={context} />
     </div>

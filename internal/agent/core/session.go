@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -51,6 +52,10 @@ func (a *Agent) session(ctx context.Context) (welcomed bool, err error) {
 	handshakeCtx, cancel := clock.WithTimeout(ctx, a.options.Clock, handshakeTimeout)
 	defer cancel()
 	a.observe(EventConnecting)
+	if strings.HasPrefix(strings.ToLower(a.options.State.ServerURL), "http://") {
+		a.options.Logger.Warn("connecting to the server over plain HTTP: anyone on the network path can take over this machine; "+
+			"re-enroll with the server's https:// address", "server", a.options.State.ServerURL)
+	}
 	conn, err := dial(handshakeCtx, a.options.State.ServerURL, a.tlsConfig)
 	if err != nil {
 		return false, err

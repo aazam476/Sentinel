@@ -86,6 +86,7 @@ func runEnroll(command string, args []string, stdout, stderr io.Writer) int {
 	flags.StringVar(&server.Token, "token", "", "the enrollment token from the server's Add machine page")
 	flags.StringVar(&server.Fingerprint, "fingerprint", "", "the server key fingerprint from the install command")
 	flags.StringVar(&server.TLSFingerprint, "tls-fingerprint", "", "the server's self-signed certificate fingerprint, if it uses one")
+	flags.BoolVar(&server.InsecureHTTP, "insecure-http", false, "allow a plain http:// server address, on networks you trust completely")
 	dryRun := flags.Bool("dry-run", false, "describe the steps without changing anything")
 	if err := flags.Parse(args); err != nil {
 		return exitUsageError

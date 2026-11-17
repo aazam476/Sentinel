@@ -152,3 +152,29 @@ describe('add machine', () => {
     expect(await screen.findByText('None in the last week.')).toBeVisible();
   });
 });
+
+describe('SEC-07 add machine needs a recent second factor', () => {
+  it('opens the step-up dialog when the server asks, then asks to try again', async () => {
+    signedInAs(adminSession);
+    withTokens();
+    let calls = 0;
+    server.use(
+      http.post(apiPath('enrollment-tokens'), () => {
+        calls += 1;
+        return calls === 1
+          ? apiError(403, 'step_up_required', 'Confirm it’s you first.')
+          : json(created, 201);
+      }),
+      http.post(apiPath('auth/step-up'), () => json(adminSession)),
+    );
+    renderApp('/machines/add');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Create install command' }));
+    const dialog = await screen.findByRole('dialog', { name: /Confirm/ });
+    await user.type(within(dialog).getByRole('textbox'), '123456');
+    await user.click(within(dialog).getByRole('button', { name: /Confirm/ }));
+    expect(await screen.findByText('Confirmed. Now do that again.')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Create install command' }));
+    expect(await screen.findByRole('heading', { name: 'Run this on the machine' })).toBeVisible();
+  });
+});

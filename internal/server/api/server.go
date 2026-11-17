@@ -102,13 +102,28 @@ func (h *handlers) anySession(next sessionHandler) http.HandlerFunc {
 		if err == nil {
 			token = cookie.Value
 		}
-		session, err := h.auth.Authenticate(r.Context(), token)
+		session, err := h.sessionFor(r, token)
 		if err != nil {
 			h.writeError(w, err)
 			return
 		}
 		next(w, r, session)
 	}
+}
+
+// activityHeader marks a request made because someone used the page. The
+// browser sends it only within a minute of a key press, click, touch or
+// scroll, so a page that polls or reacts to events on its own doesn't keep
+// an idle session open (SEC-06).
+const activityHeader = "X-Sentinel-Activity"
+
+// sessionFor checks the request's session; only activity restarts its
+// idle timeout.
+func (h *handlers) sessionFor(r *http.Request, token string) (auth.Session, error) {
+	if r.Header.Get(activityHeader) == "1" {
+		return h.auth.Authenticate(r.Context(), token)
+	}
+	return h.auth.CheckSession(r.Context(), token)
 }
 
 // signedIn runs next only for a session that has finished signing in: both
@@ -130,6 +145,19 @@ func (h *handlers) withPermission(permission auth.Permission, next sessionHandle
 	return h.signedIn(func(w http.ResponseWriter, r *http.Request, session auth.Session) {
 		if !session.Role.Can(permission) {
 			h.writeError(w, auth.ErrForbidden)
+			return
+		}
+		next(w, r, session)
+	})
+}
+
+// withStepUp is withPermission for actions that give root on a machine, or
+// hand someone the means to: they also need a recent second factor, or
+// the password for a user without one (SEC-07, ADR 0056).
+func (h *handlers) withStepUp(permission auth.Permission, next sessionHandler) http.HandlerFunc {
+	return h.withPermission(permission, func(w http.ResponseWriter, r *http.Request, session auth.Session) {
+		if err := h.auth.RequireRecentSecondFactor(session); err != nil {
+			h.writeError(w, err)
 			return
 		}
 		next(w, r, session)

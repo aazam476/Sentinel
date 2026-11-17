@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http } from 'msw';
+import { http, HttpResponse } from 'msw';
 import { afterEach, vi } from 'vitest';
 
 import { findAccessibilityViolations } from '../../test/axe';
@@ -179,6 +179,39 @@ describe('account page', () => {
     mockAccount();
     const { container } = renderApp('/account');
     await screen.findByText('Safari on macOS');
+    expect(await findAccessibilityViolations(container)).toEqual([]);
+  });
+});
+
+describe('password', () => {
+  it('changes the password with the current one, and says what was wrong', async () => {
+    signedInAs(adminSession);
+    mockAccount();
+    const sent: unknown[] = [];
+    server.use(
+      http.post(apiPath('auth/password'), async ({ request }) => {
+        const body = (await request.json()) as { currentPassword: string };
+        sent.push(body);
+        return body.currentPassword === 'right one'
+          ? new HttpResponse(null, { status: 204 })
+          : apiError(401, 'invalid_credentials', 'Wrong username or password.');
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderApp('/account');
+    await user.type(await screen.findByLabelText('Current password'), 'wrong one');
+    await user.type(screen.getByLabelText('New password'), 'a-new-and-long-passphrase');
+    await user.type(screen.getByLabelText('New password again'), 'a-new-and-long-passphras');
+    expect(screen.getByText('The two new passwords are different.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Change password' })).toBeDisabled();
+    await user.type(screen.getByLabelText('New password again'), 'e');
+    await user.click(screen.getByRole('button', { name: 'Change password' }));
+    expect(await screen.findByText('That isn’t your current password.')).toBeVisible();
+    await user.clear(screen.getByLabelText('Current password'));
+    await user.type(screen.getByLabelText('Current password'), 'right one');
+    await user.click(screen.getByRole('button', { name: 'Change password' }));
+    expect(await screen.findByText(/Password changed/)).toBeVisible();
+    expect(sent).toHaveLength(2);
     expect(await findAccessibilityViolations(container)).toEqual([]);
   });
 });

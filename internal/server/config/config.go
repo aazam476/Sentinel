@@ -47,6 +47,9 @@ type Config struct {
 	BasePath string
 	// TrustedProxies are the networks whose X-Forwarded-* headers count.
 	TrustedProxies []netip.Prefix
+	// SetupAllowedFrom are the networks first-time setup may be done from
+	// (ADR 0055); never empty.
+	SetupAllowedFrom []netip.Prefix
 	// TLS holds the HTTPS settings.
 	TLS TLS
 	// MaxFileBytes is the largest file the file manager moves (§9.7).
@@ -110,6 +113,9 @@ func (file File) Resolve() (Config, error) {
 		return Config{}, err
 	}
 	if config.TrustedProxies, err = parseTrustedProxies(file.TrustedProxies); err != nil {
+		return Config{}, err
+	}
+	if config.SetupAllowedFrom, err = setupNetworks(file.SetupAllowedFrom); err != nil {
 		return Config{}, err
 	}
 	if err := validateTransport(config); err != nil {

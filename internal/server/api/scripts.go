@@ -142,8 +142,9 @@ func (h *handlers) addScriptRoutes(mux *http.ServeMux) {
 		return h.withPermission(auth.PermissionRunScripts, handler)
 	}
 	mux.HandleFunc("GET /api/scripts", run(h.handleListScripts))
-	mux.HandleFunc("POST /api/scripts", run(h.handleSaveScript))
-	mux.HandleFunc("PUT /api/scripts/{script}", run(h.handleSaveScript))
+	// Editing a script changes what its schedules run, as root.
+	mux.HandleFunc("POST /api/scripts", h.withStepUp(auth.PermissionRunScripts, h.handleSaveScript))
+	mux.HandleFunc("PUT /api/scripts/{script}", h.withStepUp(auth.PermissionRunScripts, h.handleSaveScript))
 	mux.HandleFunc("DELETE /api/scripts/{script}", run(h.handleDeleteScript))
 	mux.HandleFunc("POST /api/scripts/{script}/run", run(h.handleRunScript))
 	mux.HandleFunc("GET /api/script-batches", run(h.handleListBatches))

@@ -120,6 +120,11 @@ export interface AgentDetails extends Agent {
    * CanWake says an online machine on its network can wake it now.
    */
   canWake: boolean;
+  /**
+   * PlainHTTP says the machine is connected without TLS, so anyone on
+   * the network path could run commands on it (SEC-10).
+   */
+  plainHttp: boolean;
 }
 /**
  * NetworkInterface is one of a machine's network interfaces.
@@ -1318,6 +1323,19 @@ export interface CreateUserRequest {
   username: string;
   password: string;
   role: string;
+}
+/**
+ * ChangePasswordRequest is the body of POST /api/auth/password.
+ */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+/**
+ * ResetPasswordRequest is the body of POST /api/users/{id}/password.
+ */
+export interface ResetPasswordRequest {
+  password: string;
 }
 /**
  * UpdateUserRequest changes a user. Missing fields are left as they are.

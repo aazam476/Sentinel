@@ -24,13 +24,16 @@ can't see for itself. Without them, remote desktop still works, through the HTTP
 
 Open `https://<this host>:7443`, accept the self-signed certificate, and create the first
 admin. Setup offers to add an authenticator app; you can skip it and add one, or a passkey,
-later from **Account**. To make everyone use two-factor authentication, turn on **Require it
+later from **Account**, where people also change their own password; admins reset other users' on **Users**. To make everyone use two-factor authentication, turn on **Require it
 for everyone** on the **Users** page.
 
-**Do this straight away, before anyone else can reach the server.** Until the first admin
-exists, whoever opens the page first can create it and own the server. Keep the port off the
-internet (a firewall rule, or a private network or VPN) until you've done it. If someone else
-got there first, stop the server, delete the data directory or volume, and start again.
+**Do this straight away.** Until the first admin exists, whoever opens the page first can
+create it and own the server. To stop that being someone on the internet, setup only works
+from this machine or a private network (list another address under `setup_allowed_from` in
+`server.toml` if you must). Unless `public_url` is set, it also only works when the browser
+reached the server by its IP address, `localhost` or a local name, so a web page can't do it
+through someone's browser on your network (ADR 0055). If someone else got there first, stop
+the server, delete the data directory or volume, and start again.
 
 With Docker Compose, use [`compose.yaml`](../compose.yaml) from the repository:
 
@@ -79,6 +82,9 @@ public_url = ""
 base_path = ""
 # Proxies whose X-Forwarded-* headers are believed (IPs or CIDR ranges).
 trusted_proxies = []
+# Where first-time setup may be done from. Empty means this machine and
+# private networks; list your address to set up a server over the internet.
+setup_allowed_from = []
 
 [tls]
 # "self-signed" (the default), "acme" (Let's Encrypt), or "off".
@@ -140,6 +146,13 @@ the latest release**, or upload a build and its `.sig` if the server can't reach
 Then go to **Machines → Add machine** and choose **Create install command**. The command
 carries a one-time enrollment token and the server's key fingerprint, so copy it exactly. It
 works for the number of machines and the time you chose.
+
+Agents refuse a plain `http://` server address: anyone on the network between the machine and
+the server could then run commands on it as root. If the server is only reachable over HTTP and
+you trust every network in between, the Add machine page adds `--insecure-http` (`-InsecureHttp`
+in PowerShell) and says so, and the machine's page warns while it is connected that way. Agents
+enrolled over HTTP before this change keep working, and log a warning each time they connect.
+See ADR 0054.
 
 ### Linux and macOS
 

@@ -32,6 +32,17 @@ type CreateUserRequest struct {
 	Role     string `json:"role"`
 }
 
+// ChangePasswordRequest is the body of POST /api/auth/password.
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+// ResetPasswordRequest is the body of POST /api/users/{id}/password.
+type ResetPasswordRequest struct {
+	Password string `json:"password"`
+}
+
 // UpdateUserRequest changes a user. Missing fields are left as they are.
 type UpdateUserRequest struct {
 	Role     *string `json:"role"`
@@ -93,4 +104,34 @@ func userResponse(user auth.User) UserResponse {
 		ID: user.ID, Username: user.Username, Role: string(user.Role), CreatedAt: user.CreatedAt,
 		Disabled: user.DisabledAt != nil, TwoFactor: user.HasSecondFactor,
 	}
+}
+
+// handleChangePassword is POST /api/auth/password: the user's own.
+func (h *handlers) handleChangePassword(w http.ResponseWriter, r *http.Request, session auth.Session) {
+	var request ChangePasswordRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if err := h.auth.ChangePassword(r.Context(), session, request.CurrentPassword, request.NewPassword, requestInfo(r)); err != nil {
+		h.writeError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleResetPassword is POST /api/users/{id}/password, for admins.
+func (h *handlers) handleResetPassword(w http.ResponseWriter, r *http.Request, session auth.Session) {
+	userID, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var request ResetPasswordRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if err := h.auth.ResetPassword(r.Context(), session, userID, request.Password, requestInfo(r)); err != nil {
+		h.writeError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

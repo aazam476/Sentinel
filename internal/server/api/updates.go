@@ -81,8 +81,9 @@ func (h *handlers) addUpdateRoutes(mux *http.ServeMux) {
 		return h.withPermission(auth.PermissionManageMachines, handler)
 	}
 	mux.HandleFunc("GET /api/agent-builds", manage(h.handleListBuilds))
-	mux.HandleFunc("POST /api/agent-builds", manage(h.handleUploadBuild))
-	mux.HandleFunc("POST /api/agent-builds/fetch", manage(h.handleFetchBuilds))
+	// A hosted build is what machines update to.
+	mux.HandleFunc("POST /api/agent-builds", h.withStepUp(auth.PermissionManageMachines, h.handleUploadBuild))
+	mux.HandleFunc("POST /api/agent-builds/fetch", h.withStepUp(auth.PermissionManageMachines, h.handleFetchBuilds))
 	mux.HandleFunc("PUT /api/agent-builds/auto-update", manage(h.handleSetAutoUpdate))
 	mux.HandleFunc("POST /api/agent-updates", manage(h.handleUpdateAgents))
 	mux.Handle("GET /install/updates/{version}/{file}", h.updates.Handler())

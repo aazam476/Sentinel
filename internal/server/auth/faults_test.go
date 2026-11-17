@@ -131,6 +131,18 @@ func TestDatabaseFailuresAreReported(t *testing.T) {
 		}},
 		{name: "create user", fault: failing("INSERT", "users"), run: createViewer},
 		{name: "create user audit", fault: failing("INSERT", "audit_log"), run: createViewer},
+		{name: "change password lookup", fault: failReads, run: changeOwnPassword},
+		{name: "change password", fault: failing("UPDATE", "users"), run: changeOwnPassword},
+		{name: "change password other sessions", fault: failing("DELETE", "sessions"), run: changeOwnPassword},
+		{name: "change password audit", fault: failing("INSERT", "audit_log"), run: changeOwnPassword},
+		{name: "wrong current password audit", fault: failing("INSERT", "audit_log"), run: func(t *testing.T, h *harness, f fixture, inject func()) error {
+			inject()
+			return expectNot(h.service.ChangePassword(t.Context(), f.adminSession, "not the password!", newPassword, testClient()), auth.ErrInvalidCredentials)
+		}},
+		{name: "reset password lookup", fault: failReads, run: resetViewerPassword},
+		{name: "reset password", fault: failing("UPDATE", "users"), run: resetViewerPassword},
+		{name: "reset password sessions", fault: failing("DELETE", "sessions"), run: resetViewerPassword},
+		{name: "reset password audit", fault: failing("INSERT", "audit_log"), run: resetViewerPassword},
 		{name: "change role", fault: failing("UPDATE", "users"), run: makeViewerOperator},
 		{name: "change role audit", fault: failing("INSERT", "audit_log"), run: makeViewerOperator},
 		{name: "disable user sessions", fault: failing("DELETE", "sessions"), run: disableViewer},
@@ -418,4 +430,21 @@ func runSetup(t *testing.T, h *harness, inject func()) error {
 	inject()
 	_, err = h.service.CompleteSetup(t.Context(), auth.CompleteSetupInput{SetupID: begun.SetupID, TOTPCode: h.code(begun.TOTP.Secret)}, testClient())
 	return err
+}
+
+func changeOwnPassword(t *testing.T, h *harness, f fixture, inject func()) error {
+	t.Helper()
+	f.pending(t, h) // another session, for the change to end
+	inject()
+	return h.service.ChangePassword(t.Context(), f.adminSession, f.admin.password, newPassword, testClient())
+}
+
+func resetViewerPassword(t *testing.T, h *harness, f fixture, inject func()) error {
+	t.Helper()
+	viewer := f.viewerID(t, h)
+	if _, err := h.service.Login(t.Context(), auth.LoginInput{Username: "viewer", Password: strongPassword}, auth.RequestInfo{IP: "192.0.2.79"}); err != nil {
+		t.Fatal(err) // a session, for the reset to end
+	}
+	inject()
+	return h.service.ResetPassword(t.Context(), f.adminSession, viewer, newPassword, testClient())
 }
